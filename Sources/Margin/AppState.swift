@@ -14,10 +14,23 @@ final class AppState: ObservableObject {
         do {
             if let url = try VaultPicker.resolveStoredVault() {
                 openVault(url: url)
+                restoreLastNote()
             }
         } catch {
             VaultPicker.clearStoredVault()
         }
+    }
+
+    private func restoreLastNote() {
+        guard let root = vaultRoot,
+              let path = UserDefaults.standard.string(forKey: UserDefaultsKeys.lastSelectedNotePath)
+        else { return }
+        let url = URL(fileURLWithPath: path)
+        // Must still exist AND be inside the vault (security + correctness).
+        guard FileManager.default.fileExists(atPath: url.path),
+              url.path.hasPrefix(root.path + "/")
+        else { return }
+        openNote(url)
     }
 
     func chooseVault() {
@@ -81,12 +94,18 @@ final class AppState: ObservableObject {
         return collectNotes(in: tree, currentPath: vaultRoot, target: folder)
     }
 
+    private func isPathInside(_ child: URL, _ parent: URL) -> Bool {
+        let p = parent.path
+        let c = child.path
+        return c == p || c.hasPrefix(p + "/")
+    }
+
     private func collectNotes(in nodes: [VaultNode], currentPath: URL?, target: URL) -> [URL] {
         if currentPath == target {
             return nodes.compactMap { if case .note(let u) = $0 { return u } else { return nil } }
         }
         for node in nodes {
-            if case .folder(let url, let children) = node, target.path.hasPrefix(url.path) {
+            if case .folder(let url, let children) = node, isPathInside(target, url) {
                 if let hit = collectNotesIn(folderURL: url, children: children, target: target) {
                     return hit
                 }
@@ -100,7 +119,7 @@ final class AppState: ObservableObject {
             return children.compactMap { if case .note(let u) = $0 { return u } else { return nil } }
         }
         for node in children {
-            if case .folder(let url, let nested) = node, target.path.hasPrefix(url.path) {
+            if case .folder(let url, let nested) = node, isPathInside(target, url) {
                 if let hit = collectNotesIn(folderURL: url, children: nested, target: target) {
                     return hit
                 }
