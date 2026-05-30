@@ -18,11 +18,17 @@ private struct WindowAccessor: NSViewRepresentable {
 @main
 struct MarginApp: App {
     @StateObject private var state = AppState()
+    @StateObject private var theme = ThemeStore()
+
+    init() {
+        FontStack.register()
+    }
 
     var body: some Scene {
         WindowGroup("Margin") {
             RootView()
                 .environmentObject(state)
+                .environmentObject(theme)
                 .background(WindowAccessor { win in
                     win.setFrameAutosaveName("MarginMainWindow")
                 })

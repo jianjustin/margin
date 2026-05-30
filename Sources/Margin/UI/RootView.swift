@@ -2,6 +2,7 @@ import SwiftUI
 
 struct RootView: View {
     @EnvironmentObject var state: AppState
+    @EnvironmentObject var theme: ThemeStore
 
     var body: some View {
         Group {
@@ -12,9 +13,11 @@ struct RootView: View {
             }
         }
         .frame(minWidth: 900, minHeight: 600)
+        .preferredColorScheme(theme.mode == .dark ? .dark : .light)
         .sheet(isPresented: $state.searchSheetVisible) {
             SearchSheet()
                 .environmentObject(state)
+                .environmentObject(theme)
         }
     }
 }
