@@ -65,4 +65,21 @@ final class MarkdownStylerTests: XCTestCase {
         XCTAssertEqual(attrs[.font] as? NSFont, typo.mono)
         XCTAssertNotNil(attrs[.backgroundColor])
     }
+
+    func testParagraphStyleAppliesLineHeight() {
+        let text = "hello"
+        let a = MarkdownStyler.style(text, activeRange: nil, typography: typo)
+        let attrs = a.attributes(at: 0, effectiveRange: nil)
+        let pstyle = attrs[.paragraphStyle] as? NSParagraphStyle
+        XCTAssertNotNil(pstyle, "paragraph style must be set")
+        XCTAssertEqual(pstyle?.lineHeightMultiple ?? 0, typo.bodyLineHeightMultiplier, accuracy: 0.001)
+    }
+
+    func testBlockQuoteMarkerUsesQuoteBarColor() {
+        let text = "> quoted line"
+        let a = MarkdownStyler.style(text, activeRange: nil, typography: typo)
+        // First char is '>' — should be quoteBar color.
+        let attrs = a.attributes(at: 0, effectiveRange: nil)
+        XCTAssertEqual(attrs[.foregroundColor] as? NSColor, typo.quoteBar)
+    }
 }
