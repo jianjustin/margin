@@ -12,6 +12,11 @@ settings:
     CODE_SIGN_IDENTITY: "-"
     ENABLE_HARDENED_RUNTIME: NO
     ENABLE_APP_SANDBOX: NO
+packages:
+  GRDB:
+    url: https://github.com/groue/GRDB.swift
+    from: 6.29.0
+
 targets:
   Margin:
     type: application
@@ -27,6 +32,9 @@ targets:
         LSMinimumSystemVersion: "14.0"
         NSHumanReadableCopyright: "Personal use"
         NSPrincipalClass: NSApplication
+    dependencies:
+      - package: GRDB
+        product: GRDB
     scheme:
       testTargets:
         - MarginTests
