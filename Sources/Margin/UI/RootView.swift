@@ -34,8 +34,3 @@ struct ThreePaneView: View {
     }
 }
 
-// MARK: - Placeholders (replaced in Task 10)
-
-struct EditorView: View {
-    var body: some View { Text("EditorView – Task 10") }
-}
