@@ -138,7 +138,7 @@ Sources/Margin/
 
 `UserDefaults` keys（新增至 `UserDefaultsKeys`）：
 - `themeMode`: `"dark" | "light"`
-- `accentIndex`: `0..4`（M3.5 强制 0）
+- `themeAccent`: `0..4`（M3.5 强制 0）
 - `editorFontKey`: `"sans" | "mono" | "serif" | "system"`（M3.5 强制 sans）
 - `editorFontSize`: `Double`（默认 16）
 

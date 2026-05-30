@@ -50,4 +50,11 @@ final class ThemeStoreTests: XCTestCase {
         let s2 = ThemeStore()
         XCTAssertEqual(s2.fontSize, 18, accuracy: 0.001)
     }
+
+    func testFontKeyPersists() {
+        let s = ThemeStore()
+        s.fontKey = .serif
+        let s2 = ThemeStore()
+        XCTAssertEqual(s2.fontKey, .serif)
+    }
 }

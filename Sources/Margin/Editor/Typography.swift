@@ -73,6 +73,9 @@ struct Typography {
             return NSFontManager.shared.convert(bodyFont, toHaveTrait: .boldFontMask)
         }()
 
+        // Non-sans fontKeys fall back to system bold for headings (no IBM
+        // Plex Serif/Mono heading face is bundled). Revisit when a heading
+        // face is specced for serif/mono body modes.
         let h1 = (fontKey == .sans)
             ? FontStack.ui(size: size * 1.62, weight: .semibold)
             : NSFont.systemFont(ofSize: size * 1.62, weight: .bold)
