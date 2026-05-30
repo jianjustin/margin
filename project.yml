@@ -1,0 +1,42 @@
+name: Margin
+options:
+  bundleIdPrefix: com.jianjustin
+  deploymentTarget:
+    macOS: "14.0"
+  developmentLanguage: en
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    CODE_SIGN_STYLE: Automatic
+    CODE_SIGN_IDENTITY: "-"
+    ENABLE_HARDENED_RUNTIME: NO
+    ENABLE_APP_SANDBOX: NO
+targets:
+  Margin:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources/Margin
+    info:
+      path: Sources/Margin/Info.plist
+      properties:
+        CFBundleDisplayName: Margin
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
+        LSMinimumSystemVersion: "14.0"
+        NSHumanReadableCopyright: "Personal use"
+        NSPrincipalClass: NSApplication
+    scheme:
+      testTargets:
+        - MarginTests
+  MarginTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: Tests/MarginTests
+    dependencies:
+      - target: Margin
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
