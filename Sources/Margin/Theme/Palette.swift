@@ -102,7 +102,7 @@ struct Palette {
             textDim:     oklch(l: 0.46,  c: 0.012, h: 75),
             textFaint:   oklch(l: 0.64,  c: 0.012, h: 75),
             accent:      acc,
-            accentInk:   oklch(l: 0.99,  c: 0.02,  h: 90),
+            accentInk:   oklch(l: 0.99,  c: 0.015, h: 90),
             accentSoft:  acc.withAlphaComponent(0.12),
             accentLine:  acc.withAlphaComponent(0.30),
             selection:   acc.withAlphaComponent(0.18),

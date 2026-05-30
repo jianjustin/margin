@@ -20,6 +20,7 @@ final class PaletteTests: XCTestCase {
         XCTAssertEqual(r, 1, accuracy: 0.01)
         XCTAssertEqual(g, 1, accuracy: 0.01)
         XCTAssertEqual(b, 1, accuracy: 0.01)
+        XCTAssertEqual(a, 1, accuracy: 0.001)
     }
 
     func testDarkPaletteBgIsDark() {
