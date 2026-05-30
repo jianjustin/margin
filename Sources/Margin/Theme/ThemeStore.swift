@@ -1,4 +1,3 @@
-import AppKit
 import Foundation
 import SwiftUI
 
@@ -36,6 +35,7 @@ final class ThemeStore: ObservableObject {
     init() {
         let d = UserDefaults.standard
         let mode = Mode(rawValue: d.string(forKey: UserDefaultsKeys.themeMode) ?? "") ?? .dark
+        // integer(forKey:) returns 0 when absent; warmGold.rawValue == 0 by design.
         let accent = Palette.Accent(rawValue: d.integer(forKey: UserDefaultsKeys.themeAccent)) ?? .warmGold
         let key = FontKey(rawValue: d.string(forKey: UserDefaultsKeys.editorFontKey) ?? "") ?? .sans
         let storedSize = d.double(forKey: UserDefaultsKeys.editorFontSize)

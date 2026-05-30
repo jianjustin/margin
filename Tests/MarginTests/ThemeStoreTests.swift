@@ -5,6 +5,14 @@ import XCTest
 final class ThemeStoreTests: XCTestCase {
 
     override func setUp() async throws {
+        clearThemeDefaults()
+    }
+
+    override func tearDown() async throws {
+        clearThemeDefaults()
+    }
+
+    private func clearThemeDefaults() {
         let d = UserDefaults.standard
         d.removeObject(forKey: UserDefaultsKeys.themeMode)
         d.removeObject(forKey: UserDefaultsKeys.themeAccent)
