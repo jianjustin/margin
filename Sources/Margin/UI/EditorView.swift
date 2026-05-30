@@ -3,6 +3,7 @@ import AppKit
 
 struct EditorView: View {
     @EnvironmentObject var state: AppState
+    @EnvironmentObject var theme: ThemeStore
 
     var body: some View {
         Group {
@@ -11,10 +12,9 @@ struct EditorView: View {
             } else {
                 VStack(spacing: 0) {
                     EditorToolbar()
-                    MarkdownEditor(text: $state.noteBody, onChange: {
-                        state.bodyChanged()
-                    })
-                    .background(Color(NSColor.textBackgroundColor))
+                    MarkdownEditor(text: $state.noteBody,
+                                   onChange: { state.bodyChanged() })
+                    .background(Color(theme.palette.bg))
                 }
             }
         }
@@ -23,31 +23,41 @@ struct EditorView: View {
 
 private struct EditorToolbar: View {
     @EnvironmentObject var state: AppState
+    @EnvironmentObject var theme: ThemeStore
 
     var body: some View {
-        HStack {
+        HStack(spacing: 8) {
             if let url = state.selectedNoteURL {
                 Text(url.deletingPathExtension().lastPathComponent)
                     .font(.headline)
+                    .foregroundStyle(Color(theme.palette.text))
             }
             if state.dirty {
                 Circle()
-                    .fill(.orange)
+                    .fill(Color(theme.palette.accent))
                     .frame(width: 8, height: 8)
                     .help("Unsaved changes")
             }
             Spacer()
+            Button(action: { theme.toggleMode() }) {
+                Image(systemName: theme.mode == .dark ? "sun.max" : "moon")
+                    .foregroundStyle(Color(theme.palette.textDim))
+            }
+            .buttonStyle(.plain)
+            .help("Toggle theme")
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
-        .background(Color(NSColor.windowBackgroundColor))
-        .overlay(Divider(), alignment: .bottom)
+        .background(Color(theme.palette.bgPanel))
+        .overlay(Divider().background(Color(theme.palette.borderSoft)),
+                 alignment: .bottom)
     }
 }
 
 private struct MarkdownEditor: NSViewRepresentable {
     @Binding var text: String
     let onChange: () -> Void
+    @EnvironmentObject var theme: ThemeStore
 
     func makeNSView(context: Context) -> NSScrollView {
         let scroll = NSTextView.scrollableTextView()
@@ -62,59 +72,73 @@ private struct MarkdownEditor: NSViewRepresentable {
         tv.usesInspectorBar = false
         tv.allowsUndo = true
         tv.textContainerInset = NSSize(width: 48, height: 32)
-        tv.backgroundColor = .textBackgroundColor
-        // Initial empty content; updateNSView will populate.
+        tv.backgroundColor = theme.palette.bg
+        tv.insertionPointColor = theme.palette.accent
+        tv.selectedTextAttributes = [
+            .backgroundColor: theme.palette.selection
+        ]
+        context.coordinator.typography = Typography.from(palette: theme.palette,
+                                                         size: CGFloat(theme.fontSize),
+                                                         fontKey: theme.fontKey)
         return scroll
     }
 
     func updateNSView(_ nsView: NSScrollView, context: Context) {
         guard let tv = nsView.documentView as? NSTextView else { return }
-        context.coordinator.syncIfNeeded(tv: tv, externalText: text)
+        let newTypo = Typography.from(palette: theme.palette,
+                                      size: CGFloat(theme.fontSize),
+                                      fontKey: theme.fontKey)
+        let typoChanged = context.coordinator.typography.body != newTypo.body
+            || context.coordinator.typography.primaryText != newTypo.primaryText
+            || context.coordinator.typography.editorBackground != newTypo.editorBackground
+        context.coordinator.typography = newTypo
+        if typoChanged {
+            tv.backgroundColor = newTypo.editorBackground
+            tv.insertionPointColor = theme.palette.accent
+            tv.selectedTextAttributes = [.backgroundColor: theme.palette.selection]
+        }
+        context.coordinator.syncIfNeeded(tv: tv, externalText: text, forceRestyle: typoChanged)
     }
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
     final class Coordinator: NSObject, NSTextViewDelegate {
         let parent: MarkdownEditor
-        let typo = Typography.current()
+        var typography = Typography.current()
         private var suppressDelegate = false
 
         init(_ parent: MarkdownEditor) { self.parent = parent }
 
-        /// Called when SwiftUI's `text` binding changes externally (e.g., opening a new note).
-        /// If the text is different from the NSTextView, replace it; otherwise just re-style.
-        func syncIfNeeded(tv: NSTextView, externalText: String) {
+        func syncIfNeeded(tv: NSTextView, externalText: String, forceRestyle: Bool = false) {
             if tv.string != externalText {
                 let savedSelection = tv.selectedRange()
                 suppressDelegate = true
                 let styled = makeAttributed(text: externalText, cursor: 0)
                 tv.textStorage?.setAttributedString(styled)
-                // After full text replace, clamp selection to within new bounds.
                 let clampedLoc = min(savedSelection.location, externalText.utf16.count)
                 tv.setSelectedRange(NSRange(location: clampedLoc, length: 0))
                 suppressDelegate = false
+            } else if forceRestyle {
+                applyAttributes(tv: tv)
             } else {
                 applyAttributes(tv: tv)
             }
         }
 
-        /// Re-style the current NSTextView's text based on current cursor position.
         func applyAttributes(tv: NSTextView) {
             let selection = tv.selectedRange()
             let cursor = selection.location
             let styled = makeAttributed(text: tv.string, cursor: cursor)
-            let savedSelection = selection
             suppressDelegate = true
             tv.textStorage?.setAttributedString(styled)
-            tv.setSelectedRange(savedSelection)
+            tv.setSelectedRange(selection)
             suppressDelegate = false
         }
 
         private func makeAttributed(text: String, cursor: Int) -> NSAttributedString {
             let active = ActiveParagraph.range(in: text, cursor: cursor)
-            // A length-0 active range (cursor on blank line) means "no active paragraph".
             let activeOrNil: NSRange? = active.length > 0 ? active : nil
-            return MarkdownStyler.style(text, activeRange: activeOrNil, typography: typo)
+            return MarkdownStyler.style(text, activeRange: activeOrNil, typography: typography)
         }
 
         func textDidChange(_ notification: Notification) {
