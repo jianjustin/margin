@@ -1,47 +1,47 @@
-# M1 Manual Verification
+# M1 手动验收
 
-Date: 2026-05-30
-Tester: <fill in>
-Vault used: `~/Library/CloudStorage/OneDrive-个人/笔记库`
+日期：2026-05-30
+验收人：<待填>
+使用的 vault：`~/Library/CloudStorage/OneDrive-个人/笔记库`
 
-Check off each item as it passes; record bugs inline.
+逐项核对通过后打勾；发现的问题写在下方"问题 / 备注"。
 
-- [ ] App launches showing "Welcome to Margin" with a Choose Vault button
-- [ ] Choosing the vault loads the file tree in the left pane
-- [ ] `.obsidian`, `.claude`, and `.trash` (if present) are visible in the file tree
-- [ ] Clicking a folder shows its `.md` files in the middle pane
-- [ ] Clicking a note loads its content into the right-side editor
-- [ ] Editing the note shows the orange dirty dot
-- [ ] After ~1s of no typing, the dirty dot disappears (auto-save fired)
-- [ ] Reopening the same note shows the saved content
-- [ ] Cmd-S saves immediately
-- [ ] Cmd-Shift-O reopens the vault picker
-- [ ] Quit + relaunch restores: window position, column widths, last vault (no re-pick), last note open
-- [ ] Editing the same `.md` from outside (e.g. Obsidian) and switching back to Margin: not yet expected to auto-reload (deferred to M2 file watcher); document the gap
+- [ ] 启动后显示"Welcome to Margin"欢迎页，有"Choose Vault"按钮
+- [ ] 选择 vault 后左栏加载出文件树
+- [ ] 文件树中可见 `.obsidian`、`.claude`、`.trash`（若存在）等隐藏目录
+- [ ] 点击文件夹后，中栏显示该目录下的 `.md` 笔记
+- [ ] 点击笔记后，右栏编辑器加载该笔记内容
+- [ ] 在编辑器中输入时出现橙色"未保存"圆点
+- [ ] 停止输入约 1 秒后，橙色圆点消失（自动保存生效）
+- [ ] 重新打开同一笔记，能看到刚才保存的内容
+- [ ] Cmd-S 立即保存
+- [ ] Cmd-Shift-O 重新弹出 vault 选择器
+- [ ] 退出并重新启动后，恢复：窗口位置、栏宽、上次的 vault（无需重选）、上次打开的笔记
+- [ ] 在外部程序（如 Obsidian）修改同一 `.md` 后切回 Margin：当前不会自动重载（已延后到 M2 的文件监听），确认行为符合预期
 
-## How to launch
+## 如何启动
 
 ```bash
 cd /Users/jianjustin/workspaces/margin
 open build/Build/Products/Debug/Margin.app
 ```
 
-Or rebuild + launch:
+或重新构建后启动：
 ```bash
 xcodebuild -scheme Margin -configuration Debug -derivedDataPath build/ -destination "platform=macOS" build
 open build/Build/Products/Debug/Margin.app
 ```
 
-## Known limitations (deferred to M2+)
+## 已知限制（延后至 M2+）
 
-- No Markdown rendering — editor shows raw text only (M3)
-- No double links (M4)
-- No search (M2)
-- No backlinks (M4)
-- No tag tree (M5)
-- No external-file-change auto-reload (M2)
-- macOS Sonoma (14.0) minimum
+- 暂无 Markdown 渲染——编辑器只显示原始文本（M3）
+- 暂无双链 `[[ ]]`（M4）
+- 暂无搜索（M2）
+- 暂无反向链接面板（M4）
+- 暂无 Tag 树（M5）
+- 暂无外部文件变更自动重载（M2）
+- 最低系统版本：macOS Sonoma (14.0)
 
-## Bugs / notes
+## 问题 / 备注
 
 -
