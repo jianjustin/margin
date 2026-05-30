@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import GRDB
 
 @MainActor
 final class AppState: ObservableObject {
@@ -9,6 +10,15 @@ final class AppState: ObservableObject {
     @Published var selectedNoteURL: URL?
     @Published var noteBody: String = ""
     @Published var dirty: Bool = false
+
+    // Index layer (M2)
+    private var indexStore: IndexStore?
+    private var indexer: Indexer?
+    private var watcher: FileWatcher?
+    @Published var indexing: Bool = false
+    var searchService: SearchService? {
+        indexStore.map { SearchService(store: $0) }
+    }
 
     func loadStoredVault() {
         do {
@@ -46,6 +56,47 @@ final class AppState: ObservableObject {
 
     func openVault(url: URL) {
         vaultRoot = url
+        rescan()
+        Task { await initializeIndex(vaultRoot: url) }
+    }
+
+    private func initializeIndex(vaultRoot: URL) async {
+        do {
+            let dbURL = try IndexLocation.default()
+            let store = try IndexStore(databaseURL: dbURL)
+            self.indexStore = store
+            let idx = Indexer(store: store)
+            self.indexer = idx
+
+            indexing = true
+            try await idx.fullScan(vaultRoot: vaultRoot)
+            indexing = false
+
+            // Start watcher AFTER initial scan so we don't re-index every file we just wrote.
+            let captured = vaultRoot
+            let watcher = FileWatcher(root: captured, debounceMillis: 500) { [weak self] urls in
+                Task { @MainActor in
+                    guard let self else { return }
+                    await self.handleFileEvents(urls: urls, vaultRoot: captured)
+                }
+            }
+            watcher.start()
+            self.watcher = watcher
+        } catch {
+            NSLog("Index init failed: \(error)")
+            indexing = false
+        }
+    }
+
+    private func handleFileEvents(urls: [URL], vaultRoot: URL) async {
+        guard let indexer else { return }
+        let mdURLs = urls.filter { url in
+            url.pathExtension.lowercased() == "md" &&
+            url.path.hasPrefix(vaultRoot.path + "/")
+        }
+        for url in mdURLs {
+            try? await indexer.updateFile(url, vaultRoot: vaultRoot)
+        }
         rescan()
     }
 
