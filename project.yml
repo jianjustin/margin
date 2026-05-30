@@ -26,6 +26,10 @@ targets:
     platform: macOS
     sources:
       - path: Sources/Margin
+        excludes:
+          - "Resources/**"
+    resources:
+      - path: Sources/Margin/Resources
     info:
       path: Sources/Margin/Info.plist
       properties:
