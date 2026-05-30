@@ -18,6 +18,9 @@ struct Typography {
     let primaryText: NSColor
     let secondaryText: NSColor
     let tertiaryText: NSColor
+    // Field name kept as `linkBlue` for now; value is `palette.accent` (warm
+    // gold in default theme). Renaming touches every MarkdownStyler call site —
+    // deferred to M3.8 alongside the block-chrome work.
     let linkBlue: NSColor
     let tagPurple: NSColor
     let codeBackground: NSColor
@@ -95,7 +98,7 @@ struct Typography {
             linkBlue:       p.accent,            // wiki/links now use accent (gold)
             tagPurple:      p.tagPurple,         // tag keeps purple (visual distinction)
             codeBackground: p.codeBackground,
-            quoteBar:       p.accent.withAlphaComponent(0.55),
+            quoteBar:       p.quoteBar,
             hiddenSyntax:   p.hiddenSyntax,
             editorBackground: p.bg
         )

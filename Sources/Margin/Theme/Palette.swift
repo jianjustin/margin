@@ -84,7 +84,7 @@ struct Palette {
             linkBlue:    NSColor(red: 0x4A/255, green: 0x90/255, blue: 0xE2/255, alpha: 1.0),
             tagPurple:   NSColor(red: 0x58/255, green: 0x56/255, blue: 0xD6/255, alpha: 1.0),
             codeBackground: oklch(l: 0.245, c: 0.007, h: 70),
-            quoteBar:    acc.withAlphaComponent(0.32),
+            quoteBar:    acc.withAlphaComponent(0.55),
             hiddenSyntax: .clear
         )
     }
@@ -109,7 +109,7 @@ struct Palette {
             linkBlue:    NSColor(red: 0x4A/255, green: 0x90/255, blue: 0xE2/255, alpha: 1.0),
             tagPurple:   NSColor(red: 0x58/255, green: 0x56/255, blue: 0xD6/255, alpha: 1.0),
             codeBackground: oklch(l: 0.945, c: 0.007, h: 85),
-            quoteBar:    acc.withAlphaComponent(0.30),
+            quoteBar:    acc.withAlphaComponent(0.50),
             hiddenSyntax: .clear
         )
     }
