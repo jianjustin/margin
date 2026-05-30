@@ -16,6 +16,9 @@ packages:
   GRDB:
     url: https://github.com/groue/GRDB.swift
     from: 6.29.0
+  Markdown:
+    url: https://github.com/apple/swift-markdown
+    from: 0.4.0
 
 targets:
   Margin:
@@ -35,6 +38,8 @@ targets:
     dependencies:
       - package: GRDB
         product: GRDB
+      - package: Markdown
+        product: Markdown
     scheme:
       testTargets:
         - MarginTests
