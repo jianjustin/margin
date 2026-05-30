@@ -12,6 +12,10 @@ struct RootView: View {
             }
         }
         .frame(minWidth: 900, minHeight: 600)
+        .sheet(isPresented: $state.searchSheetVisible) {
+            SearchSheet()
+                .environmentObject(state)
+        }
     }
 }
 

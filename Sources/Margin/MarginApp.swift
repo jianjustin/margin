@@ -39,6 +39,13 @@ struct MarginApp: App {
                     .keyboardShortcut("s", modifiers: .command)
                     .disabled(state.selectedNoteURL == nil)
             }
+            CommandGroup(after: .textEditing) {
+                Button("Find in Notes…") {
+                    state.searchSheetVisible = true
+                }
+                .keyboardShortcut("f", modifiers: [.command, .shift])
+                .disabled(state.vaultRoot == nil)
+            }
         }
     }
 }

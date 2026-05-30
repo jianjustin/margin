@@ -10,6 +10,7 @@ final class AppState: ObservableObject {
     @Published var selectedNoteURL: URL?
     @Published var noteBody: String = ""
     @Published var dirty: Bool = false
+    @Published var searchSheetVisible: Bool = false
 
     // Index layer (M2)
     private var indexStore: IndexStore?
