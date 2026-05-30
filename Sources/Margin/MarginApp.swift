@@ -2,11 +2,25 @@ import SwiftUI
 
 @main
 struct MarginApp: App {
+    @StateObject private var state = AppState()
+
     var body: some Scene {
         WindowGroup("Margin") {
-            Text("Margin – M1 skeleton")
-                .frame(minWidth: 900, minHeight: 600)
+            RootView()
+                .environmentObject(state)
+                .task { state.loadStoredVault() }
         }
         .windowStyle(.titleBar)
+        .commands {
+            CommandGroup(replacing: .newItem) {
+                Button("Choose Vault…") { state.chooseVault() }
+                    .keyboardShortcut("o", modifiers: [.command, .shift])
+            }
+            CommandGroup(replacing: .saveItem) {
+                Button("Save") { state.saveCurrent() }
+                    .keyboardShortcut("s", modifiers: .command)
+                    .disabled(state.selectedNoteURL == nil)
+            }
+        }
     }
 }
