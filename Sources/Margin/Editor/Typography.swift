@@ -1,7 +1,8 @@
 import AppKit
 
 /// All fonts and colors used by MarkdownStyler.
-/// Resolve via `Typography.current()` for the active appearance.
+/// Build with `Typography.from(palette:size:fontKey:)` at runtime;
+/// `current()` returns the default-theme value for tests and as a fallback.
 struct Typography {
     // MARK: Fonts
     let body: NSFont
@@ -23,33 +24,80 @@ struct Typography {
     let quoteBar: NSColor
     let hiddenSyntax: NSColor
 
+    // MARK: Background (NEW — editor area uses this)
+    let editorBackground: NSColor
+
     // MARK: Paragraph metrics
-    let bodyLineHeightMultiplier: CGFloat = 1.55
+    let bodyLineHeightMultiplier: CGFloat = 1.72
     let bodyParagraphSpacing: CGFloat = 8
 
+    /// Default-theme Typography (dark + warm gold + IBM Plex sans 16pt).
+    /// Used by tests and as the fallback before ThemeStore is wired.
     static func current() -> Typography {
-        let body = NSFont.systemFont(ofSize: 16)
-        let bodyBold = NSFontManager.shared.convert(body, toHaveTrait: .boldFontMask)
-        let bodyItalic = NSFontManager.shared.convert(body, toHaveTrait: .italicFontMask)
-        let mono = NSFont.monospacedSystemFont(ofSize: 14, weight: .regular)
+        return from(palette: Palette.dark(accent: .warmGold),
+                    size: 16,
+                    fontKey: .sans)
+    }
+
+    /// Build Typography from a runtime palette + size + font family choice.
+    static func from(palette p: Palette,
+                     size: CGFloat,
+                     fontKey: ThemeStore.FontKey) -> Typography {
+        let bodyFont: NSFont
+        let monoFont = FontStack.mono(size: size - 2.5)
+        switch fontKey {
+        case .sans:
+            bodyFont = FontStack.ui(size: size, weight: .regular)
+        case .mono:
+            bodyFont = FontStack.mono(size: size)
+        case .serif:
+            bodyFont = FontStack.serif(size: size, weight: .regular)
+        case .system:
+            bodyFont = NSFont.systemFont(ofSize: size)
+        }
+
+        // Italic via FontStack so IBM Plex Italic is picked up when present.
+        let italic: NSFont = {
+            if fontKey == .sans {
+                return FontStack.ui(size: size, weight: .regular, italic: true)
+            }
+            return NSFontManager.shared.convert(bodyFont, toHaveTrait: .italicFontMask)
+        }()
+        let bold: NSFont = {
+            if fontKey == .sans {
+                return FontStack.ui(size: size, weight: .semibold)
+            }
+            return NSFontManager.shared.convert(bodyFont, toHaveTrait: .boldFontMask)
+        }()
+
+        let h1 = (fontKey == .sans)
+            ? FontStack.ui(size: size * 1.62, weight: .semibold)
+            : NSFont.systemFont(ofSize: size * 1.62, weight: .bold)
+        let h2 = (fontKey == .sans)
+            ? FontStack.ui(size: size * 1.32, weight: .semibold)
+            : NSFont.systemFont(ofSize: size * 1.32, weight: .bold)
+        let h3 = (fontKey == .sans)
+            ? FontStack.ui(size: size * 1.10, weight: .semibold)
+            : NSFont.systemFont(ofSize: size * 1.10, weight: .bold)
+        let h4 = (fontKey == .sans)
+            ? FontStack.ui(size: size * 1.05, weight: .medium)
+            : NSFont.systemFont(ofSize: size * 1.05, weight: .semibold)
 
         return Typography(
-            body: body,
-            bodyBold: bodyBold,
-            bodyItalic: bodyItalic,
-            mono: mono,
-            h1: NSFont.systemFont(ofSize: 28, weight: .bold),
-            h2: NSFont.systemFont(ofSize: 24, weight: .bold),
-            h3: NSFont.systemFont(ofSize: 20, weight: .bold),
-            h4: NSFont.systemFont(ofSize: 18, weight: .semibold),
-            primaryText: NSColor.labelColor,
-            secondaryText: NSColor.secondaryLabelColor,
-            tertiaryText: NSColor.tertiaryLabelColor,
-            linkBlue: NSColor(red: 0x4A/255, green: 0x90/255, blue: 0xE2/255, alpha: 1.0),
-            tagPurple: NSColor(red: 0x58/255, green: 0x56/255, blue: 0xD6/255, alpha: 1.0),
-            codeBackground: NSColor.quaternaryLabelColor.withAlphaComponent(0.18),
-            quoteBar: NSColor.tertiaryLabelColor,
-            hiddenSyntax: NSColor.clear
+            body: bodyFont,
+            bodyBold: bold,
+            bodyItalic: italic,
+            mono: monoFont,
+            h1: h1, h2: h2, h3: h3, h4: h4,
+            primaryText:    p.text,
+            secondaryText:  p.textDim,
+            tertiaryText:   p.textFaint,
+            linkBlue:       p.accent,            // wiki/links now use accent (gold)
+            tagPurple:      p.tagPurple,         // tag keeps purple (visual distinction)
+            codeBackground: p.codeBackground,
+            quoteBar:       p.accent.withAlphaComponent(0.55),
+            hiddenSyntax:   p.hiddenSyntax,
+            editorBackground: p.bg
         )
     }
 
