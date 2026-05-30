@@ -17,16 +17,16 @@ struct RootView: View {
 
 struct ThreePaneView: View {
     @EnvironmentObject var state: AppState
-    @State private var sidebarWidth: CGFloat = 240
-    @State private var noteListWidth: CGFloat = 260
+    @AppStorage(UserDefaultsKeys.sidebarWidth) private var sidebarWidth: Double = 240
+    @AppStorage(UserDefaultsKeys.noteListWidth) private var noteListWidth: Double = 260
 
     var body: some View {
         NavigationSplitView {
             FileTreeView()
-                .navigationSplitViewColumnWidth(min: 180, ideal: sidebarWidth, max: 360)
+                .navigationSplitViewColumnWidth(min: 180, ideal: CGFloat(sidebarWidth), max: 360)
         } content: {
             NoteListView()
-                .navigationSplitViewColumnWidth(min: 200, ideal: noteListWidth, max: 400)
+                .navigationSplitViewColumnWidth(min: 200, ideal: CGFloat(noteListWidth), max: 400)
         } detail: {
             EditorView()
         }

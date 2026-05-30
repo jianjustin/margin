@@ -1,4 +1,19 @@
 import SwiftUI
+import AppKit
+
+private struct WindowAccessor: NSViewRepresentable {
+    let onWindow: (NSWindow) -> Void
+
+    func makeNSView(context: Context) -> NSView {
+        let v = NSView()
+        DispatchQueue.main.async {
+            if let win = v.window { onWindow(win) }
+        }
+        return v
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {}
+}
 
 @main
 struct MarginApp: App {
@@ -8,6 +23,9 @@ struct MarginApp: App {
         WindowGroup("Margin") {
             RootView()
                 .environmentObject(state)
+                .background(WindowAccessor { win in
+                    win.setFrameAutosaveName("MarginMainWindow")
+                })
                 .task { state.loadStoredVault() }
         }
         .windowStyle(.titleBar)
