@@ -15,9 +15,31 @@ struct RootView: View {
     }
 }
 
-// Placeholder for Task 8.
 struct ThreePaneView: View {
+    @EnvironmentObject var state: AppState
+    @State private var sidebarWidth: CGFloat = 240
+    @State private var noteListWidth: CGFloat = 260
+
     var body: some View {
-        Text("ThreePaneView – filled in Task 8")
+        NavigationSplitView {
+            FileTreeView()
+                .navigationSplitViewColumnWidth(min: 180, ideal: sidebarWidth, max: 360)
+        } content: {
+            NoteListView()
+                .navigationSplitViewColumnWidth(min: 200, ideal: noteListWidth, max: 400)
+        } detail: {
+            EditorView()
+        }
+        .navigationSplitViewStyle(.balanced)
     }
+}
+
+// MARK: - Placeholders (replaced in Tasks 9 & 10)
+
+struct NoteListView: View {
+    var body: some View { Text("NoteListView – Task 9") }
+}
+
+struct EditorView: View {
+    var body: some View { Text("EditorView – Task 10") }
 }
