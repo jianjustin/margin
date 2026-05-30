@@ -27,7 +27,8 @@ enum FontStack {
     private static let lock = NSLock()
 
     /// Register every .ttf inside the bundle's Fonts/ subdirectory.
-    /// Safe to call repeatedly; no-op after the first successful call.
+    /// Safe to call repeatedly; no-op after the first call (regardless of
+    /// per-file registration result — CTFont errors are intentionally swallowed).
     static func register() {
         lock.lock(); defer { lock.unlock() }
         guard !didRegister else { return }
@@ -47,9 +48,7 @@ enum FontStack {
     // MARK: - Lookup
 
     static func ui(size: CGFloat, weight: Weight = .regular, italic: Bool = false) -> NSFont {
-        let face = italic
-            ? plexFaceName(family: "IBM Plex Sans", weight: weight, italic: true)
-            : plexFaceName(family: "IBM Plex Sans", weight: weight, italic: false)
+        let face = plexFaceName(family: "IBM Plex Sans", weight: weight, italic: italic)
         if let f = NSFont(name: face, size: size) { return f }
         let sys = NSFont.systemFont(ofSize: size, weight: weight.ns)
         if italic {

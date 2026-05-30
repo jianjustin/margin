@@ -41,7 +41,7 @@ final class FontStackTests: XCTestCase {
     func testWeightMapping() {
         let regular = FontStack.ui(size: 16, weight: .regular)
         let bold = FontStack.ui(size: 16, weight: .semibold)
-        XCTAssertNotEqual(regular.fontName, bold.fontName.isEmpty ? "" : bold.fontName,
+        XCTAssertNotEqual(regular.fontName, bold.fontName,
                           "semibold should resolve to a different concrete font than regular")
     }
 }
