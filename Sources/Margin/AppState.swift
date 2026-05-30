@@ -45,7 +45,20 @@ final class AppState: ObservableObject {
         selectedFolder = url
     }
 
+    private var autoSaveTask: Task<Void, Never>?
+
+    func bodyChanged() {
+        dirty = true
+        autoSaveTask?.cancel()
+        autoSaveTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            guard !Task.isCancelled else { return }
+            await MainActor.run { self?.saveCurrent() }
+        }
+    }
+
     func openNote(_ url: URL) {
+        autoSaveTask?.cancel()
         if dirty, let current = selectedNoteURL {
             try? FileIO.write(noteBody, to: current)
             dirty = false
@@ -53,6 +66,7 @@ final class AppState: ObservableObject {
         selectedNoteURL = url
         noteBody = (try? FileIO.read(url)) ?? ""
         dirty = false
+        UserDefaults.standard.set(url.path, forKey: UserDefaultsKeys.lastSelectedNotePath)
     }
 
     func saveCurrent() {

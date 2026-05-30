@@ -12,7 +12,7 @@ struct EditorView: View {
                 VStack(spacing: 0) {
                     EditorToolbar()
                     PlainTextEditor(text: $state.noteBody, onChange: {
-                        state.dirty = true
+                        state.bodyChanged()
                     })
                     .background(Color(NSColor.textBackgroundColor))
                 }
