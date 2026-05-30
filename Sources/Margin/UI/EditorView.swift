@@ -49,8 +49,12 @@ private struct EditorToolbar: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
         .background(Color(theme.palette.bgPanel))
-        .overlay(Divider().background(Color(theme.palette.borderSoft)),
-                 alignment: .bottom)
+        // SwiftUI's Divider() wraps NSBox which paints opaquely on macOS,
+        // ignoring `.background`. Use a thin Color frame as the separator.
+        .overlay(
+            Color(theme.palette.borderSoft).frame(height: 0.5),
+            alignment: .bottom
+        )
     }
 }
 
@@ -119,8 +123,9 @@ private struct MarkdownEditor: NSViewRepresentable {
                 tv.setSelectedRange(NSRange(location: clampedLoc, length: 0))
                 suppressDelegate = false
             } else if forceRestyle {
-                applyAttributes(tv: tv)
-            } else {
+                // Theme/font snapshot changed — re-style with the new Typography.
+                // We intentionally skip styling when nothing changed; the
+                // selection-tracking restyle is handled by textViewDidChangeSelection.
                 applyAttributes(tv: tv)
             }
         }
