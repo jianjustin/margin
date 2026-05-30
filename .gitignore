@@ -1,0 +1,17 @@
+# Xcode
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+DerivedData/
+build/
+.swiftpm/
+
+# macOS
+.DS_Store
+
+# SPM
+Package.resolved
+.build/
+
+# Generated
+Margin.xcodeproj
