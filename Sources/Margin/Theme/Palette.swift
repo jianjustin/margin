@@ -26,6 +26,7 @@ struct Palette {
     // until block-chrome work in M3.8 replaces them.
     let linkBlue: NSColor    // [[wiki]] and [label](url)
     let tagPurple: NSColor   // #tag
+    let canvasBlue: NSColor  // file-tree icon for .canvas files
     let codeBackground: NSColor
     let quoteBar: NSColor
     let hiddenSyntax: NSColor // NSColor.clear
@@ -83,6 +84,7 @@ struct Palette {
             selection:   acc.withAlphaComponent(0.20),
             linkBlue:    NSColor(red: 0x4A/255, green: 0x90/255, blue: 0xE2/255, alpha: 1.0),
             tagPurple:   NSColor(red: 0x58/255, green: 0x56/255, blue: 0xD6/255, alpha: 1.0),
+            canvasBlue:  NSColor(red: 0x4A/255, green: 0x90/255, blue: 0xE2/255, alpha: 1.0),
             codeBackground: oklch(l: 0.245, c: 0.007, h: 70),
             quoteBar:    acc.withAlphaComponent(0.55),
             hiddenSyntax: .clear
@@ -108,6 +110,7 @@ struct Palette {
             selection:   acc.withAlphaComponent(0.18),
             linkBlue:    NSColor(red: 0x4A/255, green: 0x90/255, blue: 0xE2/255, alpha: 1.0),
             tagPurple:   NSColor(red: 0x58/255, green: 0x56/255, blue: 0xD6/255, alpha: 1.0),
+            canvasBlue:  NSColor(red: 0x4A/255, green: 0x90/255, blue: 0xE2/255, alpha: 1.0),
             codeBackground: oklch(l: 0.945, c: 0.007, h: 85),
             quoteBar:    acc.withAlphaComponent(0.50),
             hiddenSyntax: .clear

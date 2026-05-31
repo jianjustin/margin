@@ -82,7 +82,7 @@ struct FileTreeRow: View {
         if row.isFolder { return theme.palette.accent }
         switch row.fileExtension {
         case "md": return theme.palette.accent
-        case "canvas": return NSColor(red: 0x4A/255, green: 0x90/255, blue: 0xE2/255, alpha: 1)
+        case "canvas": return theme.palette.canvasBlue
         case "json": return theme.palette.textFaint
         default: return theme.palette.textFaint
         }
