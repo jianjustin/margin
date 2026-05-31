@@ -36,7 +36,9 @@ struct MarginApp: App {
                     win.styleMask.insert(.fullSizeContentView)
                     // No system toolbar; the SwiftUI TitleBar paints this region.
                     win.toolbarStyle = .unified
-                    win.isMovableByWindowBackground = false
+                    // (isMovableByWindowBackground stays at its NSWindow default
+                    //  of false; drag is provided by the system's titlebar
+                    //  region, which sits behind the SwiftUI TitleBar.)
                 })
                 .task { state.loadStoredVault() }
         }
