@@ -17,12 +17,14 @@ final class BlockChromeDelegate: NSObject, NSTextLayoutManagerDelegate {
             let frag = QuoteBlockFragment(textElement: textElement,
                                           range: textElement.elementRange)
             frag.barColor = palette.accent
+            frag.handleColor = palette.textFaint
             return frag
         case .code:
             let frag = CodeBlockFragment(textElement: textElement,
                                          range: textElement.elementRange)
             frag.fillColor = palette.bgElev
             frag.borderColor = palette.borderSoft
+            frag.handleColor = palette.textFaint
             return frag
         default:
             return NSTextLayoutFragment(textElement: textElement,

@@ -47,6 +47,11 @@ private struct MarkdownEditor: NSViewRepresentable {
         layoutManager.textContainer = container
         contentStorage.addTextLayoutManager(layoutManager)
         layoutManager.delegate = context.coordinator.blockChrome
+        // NSTextContentStorage is only weakly held by the layout manager
+        // (NSTextLayoutManager.textContentManager is weak), and the delegate's
+        // back-reference is weak too. Pin a strong reference to the
+        // Coordinator so the storage stays alive for the editor's lifetime.
+        context.coordinator.contentStorage = contentStorage
         context.coordinator.blockChrome.contentStorage = contentStorage
         context.coordinator.blockChrome.palette = theme.palette
         let tv = MarkdownEditorTextView(frame: .zero, textContainer: container)
@@ -111,6 +116,8 @@ private struct MarkdownEditor: NSViewRepresentable {
         let parent: MarkdownEditor
         var typography = Typography.current()
         let blockChrome = BlockChromeDelegate()
+        /// Strong retain on the TextKit 2 content storage — see makeNSView.
+        var contentStorage: NSTextContentStorage?
         private weak var cachedLayoutManager: NSTextLayoutManager?
         /// We use ObjectIdentifier (pointer identity) to track which fragment is hovered,
         /// and keep a weak reference to that fragment so we can clear it on exit.
