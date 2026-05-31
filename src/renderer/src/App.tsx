@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { Editor } from '@/components/Editor'
+import { saveDocument } from '@/lib/saveDocument'
 import { useDocumentStore } from '@/stores/documentStore'
 
 const AUTOSAVE_MS = 800
@@ -18,13 +19,8 @@ export default function App(): JSX.Element {
     useDocumentStore.getState().load(chosen, text)
   }
 
-  async function save(): Promise<void> {
-    const s = useDocumentStore.getState()
-    if (!s.path || !s.isDirty()) return
-    const toWrite = s.content
-    s.markSaving()
-    await window.margin.writeFile(s.path, toWrite)
-    useDocumentStore.getState().markSaved(toWrite)
+  function save(): Promise<void> {
+    return saveDocument(window.margin.writeFile)
   }
 
   function handleChange(value: string): void {
@@ -52,8 +48,14 @@ export default function App(): JSX.Element {
           Open…
         </button>
         <span className="truncate">{fileName}</span>
-        <span className="ml-auto text-xs">
-          {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving…' : 'Unsaved'}
+        <span className={`ml-auto text-xs ${saveStatus === 'error' ? 'text-destructive' : ''}`}>
+          {saveStatus === 'saved'
+            ? 'Saved'
+            : saveStatus === 'saving'
+              ? 'Saving…'
+              : saveStatus === 'error'
+                ? 'Save failed — retrying on next edit'
+                : 'Unsaved'}
         </span>
       </header>
       <main className="min-h-0 flex-1">

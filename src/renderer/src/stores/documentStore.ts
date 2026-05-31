@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type SaveStatus = 'saved' | 'saving' | 'dirty'
+export type SaveStatus = 'saved' | 'saving' | 'dirty' | 'error'
 
 interface DocumentState {
   path: string | null
@@ -12,6 +12,7 @@ interface DocumentState {
   setContent(content: string): void
   markSaving(): void
   markSaved(content: string): void
+  markError(): void
 }
 
 export const useDocumentStore = create<DocumentState>((set, get) => ({
@@ -37,5 +38,9 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
     set((state) => ({
       savedContent: content,
       saveStatus: state.content === content ? 'saved' : 'dirty'
-    }))
+    })),
+
+  // Leaves savedContent untouched so the document stays dirty and the
+  // failed write can be retried.
+  markError: () => set({ saveStatus: 'error' })
 }))

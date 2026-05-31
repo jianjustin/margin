@@ -13,11 +13,23 @@ function registerIpcHandlers(): void {
     return result.filePaths[0]
   })
 
-  ipcMain.handle(IPC.fileRead, (_event, path: string) => readFile(path, 'utf-8'))
+  ipcMain.handle(IPC.fileRead, async (_event, path: string) => {
+    try {
+      return await readFile(path, 'utf-8')
+    } catch (err) {
+      console.error(`Failed to read ${path}:`, err)
+      throw new Error(`Could not read file: ${(err as Error).message}`)
+    }
+  })
 
-  ipcMain.handle(IPC.fileWrite, (_event, path: string, content: string) =>
-    writeFile(path, content, 'utf-8')
-  )
+  ipcMain.handle(IPC.fileWrite, async (_event, path: string, content: string) => {
+    try {
+      await writeFile(path, content, 'utf-8')
+    } catch (err) {
+      console.error(`Failed to write ${path}:`, err)
+      throw new Error(`Could not save file: ${(err as Error).message}`)
+    }
+  })
 }
 
 function createWindow(): void {

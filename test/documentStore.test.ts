@@ -56,4 +56,15 @@ describe('documentStore', () => {
     expect(s.isDirty()).toBe(false)
     expect(s.saveStatus).toBe('saved')
   })
+
+  it('markError flags an error and leaves the document dirty for retry', () => {
+    useDocumentStore.getState().load('/notes/a.md', 'a')
+    useDocumentStore.getState().setContent('b')
+    useDocumentStore.getState().markSaving()
+    useDocumentStore.getState().markError()
+    const s = useDocumentStore.getState()
+    expect(s.saveStatus).toBe('error')
+    expect(s.savedContent).toBe('a')
+    expect(s.isDirty()).toBe(true)
+  })
 })
