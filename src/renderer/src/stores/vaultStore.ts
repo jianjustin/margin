@@ -29,7 +29,7 @@ interface VaultState {
   openRoot(root: string, tree: TreeNode[]): void
   setTree(tree: TreeNode[]): void
   toggleExpanded(path: string): void
-  select(path: string): void
+  select(path: string | null): void
   closeVault(): void
 }
 

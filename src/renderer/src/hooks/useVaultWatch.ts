@@ -29,7 +29,7 @@ export function useVaultWatch(): void {
       if (!pathExists(tree, openPath)) {
         window.alert('The open file was deleted outside Margin.')
         doc.reset()
-        useVaultStore.getState().select('')
+        useVaultStore.getState().select(null)
         return
       }
 
