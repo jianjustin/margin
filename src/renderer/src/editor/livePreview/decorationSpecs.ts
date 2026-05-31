@@ -14,6 +14,7 @@ export type DecoKind =
   | 'link'
   | 'hr'
   | 'task'
+  | 'frontmatter'
 
 export interface DecoSpec {
   kind: DecoKind
@@ -22,6 +23,25 @@ export interface DecoSpec {
   revealed: boolean
   level?: number
   checked?: boolean
+}
+
+/**
+ * If the document opens with a YAML frontmatter block (`---` on line 1, closed
+ * by a later `---` line), return the offset where that block ends; otherwise 0.
+ *
+ * The markdown grammar has no frontmatter rule — it mis-parses the opening
+ * `---` as a HorizontalRule and the keys + closing `---` as a SetextHeading.
+ * We detect the region by plain text scan so the collector can suppress those
+ * bogus decorations and style the block as muted metadata instead.
+ */
+export function frontmatterEnd(state: EditorState): number {
+  const doc = state.doc
+  if (doc.lines < 2 || doc.line(1).text !== '---') return 0
+  for (let n = 2; n <= doc.lines; n++) {
+    const line = doc.line(n)
+    if (line.text === '---') return line.to
+  }
+  return 0 // no closing fence — not frontmatter
 }
 
 /** Push a point spec at the start of every line in [from, to]. */
@@ -61,9 +81,29 @@ export function collectDecorations(state: EditorState): DecoSpec[] {
     specs.push({ kind: 'hide', from, to, revealed: rangeRevealed(state, from, to) })
   }
 
+  // Frontmatter: style each line muted, and suppress the bogus hr/setext
+  // decorations the grammar produces for the region (suppressed in the iterate
+  // guard below).
+  const fmEnd = frontmatterEnd(state)
+  if (fmEnd > 0) {
+    for (let n = 1; n <= doc.lines; n++) {
+      const line = doc.line(n)
+      if (line.from >= fmEnd) break
+      specs.push({ kind: 'frontmatter', from: line.from, to: line.from, revealed: false })
+    }
+  }
+
   tree.iterate({
     enter: (node) => {
       const name = node.name
+
+      // Defensive: never emit decorations for a zero-width node.
+      if (node.to <= node.from) return
+
+      // Skip everything the grammar (mis)parsed inside the frontmatter region;
+      // it is rendered as muted metadata, not headings/rules. (`return` does not
+      // stop descent, so nodes after the region are still visited.)
+      if (fmEnd > 0 && node.from < fmEnd) return
 
       // Headings: ATXHeading1..6
       if (/^ATXHeading[1-6]$/.test(name)) {

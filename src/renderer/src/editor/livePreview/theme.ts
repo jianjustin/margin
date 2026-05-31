@@ -63,7 +63,14 @@ export const marginEditorTheme = EditorView.theme(
       margin: '0.4em 0'
     },
 
-    '.cm-task-checkbox': { marginRight: '0.4em', verticalAlign: 'middle' }
+    '.cm-task-checkbox': { marginRight: '0.4em', verticalAlign: 'middle' },
+
+    // YAML frontmatter: muted, monospace metadata block (not headings).
+    '.cm-frontmatter': {
+      fontFamily: MONO,
+      fontSize: '0.85em',
+      color: 'hsl(var(--muted-foreground))'
+    }
   },
   { dark: true }
 )

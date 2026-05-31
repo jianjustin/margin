@@ -17,6 +17,7 @@ const inlineCodeMark = Decoration.mark({ class: 'cm-inline-code' })
 const linkMark = Decoration.mark({ class: 'cm-link' })
 const quoteLine = Decoration.line({ class: 'cm-blockquote' })
 const codeLine = Decoration.line({ class: 'cm-code-block' })
+const frontmatterLine = Decoration.line({ class: 'cm-frontmatter' })
 
 function buildDecorations(state: EditorState): DecorationSet {
   const specs = collectDecorations(state)
@@ -50,6 +51,9 @@ function buildDecorations(state: EditorState): DecorationSet {
         break
       case 'codeLine':
         ranges.push(codeLine.range(s.from))
+        break
+      case 'frontmatter':
+        ranges.push(frontmatterLine.range(s.from))
         break
       case 'hr':
         if (!s.revealed) {

@@ -7,6 +7,11 @@ import { livePreview } from '@/editor/livePreview/livePreviewPlugin'
 import { marginEditorTheme } from '@/editor/livePreview/theme'
 
 const ALL_FEATURES = [
+  '---',
+  'title: Doc',
+  'tags: a, b',
+  '---',
+  '',
   '# Heading One',
   '',
   'Some **bold**, *italic*, ~~struck~~, and `inline code` text.',
@@ -58,9 +63,14 @@ describe('livePreview ViewPlugin — DOM smoke', () => {
   })
 
   it('renders the hr and checkbox widgets', () => {
-    view = mount(ALL_FEATURES, 0) // cursor on heading line, away from hr/tasks
+    view = mount(ALL_FEATURES, 100) // cursor away from hr/tasks
     expect(view.dom.querySelector('hr.cm-hr')).not.toBeNull()
     expect(view.dom.querySelector('input.cm-task-checkbox')).not.toBeNull()
+  })
+
+  it('renders frontmatter as muted metadata, not as a giant heading', () => {
+    view = mount(ALL_FEATURES, ALL_FEATURES.length) // cursor in body
+    expect(view.dom.querySelector('.cm-frontmatter')).not.toBeNull()
   })
 
   it('does not throw when the selection moves across every line', () => {
