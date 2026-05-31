@@ -85,21 +85,6 @@ enum MarkdownStyler {
               let r = RangeConverter.nsRange(of: sr, in: text) else { return }
         // Dim quote body.
         m.addAttribute(.foregroundColor, value: typo.secondaryText, range: r)
-        // Indent + accent: paint the leading "> " of each line in the quote with the quoteBar color.
-        let ns = m.string as NSString
-        var idx = r.location
-        let end = r.location + r.length
-        while idx < end {
-            // At idx, look for "> " at start of a line.
-            if idx == r.location || ns.character(at: idx - 1) == 0x0A {
-                if idx < end && ns.character(at: idx) == UInt16(UnicodeScalar(">").value) {
-                    let markerLength = (idx + 1 < end && ns.character(at: idx + 1) == 0x20) ? 2 : 1
-                    let markerRange = NSRange(location: idx, length: markerLength)
-                    m.addAttribute(.foregroundColor, value: typo.quoteBar, range: markerRange)
-                }
-            }
-            idx += 1
-        }
         // Apply hanging indent to align continuation lines with quote text.
         let p = NSMutableParagraphStyle()
         p.lineHeightMultiple = typo.bodyLineHeightMultiplier
@@ -115,7 +100,6 @@ enum MarkdownStyler {
         guard let sr = cb.range,
               let r = RangeConverter.nsRange(of: sr, in: text) else { return }
         m.addAttribute(.font, value: typo.mono, range: r)
-        m.addAttribute(.backgroundColor, value: typo.codeBackground, range: r)
     }
 
     private static func applyInlines(in paragraph: Paragraph,

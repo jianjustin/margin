@@ -75,11 +75,13 @@ final class MarkdownStylerTests: XCTestCase {
         XCTAssertEqual(pstyle?.lineHeightMultiple ?? 0, typo.bodyLineHeightMultiplier, accuracy: 0.001)
     }
 
-    func testBlockQuoteMarkerUsesQuoteBarColor() {
+    func testBlockQuoteMarkerUsesSecondaryTextColor() {
         let text = "> quoted line"
         let a = MarkdownStyler.style(text, activeRange: nil, typography: typo)
-        // First char is '>' — should be quoteBar color.
+        // The '>' character is no longer painted quoteBar by the styler —
+        // the QuoteBlockFragment owns the visual bar. The whole quote range
+        // (including '>') receives secondaryText from applyQuote.
         let attrs = a.attributes(at: 0, effectiveRange: nil)
-        XCTAssertEqual(attrs[.foregroundColor] as? NSColor, typo.quoteBar)
+        XCTAssertEqual(attrs[.foregroundColor] as? NSColor, typo.secondaryText)
     }
 }
