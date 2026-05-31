@@ -1,17 +1,17 @@
-# Xcode
-*.xcodeproj/
-*.xcworkspace/
-xcuserdata/
-DerivedData/
-build/
-.swiftpm/
+# Dependencies
+node_modules/
+
+# Build output
+out/
+dist/
+
+# Logs
+*.log
+npm-debug.log*
 
 # macOS
 .DS_Store
 
-# SPM
-Package.resolved
-.build/
-
-# Generated
-Margin.xcodeproj
+# Editor
+.vscode/
+.idea/
