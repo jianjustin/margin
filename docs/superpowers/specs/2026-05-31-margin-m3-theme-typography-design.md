@@ -105,17 +105,24 @@ oklch 调色板**（暗 + 亮）、**IBM Plex 字体**、**720pt 版心排版**�
 
 ### 3.1 字体引入（@fontsource）
 
-npm 依赖：`@fontsource/ibm-plex-sans`、`-mono`、`-serif`、`-sans-sc`（woff2，MIT，
-随 bundle 打包，离线可用）。
+**拉丁文打包 IBM Plex，中文走系统 PingFang SC**（决策见 §9）。IBM Plex 的简中版
+（Sans SC）不在 @fontsource 上，且全量 CJK 字体体积巨大；macOS 的 PingFang SC 是
+中文渲染的事实标准，通过字体栈回退自动接管 CJK 字形。
+
+npm 依赖（woff2，MIT，随 bundle 打包，离线可用）：`@fontsource/ibm-plex-sans`、
+`@fontsource/ibm-plex-mono`、`@fontsource/ibm-plex-serif`。**不装** sans-sc（不存在）。
 
 新建 `src/renderer/src/theme/fonts.ts`，集中 import 所需字重，由 `main.tsx` 引一次：
-- Sans / Mono / Sans-SC：weight 400 / 500 / 600
+- Sans / Mono：weight 400 / 500 / 600
 - Serif：weight 400 / 500
 
-### 3.2 字体栈令牌（接交互稿，放进 tokens.css）
+### 3.2 字体栈令牌（放进 tokens.css）
+
+PingFang SC 排在 `system-ui` 之前，确保中文字形落到 PingFang 而非 SF；Plex 无 CJK
+字形，中文自动顺延到 PingFang SC。
 
 ```
---ui:    "IBM Plex Sans","IBM Plex Sans SC",system-ui,sans-serif
+--ui:    "IBM Plex Sans","PingFang SC",system-ui,sans-serif
 --mono:  "IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace
 --serif: "IBM Plex Serif",Georgia,serif
 ```
@@ -220,7 +227,10 @@ package.json              改：加 4 个 @fontsource 依赖
 
 ## 9. 关键决策记录
 
-- 字体：@fontsource npm 包（离线、随包、import 即用），非手放 ttf。
+- 字体：拉丁用 @fontsource IBM Plex（sans/mono/serif，离线随包），中文用系统
+  PingFang SC（IBM Plex Sans SC 不在 @fontsource，全量 CJK 包过大；PingFang 是 mac
+  中文金标准）。
+- Serif 字族令牌保留作备用栈，但 M3 不在正文/标题启用。
 - 切换：跟随系统(auto) + 手动覆盖(light/dark) 三态，localStorage 持久化。
 - 令牌：语义 oklch 为唯一真相，shadcn HSL 令牌改为引用之（Tailwind 去掉 hsl() 包裹）。
 - 亮色从原 v2 提前到 M3（用户决定）。
