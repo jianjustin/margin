@@ -35,6 +35,11 @@ function eachLine(
   let pos = from
   while (pos <= to) {
     const line = state.doc.lineAt(pos)
+    // Defensive: skip a trailing line that begins exactly at `to` (zero overlap
+    // with the block), unless the block is itself empty (from === to). With the
+    // current grammar a block's `to` lands on the end of its last content line,
+    // so this never triggers today — it guards against future/edge nodes.
+    if (line.from >= to && to > from) break
     out.push(make(line.from))
     if (line.to >= to) break
     pos = line.to + 1
