@@ -5,11 +5,14 @@ struct RootView: View {
     @EnvironmentObject var theme: ThemeStore
 
     var body: some View {
-        Group {
-            if state.vaultRoot == nil {
-                NoVaultView(onChoose: { state.chooseVault() })
-            } else {
-                ThreePaneView()
+        VStack(spacing: 0) {
+            TitleBar()
+            Group {
+                if state.vaultRoot == nil {
+                    NoVaultView(onChoose: { state.chooseVault() })
+                } else {
+                    ThreePaneView()
+                }
             }
         }
         .frame(minWidth: 900, minHeight: 600)
