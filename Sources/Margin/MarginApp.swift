@@ -31,6 +31,12 @@ struct MarginApp: App {
                 .environmentObject(theme)
                 .background(WindowAccessor { win in
                     win.setFrameAutosaveName("MarginMainWindow")
+                    win.titlebarAppearsTransparent = true
+                    win.titleVisibility = .hidden
+                    win.styleMask.insert(.fullSizeContentView)
+                    // No system toolbar; the SwiftUI TitleBar paints this region.
+                    win.toolbarStyle = .unified
+                    win.isMovableByWindowBackground = false
                 })
                 .task { state.loadStoredVault() }
         }
