@@ -1,14 +1,32 @@
 export const IPC = {
   dialogOpenFile: 'dialog:openFile',
+  dialogOpenFolder: 'dialog:openFolder',
   fileRead: 'file:read',
-  fileWrite: 'file:write'
+  fileWrite: 'file:write',
+  vaultScan: 'vault:scan',
+  fileCreate: 'file:create',
+  folderCreate: 'folder:create',
+  pathRename: 'path:rename',
+  pathTrash: 'path:trash',
+  vaultChanged: 'vault:changed'
 } as const
 
+export interface TreeNode {
+  name: string
+  path: string
+  type: 'file' | 'folder'
+  children?: TreeNode[]
+}
+
 export interface MarginApi {
-  /** Show an open dialog; returns the chosen .md path, or null if cancelled. */
   openFile(): Promise<string | null>
-  /** Read a UTF-8 file and return its contents. */
+  openFolder(): Promise<string | null>
   readFile(path: string): Promise<string>
-  /** Write UTF-8 content to a file. */
   writeFile(path: string, content: string): Promise<void>
+  scanVault(root: string): Promise<TreeNode[]>
+  createNote(dir: string, name: string): Promise<string>
+  createFolder(dir: string, name: string): Promise<string>
+  renamePath(oldPath: string, newName: string): Promise<string>
+  trashPath(path: string): Promise<void>
+  onVaultChanged(callback: (root: string) => void): () => void
 }
