@@ -2,6 +2,9 @@ import { useEffect, useRef } from 'react'
 import { Editor } from '@/components/Editor'
 import { saveDocument } from '@/lib/saveDocument'
 import { useDocumentStore } from '@/stores/documentStore'
+import { ThemeToggle } from '@/components/ThemeToggle'
+import { useThemeStore, resolveTheme } from '@/stores/themeStore'
+import { useSystemTheme } from '@/hooks/useSystemTheme'
 
 const AUTOSAVE_MS = 800
 
@@ -11,6 +14,19 @@ export default function App(): JSX.Element {
   const saveStatus = useDocumentStore((s) => s.saveStatus)
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const themeMode = useThemeStore((s) => s.mode)
+  const systemDark = useSystemTheme()
+
+  useEffect(() => {
+    const effective = resolveTheme(themeMode, systemDark)
+    const root = document.documentElement
+    if (effective === 'light') {
+      root.setAttribute('data-theme', 'light')
+    } else {
+      root.removeAttribute('data-theme')
+    }
+  }, [themeMode, systemDark])
 
   async function openFile(): Promise<void> {
     const chosen = await window.margin.openFile()
@@ -48,15 +64,18 @@ export default function App(): JSX.Element {
           Open…
         </button>
         <span className="truncate">{fileName}</span>
-        <span className={`ml-auto text-xs ${saveStatus === 'error' ? 'text-destructive' : ''}`}>
-          {saveStatus === 'saved'
-            ? 'Saved'
-            : saveStatus === 'saving'
-              ? 'Saving…'
-              : saveStatus === 'error'
-                ? 'Save failed — retrying on next edit'
-                : 'Unsaved'}
-        </span>
+        <div className="ml-auto flex items-center gap-2">
+          <span className={`text-xs ${saveStatus === 'error' ? 'text-destructive' : ''}`}>
+            {saveStatus === 'saved'
+              ? 'Saved'
+              : saveStatus === 'saving'
+                ? 'Saving…'
+                : saveStatus === 'error'
+                  ? 'Save failed — retrying on next edit'
+                  : 'Unsaved'}
+          </span>
+          <ThemeToggle />
+        </div>
       </header>
       <main className="min-h-0 flex-1">
         {path ? (
