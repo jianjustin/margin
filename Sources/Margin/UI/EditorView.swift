@@ -84,6 +84,10 @@ private struct MarkdownEditor: NSViewRepresentable {
         let typoChanged = context.coordinator.typography.body != newTypo.body
             || context.coordinator.typography.primaryText != newTypo.primaryText
             || context.coordinator.typography.editorBackground != newTypo.editorBackground
+            // Accent-only theme changes don't shift body/text/bg but DO shift
+            // quoteBar (= palette.accent.alpha(0.55)). Catch them so the
+            // block-chrome fragments repaint.
+            || context.coordinator.typography.quoteBar != newTypo.quoteBar
         context.coordinator.typography = newTypo
         context.coordinator.blockChrome.palette = theme.palette
         if typoChanged {
@@ -100,7 +104,6 @@ private struct MarkdownEditor: NSViewRepresentable {
         let parent: MarkdownEditor
         var typography = Typography.current()
         let blockChrome = BlockChromeDelegate()
-        var blockIndex = BlockKindIndex(text: "")
         private var suppressDelegate = false
 
         init(_ parent: MarkdownEditor) { self.parent = parent }
@@ -138,8 +141,7 @@ private struct MarkdownEditor: NSViewRepresentable {
         private func makeAttributed(text: String, cursor: Int) -> NSAttributedString {
             let active = ActiveParagraph.range(in: text, cursor: cursor)
             let activeOrNil: NSRange? = active.length > 0 ? active : nil
-            blockIndex = BlockKindIndex(text: text)
-            blockChrome.index = blockIndex
+            blockChrome.index = BlockKindIndex(text: text)
             return MarkdownStyler.style(text, activeRange: activeOrNil, typography: typography)
         }
 

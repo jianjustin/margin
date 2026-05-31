@@ -31,6 +31,8 @@ final class BlockChromeDelegate: NSObject, NSTextLayoutManagerDelegate {
         }
         let start = manager.documentRange.location
         let offset = storage.offset(from: start, to: location)
+        // offset returns NSNotFound (Int.max) for invalid locations.
+        guard offset != NSNotFound else { return .paragraph }
         return index.kind(atUTF16Offset: max(0, offset))
     }
 }
