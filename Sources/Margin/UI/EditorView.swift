@@ -46,6 +46,9 @@ private struct MarkdownEditor: NSViewRepresentable {
         container.widthTracksTextView = true
         layoutManager.textContainer = container
         contentStorage.addTextLayoutManager(layoutManager)
+        layoutManager.delegate = context.coordinator.blockChrome
+        context.coordinator.blockChrome.contentStorage = contentStorage
+        context.coordinator.blockChrome.palette = theme.palette
         let tv = NSTextView(frame: .zero, textContainer: container)
         tv.minSize = CGSize(width: 0, height: 0)
         tv.maxSize = CGSize(width: CGFloat.greatestFiniteMagnitude,
@@ -82,6 +85,7 @@ private struct MarkdownEditor: NSViewRepresentable {
             || context.coordinator.typography.primaryText != newTypo.primaryText
             || context.coordinator.typography.editorBackground != newTypo.editorBackground
         context.coordinator.typography = newTypo
+        context.coordinator.blockChrome.palette = theme.palette
         if typoChanged {
             tv.backgroundColor = newTypo.editorBackground
             tv.insertionPointColor = theme.palette.accent
@@ -95,6 +99,8 @@ private struct MarkdownEditor: NSViewRepresentable {
     final class Coordinator: NSObject, NSTextViewDelegate {
         let parent: MarkdownEditor
         var typography = Typography.current()
+        let blockChrome = BlockChromeDelegate()
+        var blockIndex = BlockKindIndex(text: "")
         private var suppressDelegate = false
 
         init(_ parent: MarkdownEditor) { self.parent = parent }
@@ -105,6 +111,9 @@ private struct MarkdownEditor: NSViewRepresentable {
                 suppressDelegate = true
                 let styled = makeAttributed(text: externalText, cursor: 0)
                 tv.textStorage?.setAttributedString(styled)
+                if let manager = tv.textContainer?.textLayoutManager {
+                    manager.invalidateLayout(for: manager.documentRange)
+                }
                 let clampedLoc = min(savedSelection.location, externalText.utf16.count)
                 tv.setSelectedRange(NSRange(location: clampedLoc, length: 0))
                 suppressDelegate = false
@@ -119,6 +128,9 @@ private struct MarkdownEditor: NSViewRepresentable {
             let styled = makeAttributed(text: tv.string, cursor: cursor)
             suppressDelegate = true
             tv.textStorage?.setAttributedString(styled)
+            if let manager = tv.textContainer?.textLayoutManager {
+                manager.invalidateLayout(for: manager.documentRange)
+            }
             tv.setSelectedRange(selection)
             suppressDelegate = false
         }
@@ -126,6 +138,8 @@ private struct MarkdownEditor: NSViewRepresentable {
         private func makeAttributed(text: String, cursor: Int) -> NSAttributedString {
             let active = ActiveParagraph.range(in: text, cursor: cursor)
             let activeOrNil: NSRange? = active.length > 0 ? active : nil
+            blockIndex = BlockKindIndex(text: text)
+            blockChrome.index = blockIndex
             return MarkdownStyler.style(text, activeRange: activeOrNil, typography: typography)
         }
 
