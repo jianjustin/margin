@@ -4,15 +4,28 @@ import AppKit
 struct EditorView: View {
     @EnvironmentObject var state: AppState
     @EnvironmentObject var theme: ThemeStore
+    @StateObject private var tracker = StatsTracker()
 
     var body: some View {
         Group {
             if state.selectedNoteURL == nil {
                 NoNoteSelectedView()
             } else {
-                MarkdownEditor(text: $state.noteBody,
-                               onChange: { state.bodyChanged() })
-                    .background(Color(theme.palette.bg))
+                VStack(spacing: 0) {
+                    MarkdownEditor(text: $state.noteBody,
+                                   onChange: { state.bodyChanged() })
+                        .background(Color(theme.palette.bg))
+                    StatusBar(tracker: tracker)
+                        .environmentObject(state)
+                        .environmentObject(theme)
+                }
+                .onAppear { tracker.schedule(state.noteBody) }
+                .onChange(of: state.noteBody) { _, newValue in
+                    tracker.schedule(newValue)
+                }
+                .onChange(of: state.selectedNoteURL) { _, _ in
+                    tracker.schedule(state.noteBody)
+                }
             }
         }
     }
