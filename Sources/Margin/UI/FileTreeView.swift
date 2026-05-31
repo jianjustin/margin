@@ -2,18 +2,36 @@ import SwiftUI
 
 struct FileTreeView: View {
     @EnvironmentObject var state: AppState
+    @EnvironmentObject var theme: ThemeStore
+    @State private var expandedURLs: Set<URL> = []
+    @State private var hoveredURL: URL? = nil
+
+    private var rows: [RowDescriptor] {
+        VaultTreeFlatten.flatten(nodes: state.tree, expanded: expandedURLs)
+    }
 
     var body: some View {
-        List(selection: bindingForSelection()) {
-            if let root = state.vaultRoot {
-                Label("All", systemImage: "tray.full")
-                    .tag(root as URL?)
+        ScrollView {
+            LazyVStack(spacing: 1) {
+                ForEach(rows) { row in
+                    FileTreeRow(
+                        row: row,
+                        isSelected: isSelected(row),
+                        isHovered: hoveredURL == row.url,
+                        onToggleExpand: { toggleExpand(row.url) },
+                        onTap: { handleTap(row) }
+                    )
+                    .environmentObject(theme)
+                    .onHover { hovering in
+                        if hovering { hoveredURL = row.url }
+                        else if hoveredURL == row.url { hoveredURL = nil }
+                    }
+                }
             }
-            ForEach(state.tree, id: \.id) { node in
-                nodeView(node, depth: 0)
-            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
         }
-        .listStyle(.sidebar)
+        .background(Color(theme.palette.bgPanel))
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -24,47 +42,26 @@ struct FileTreeView: View {
         }
     }
 
-    private func nodeView(_ node: VaultNode, depth: Int) -> AnyView {
-        switch node {
-        case .folder(let url, let children):
-            return AnyView(
-                DisclosureGroup {
-                    ForEach(children, id: \.id) { child in
-                        nodeView(child, depth: depth + 1)
-                    }
-                } label: {
-                    Label(url.lastPathComponent, systemImage: folderIcon(url))
-                        .tag(url as URL?)
-                }
-            )
-        case .note(let url):
-            return AnyView(
-                Label(url.deletingPathExtension().lastPathComponent, systemImage: "doc.text")
-                    .tag(url as URL?)
-            )
+    private func isSelected(_ row: RowDescriptor) -> Bool {
+        if row.isFolder {
+            return state.selectedFolder == row.url
+        } else {
+            return state.selectedNoteURL == row.url
         }
     }
 
-    private func folderIcon(_ url: URL) -> String {
-        url.lastPathComponent.hasPrefix(".") ? "folder.badge.gearshape" : "folder"
+    private func toggleExpand(_ url: URL) {
+        if expandedURLs.contains(url) { expandedURLs.remove(url) }
+        else { expandedURLs.insert(url) }
     }
 
-    private func bindingForSelection() -> Binding<URL?> {
-        Binding(
-            get: { state.selectedFolder ?? state.selectedNoteURL },
-            set: { newValue in
-                guard let url = newValue else {
-                    state.selectedFolder = nil
-                    return
-                }
-                let fm = FileManager.default
-                var isDir: ObjCBool = false
-                if fm.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue {
-                    state.selectFolder(url)
-                } else {
-                    state.openNote(url)
-                }
-            }
-        )
+    private func handleTap(_ row: RowDescriptor) {
+        if row.isFolder {
+            // Tapping a folder both selects it and toggles its expansion.
+            state.selectFolder(row.url)
+            toggleExpand(row.url)
+        } else {
+            state.openNote(row.url)
+        }
     }
 }
