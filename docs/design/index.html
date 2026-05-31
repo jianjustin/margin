@@ -1,0 +1,922 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>Margin — UI Design Prototype</title>
+<meta name="viewport" content="width=1400" />
+<style>
+  :root {
+    /* macOS-ish palette (light) */
+    --bg-window: #ECECEC;
+    --bg-sidebar: #E5E5E0;
+    --bg-noteList: #F3F1EC;
+    --bg-editor: #FBFAF6;
+    --bg-toolbar: #E7E5DF;
+    --divider: rgba(0,0,0,.08);
+    --divider-strong: rgba(0,0,0,.14);
+    --text-primary: #1B1B1B;
+    --text-secondary: rgba(27,27,27,.62);
+    --text-tertiary: rgba(27,27,27,.42);
+    --text-hidden: rgba(27,27,27,.18); /* for "transparent" syntax illustration */
+    --link-blue: #4A90E2;
+    --tag-purple: #5856D6;
+    --accent-orange: #E8893B;
+    --code-bg: rgba(27,27,27,.07);
+    --quote-bar: rgba(27,27,27,.22);
+    --selection: rgba(74,144,226,.20);
+    --row-hover: rgba(0,0,0,.04);
+    --row-selected: #C3D9F5;
+    --row-selected-text: #15467A;
+    --shadow-window: 0 24px 60px rgba(0,0,0,.18), 0 2px 8px rgba(0,0,0,.10);
+    --page-bg: #BFC4C9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg-window: #2A2A2A;
+      --bg-sidebar: #1F1F1F;
+      --bg-noteList: #232323;
+      --bg-editor: #1B1B1B;
+      --bg-toolbar: #262626;
+      --divider: rgba(255,255,255,.08);
+      --divider-strong: rgba(255,255,255,.14);
+      --text-primary: #ECECEC;
+      --text-secondary: rgba(236,236,236,.60);
+      --text-tertiary: rgba(236,236,236,.38);
+      --text-hidden: rgba(236,236,236,.16);
+      --code-bg: rgba(255,255,255,.08);
+      --quote-bar: rgba(255,255,255,.24);
+      --selection: rgba(74,144,226,.30);
+      --row-hover: rgba(255,255,255,.05);
+      --row-selected: #2F5BA6;
+      --row-selected-text: #FFFFFF;
+      --page-bg: #1A1A1A;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--page-bg);
+    color: var(--text-primary);
+    font-family: -apple-system, "SF Pro Text", "SF Pro", BlinkMacSystemFont, "Helvetica Neue", system-ui, sans-serif;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+    padding: 48px 32px 96px;
+  }
+
+  /* ===== Page chrome ===== */
+  .page-title {
+    text-align: center;
+    color: rgba(255,255,255,.94);
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -.01em;
+    margin: 0 0 6px;
+  }
+  .page-sub {
+    text-align: center;
+    color: rgba(255,255,255,.62);
+    font-size: 14px;
+    margin: 0 0 40px;
+  }
+  .scene {
+    margin: 0 auto 56px;
+    max-width: 1320px;
+  }
+  .scene-label {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin: 0 0 12px 16px;
+    color: rgba(255,255,255,.92);
+  }
+  .scene-label .tag {
+    font-size: 11px;
+    background: rgba(255,255,255,.18);
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    font-weight: 600;
+  }
+  .scene-label h2 { font-size: 18px; margin: 0; font-weight: 600; }
+  .scene-label .note { font-size: 12px; color: rgba(255,255,255,.55); }
+
+  /* ===== macOS window frame ===== */
+  .window {
+    background: var(--bg-window);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow-window);
+    color: var(--text-primary);
+  }
+  .titlebar {
+    height: 38px;
+    background: var(--bg-toolbar);
+    border-bottom: 1px solid var(--divider);
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    position: relative;
+  }
+  .traffic-lights {
+    display: flex; gap: 8px;
+  }
+  .tl { width: 12px; height: 12px; border-radius: 50%; }
+  .tl.red    { background: #FF5F57; }
+  .tl.amber  { background: #FEBC2E; }
+  .tl.green  { background: #28C840; }
+  .titlebar-title {
+    position: absolute; left: 0; right: 0; text-align: center;
+    font-size: 13px; font-weight: 600; color: var(--text-secondary);
+    pointer-events: none;
+  }
+  .titlebar-trailing {
+    margin-left: auto;
+    display: flex; gap: 6px;
+  }
+  .toolbar-icon {
+    width: 28px; height: 24px; display: grid; place-items: center;
+    border-radius: 5px; color: var(--text-secondary);
+  }
+  .toolbar-icon:hover { background: var(--row-hover); }
+
+  /* ===== Two-pane layout (Obsidian style) ===== */
+  .pane-layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    height: 640px;
+  }
+  .sidebar { background: var(--bg-sidebar); border-right: 1px solid var(--divider); overflow: auto; padding: 8px 0; display: flex; flex-direction: column; }
+  .editor-pane { background: var(--bg-editor); display: flex; flex-direction: column; overflow: hidden; }
+
+  /* Sidebar tab bar — Obsidian-style: Files / Search / Tags */
+  .sidebar-tabs {
+    display: flex; gap: 2px;
+    padding: 6px 10px 4px;
+    border-bottom: 1px solid var(--divider);
+  }
+  .sb-tab {
+    flex: 1; height: 28px;
+    display: grid; place-items: center;
+    border-radius: 5px;
+    color: var(--text-tertiary);
+  }
+  .sb-tab:hover { background: var(--row-hover); color: var(--text-secondary); }
+  .sb-tab.active { background: var(--row-hover); color: var(--text-primary); }
+  .sb-tab svg { width: 15px; height: 15px; }
+  .sidebar-scroll { flex: 1; overflow: auto; padding: 6px 0 12px; }
+  .sidebar-footer {
+    padding: 6px 12px;
+    border-top: 1px solid var(--divider);
+    font-size: 11px; color: var(--text-tertiary);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .sidebar-footer .spacer { flex: 1; }
+  .file-row-note { font-weight: 400; }
+  .file-row-note.selected { font-weight: 500; }
+  .tree-row.unsaved::after {
+    content: "";
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent-orange);
+    margin-left: auto;
+  }
+
+  /* ===== Sidebar (file tree) ===== */
+  .sidebar-section { padding: 6px 14px 4px; font-size: 11px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: .06em; }
+  .tree-row {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 12px 4px 12px;
+    font-size: 13px; color: var(--text-primary);
+    cursor: default;
+    user-select: none;
+    border-radius: 6px;
+    margin: 0 6px;
+  }
+  .tree-row:hover { background: var(--row-hover); }
+  .tree-row.selected { background: var(--row-selected); color: var(--row-selected-text); }
+  .tree-row.selected .icon { color: var(--row-selected-text); }
+  .tree-row .chev { width: 12px; color: var(--text-tertiary); font-size: 9px; }
+  .tree-row .chev.empty { visibility: hidden; }
+  .tree-row .icon { width: 16px; display: inline-grid; place-items: center; color: var(--text-secondary); }
+  .tree-row .icon svg { width: 14px; height: 14px; }
+  .tree-row.depth-1 { padding-left: 28px; }
+  .tree-row.depth-2 { padding-left: 44px; }
+  .tree-row.hidden-dir .name { color: var(--text-secondary); font-style: italic; }
+  .tree-row .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ===== Note list ===== */
+  .note-list-header {
+    padding: 12px 16px 8px;
+    display: flex; align-items: baseline; justify-content: space-between;
+    border-bottom: 1px solid var(--divider);
+  }
+  .note-list-header h3 { font-size: 13px; font-weight: 600; margin: 0; color: var(--text-primary); }
+  .note-list-header .count { font-size: 11px; color: var(--text-tertiary); }
+  .note-row {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--divider);
+    cursor: default;
+  }
+  .note-row:hover { background: var(--row-hover); }
+  .note-row.selected { background: var(--row-selected); }
+  .note-row.selected .nr-title { color: var(--row-selected-text); }
+  .note-row.selected .nr-snippet { color: rgba(21,70,122,.78); }
+  .note-row.selected .nr-mtime { color: rgba(21,70,122,.62); }
+  .nr-title { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+  .nr-snippet { font-size: 12px; color: var(--text-secondary); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .nr-mtime { font-size: 11px; color: var(--text-tertiary); margin-top: 6px; }
+
+  /* ===== Editor ===== */
+  .editor-toolbar {
+    padding: 10px 24px;
+    display: flex; align-items: center; gap: 10px;
+    border-bottom: 1px solid var(--divider);
+    background: var(--bg-toolbar);
+  }
+  .editor-toolbar .file-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+  .editor-toolbar .dirty-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-orange); box-shadow: 0 0 0 2px rgba(232,137,59,.18); }
+  .editor-toolbar .spacer { flex: 1; }
+  .editor-toolbar .meta { font-size: 11px; color: var(--text-tertiary); }
+  .editor-body {
+    overflow: auto;
+    padding: 32px 48px 80px;
+    line-height: 1.55;
+    font-size: 16px;
+    color: var(--text-primary);
+    font-family: -apple-system, "SF Pro Text", "SF Pro", BlinkMacSystemFont, system-ui, sans-serif;
+  }
+
+  /* ===== Bear-style markdown rendering ===== */
+  .md p { margin: 0 0 8px; }
+  .md h1 { font-size: 28px; font-weight: 700; margin: 24px 0 10px; letter-spacing: -.01em; line-height: 1.2; }
+  .md h2 { font-size: 24px; font-weight: 700; margin: 22px 0 8px; letter-spacing: -.005em; line-height: 1.25; }
+  .md h3 { font-size: 20px; font-weight: 600; margin: 18px 0 6px; }
+  .md h4 { font-size: 18px; font-weight: 600; margin: 16px 0 6px; }
+  .md strong { font-weight: 700; }
+  .md em { font-style: italic; }
+  .md code {
+    font-family: ui-monospace, "SF Mono", "Menlo", monospace;
+    font-size: 14px;
+    background: var(--code-bg);
+    padding: 2px 5px;
+    border-radius: 4px;
+  }
+  .md pre {
+    font-family: ui-monospace, "SF Mono", "Menlo", monospace;
+    font-size: 13.5px;
+    background: var(--code-bg);
+    padding: 12px 16px;
+    border-radius: 6px;
+    overflow: auto;
+    margin: 8px 0 14px;
+    line-height: 1.5;
+  }
+  .md blockquote {
+    margin: 8px 0 14px;
+    padding: 2px 0 2px 14px;
+    border-left: 3px solid var(--quote-bar);
+    color: var(--text-secondary);
+  }
+  .md .wiki { color: var(--link-blue); }
+  .md .tag-token { color: var(--tag-purple); }
+  .md .syntax { color: var(--text-primary); }
+  .md .syntax.hidden { color: var(--text-hidden); }
+  .md .syntax.link-hidden { color: rgba(74,144,226,.22); }
+  .md .syntax.tag-hidden { color: rgba(88,86,214,.22); }
+
+  .md .active-paragraph { background: rgba(74,144,226,.06); border-radius: 4px; box-shadow: inset 2px 0 0 var(--link-blue); padding: 4px 8px; margin-left: -8px; }
+  .md .caret {
+    display: inline-block;
+    width: 1.5px;
+    height: 1.05em;
+    background: var(--link-blue);
+    vertical-align: -2px;
+    animation: blink 1s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ===== Search sheet ===== */
+  .sheet-wrap {
+    position: relative;
+    background: linear-gradient(180deg, rgba(0,0,0,.08), rgba(0,0,0,.32));
+    padding: 48px;
+  }
+  .sheet {
+    background: var(--bg-editor);
+    width: 720px;
+    max-width: 100%;
+    margin: 0 auto;
+    border-radius: 10px;
+    box-shadow: 0 24px 70px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.18);
+    overflow: hidden;
+  }
+  .sheet-header {
+    padding: 16px 18px;
+    display: flex; align-items: center; gap: 12px;
+    border-bottom: 1px solid var(--divider);
+  }
+  .sheet-header .magnifier { color: var(--text-tertiary); width: 18px; height: 18px; }
+  .sheet-input {
+    flex: 1;
+    border: 0; outline: 0; background: transparent;
+    font-size: 18px; color: var(--text-primary);
+    font-family: inherit;
+  }
+  .kbd {
+    font-family: ui-monospace, "SF Mono", "Menlo", monospace;
+    font-size: 11px;
+    color: var(--text-secondary);
+    background: var(--row-hover);
+    border: 1px solid var(--divider-strong);
+    border-radius: 4px;
+    padding: 2px 6px;
+  }
+  .sheet-body { max-height: 380px; overflow: auto; }
+  .sr-row {
+    display: block;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--divider);
+  }
+  .sr-row:hover { background: var(--row-hover); }
+  .sr-row.selected { background: var(--row-selected); }
+  .sr-row.selected .sr-title { color: var(--row-selected-text); }
+  .sr-row.selected .sr-snippet,
+  .sr-row.selected .sr-path { color: rgba(21,70,122,.78); }
+  .sr-title { font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+  .sr-snippet { font-size: 13px; color: var(--text-secondary); line-height: 1.45; }
+  .sr-snippet mark { background: rgba(254,188,46,.40); color: inherit; padding: 1px 2px; border-radius: 2px; }
+  .sr-path { font-size: 11px; color: var(--text-tertiary); margin-top: 5px; font-family: ui-monospace, "SF Mono", "Menlo", monospace; }
+  .sheet-footer {
+    padding: 8px 14px;
+    border-top: 1px solid var(--divider);
+    display: flex; align-items: center; gap: 10px;
+    font-size: 11px; color: var(--text-tertiary);
+    background: var(--bg-toolbar);
+  }
+  .sheet-footer .spacer { flex: 1; }
+
+  /* ===== Welcome ===== */
+  .welcome {
+    height: 560px;
+    display: grid; place-items: center;
+    background: linear-gradient(180deg, var(--bg-editor), var(--bg-noteList));
+  }
+  .welcome-card { text-align: center; padding: 40px; }
+  .logo {
+    width: 72px; height: 72px;
+    margin: 0 auto 18px;
+    border-radius: 18px;
+    background: linear-gradient(150deg, #4A90E2 0%, #5856D6 100%);
+    box-shadow: 0 12px 32px rgba(74,144,226,.32);
+    display: grid; place-items: center;
+    color: #fff;
+    font-family: "SF Pro Display", -apple-system, sans-serif;
+    font-size: 38px;
+    font-weight: 700;
+    letter-spacing: -.04em;
+  }
+  .welcome h1 { font-size: 36px; font-weight: 700; letter-spacing: -.015em; margin: 0 0 8px; }
+  .welcome .sub { color: var(--text-secondary); font-size: 15px; margin-bottom: 28px; line-height: 1.5; }
+  .btn-primary {
+    background: linear-gradient(180deg, #5BA0EB, #4A90E2);
+    color: #fff;
+    border: 0;
+    padding: 9px 24px;
+    border-radius: 7px;
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: 0 1px 0 rgba(255,255,255,.20) inset, 0 1px 2px rgba(0,0,0,.18);
+    cursor: pointer;
+  }
+  .welcome .shortcut-row {
+    margin-top: 24px;
+    display: inline-flex; gap: 10px; align-items: center;
+    color: var(--text-tertiary); font-size: 12px;
+  }
+
+  /* ===== Empty editor state ===== */
+  .empty-editor {
+    flex: 1; display: grid; place-items: center;
+    color: var(--text-tertiary); font-size: 14px;
+  }
+
+  /* legend strip */
+  .legend {
+    margin: 14px 16px 0; display: flex; flex-wrap: wrap; gap: 18px;
+    color: rgba(255,255,255,.66); font-size: 12px;
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend .swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+</style>
+</head>
+<body>
+
+  <h1 class="page-title">Margin — UI 设计原型</h1>
+  <p class="page-sub">基于 M1 / M2 / M3 实现方案 · 三栏 macOS 原生外观 · Bear 字体配色 · Obsidian 数据兼容</p>
+
+  <!-- ============================================================ -->
+  <!-- Scene 1: Welcome (首次启动) -->
+  <!-- ============================================================ -->
+  <section class="scene">
+    <div class="scene-label">
+      <span class="tag">M1</span>
+      <h2>欢迎页 · 首次启动</h2>
+      <span class="note">vaultRoot == nil 时展示，按钮触发 NSOpenPanel</span>
+    </div>
+    <div class="window">
+      <div class="titlebar">
+        <div class="traffic-lights"><div class="tl red"></div><div class="tl amber"></div><div class="tl green"></div></div>
+        <div class="titlebar-title">Margin</div>
+      </div>
+      <div class="welcome">
+        <div class="welcome-card">
+          <div class="logo">M</div>
+          <h1>Welcome to Margin</h1>
+          <p class="sub">A native macOS Markdown editor for Obsidian vaults.<br/>Choose a vault folder to begin.</p>
+          <button class="btn-primary">Choose Vault…</button>
+          <div class="shortcut-row">
+            <span class="kbd">⌘ ⇧ O</span>
+            <span>稍后也可在菜单栏 File → Choose Vault… 重新选择</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- Scene 2: Three-pane main window -->
+  <!-- ============================================================ -->
+  <section class="scene">
+    <div class="scene-label">
+      <span class="tag">M1 + M3</span>
+      <h2>两栏主窗口 · 文件树（含笔记）/ Bear 风格编辑器</h2>
+      <span class="note">Obsidian 风格 · 笔记直接显示在文件树 · 隐藏目录可见 · 自动保存 dirty dot</span>
+    </div>
+    <div class="window">
+      <div class="titlebar">
+        <div class="traffic-lights"><div class="tl red"></div><div class="tl amber"></div><div class="tl green"></div></div>
+        <div class="titlebar-title">2026-05-30 · 投资周记.md — Margin</div>
+        <div class="titlebar-trailing">
+          <div class="toolbar-icon" title="Rescan">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 8a6 6 0 1 0 1.7-4.2"/><path d="M2 2v3.5h3.5"/></svg>
+          </div>
+          <div class="toolbar-icon" title="Search (⌘⇧F)">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="pane-layout">
+
+        <!-- ===== Sidebar: Obsidian-style file tree with notes inline ===== -->
+        <aside class="sidebar">
+          <div class="sidebar-tabs">
+            <div class="sb-tab active" title="Files">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 4h4l1.2 1.4H14V13H2z"/></svg>
+            </div>
+            <div class="sb-tab" title="Search (⌘⇧F)">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg>
+            </div>
+            <div class="sb-tab" title="Tags">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M7.5 1.5h6v6L7 14 1.5 8.5z"/><circle cx="10.5" cy="4.5" r="1" fill="currentColor"/></svg>
+            </div>
+            <div class="sb-tab" title="Recent">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.5 1.5"/></svg>
+            </div>
+          </div>
+
+          <div class="sidebar-scroll">
+            <div class="sidebar-section">笔记库</div>
+
+            <div class="tree-row">
+              <span class="chev">▼</span>
+              <span class="icon">📂</span>
+              <span class="name">Daily</span>
+            </div>
+            <div class="tree-row depth-1">
+              <span class="chev">▶</span>
+              <span class="icon">📁</span>
+              <span class="name">2026-05</span>
+            </div>
+            <div class="tree-row depth-1">
+              <span class="chev">▼</span>
+              <span class="icon">📂</span>
+              <span class="name">2026-W22</span>
+            </div>
+            <div class="tree-row depth-2 file-row-note selected unsaved">
+              <span class="chev empty"></span>
+              <span class="icon">📄</span>
+              <span class="name">投资周记</span>
+            </div>
+            <div class="tree-row depth-2 file-row-note">
+              <span class="chev empty"></span>
+              <span class="icon">📄</span>
+              <span class="name">读书笔记 · The Outsiders</span>
+            </div>
+            <div class="tree-row depth-2 file-row-note">
+              <span class="chev empty"></span>
+              <span class="icon">📄</span>
+              <span class="name">本周输入清单</span>
+            </div>
+
+            <div class="tree-row">
+              <span class="chev">▼</span>
+              <span class="icon">📂</span>
+              <span class="name">Projects</span>
+            </div>
+            <div class="tree-row depth-1 file-row-note">
+              <span class="chev empty"></span>
+              <span class="icon">📄</span>
+              <span class="name">投资框架 · Capital Allocation</span>
+            </div>
+            <div class="tree-row depth-1">
+              <span class="chev">▶</span>
+              <span class="icon">📁</span>
+              <span class="name">PKM</span>
+            </div>
+
+            <div class="tree-row">
+              <span class="chev">▼</span>
+              <span class="icon">📂</span>
+              <span class="name">Inbox</span>
+            </div>
+            <div class="tree-row depth-1 file-row-note">
+              <span class="chev empty"></span>
+              <span class="icon">📄</span>
+              <span class="name">Founders #245 Henry Singleton</span>
+            </div>
+            <div class="tree-row depth-1 file-row-note">
+              <span class="chev empty"></span>
+              <span class="icon">📄</span>
+              <span class="name">Stratechery — AI 商业模型</span>
+            </div>
+
+            <div class="tree-row file-row-note">
+              <span class="chev empty"></span>
+              <span class="icon">📄</span>
+              <span class="name">README</span>
+            </div>
+
+            <div class="tree-row hidden-dir">
+              <span class="chev">▶</span>
+              <span class="icon">⚙️</span>
+              <span class="name">.obsidian</span>
+            </div>
+            <div class="tree-row hidden-dir">
+              <span class="chev">▶</span>
+              <span class="icon">⚙️</span>
+              <span class="name">.trash</span>
+            </div>
+          </div>
+
+          <div class="sidebar-footer">
+            <span>1,532 notes</span>
+            <span class="spacer"></span>
+            <span title="Indexed">✓ Indexed</span>
+          </div>
+        </aside>
+
+        <!-- ===== Right: editor with Bear-style rendering ===== -->
+        <section class="editor-pane">
+          <div class="editor-toolbar">
+            <span class="file-title">投资周记</span>
+            <span class="dirty-dot" title="未保存"></span>
+            <span class="spacer"></span>
+            <span class="meta">3,242 字 · 自动保存 · 1.2s 前</span>
+          </div>
+          <div class="editor-body md">
+
+            <!-- Heading (out of active paragraph): markers hidden -->
+            <h1><span class="syntax hidden"># </span>2026-W22 投资周记</h1>
+            <p>
+              <span class="syntax hidden">**</span><strong>核心观点</strong><span class="syntax hidden">**</span>：本周大盘震荡，
+              <span class="syntax hidden">*</span><em>不追高</em><span class="syntax hidden">*</span>是底线。
+              复盘可参考 <span class="syntax link-hidden">[[</span><span class="wiki">上周复盘</span><span class="syntax link-hidden">]]</span>，
+              下一步进入 <span class="syntax tag-hidden">#</span><span class="tag-token">投资/复盘</span> 阶段。
+            </p>
+
+            <h2><span class="syntax hidden">## </span>仓位调整</h2>
+
+            <!-- Active paragraph: markers visible (primary text color) -->
+            <div class="active-paragraph">
+              <p>
+                <span class="syntax">**</span><strong>BABA</strong><span class="syntax">**</span> 由 5% → 8%，估值回到 PE 10.x，回购节奏稳定。<span class="caret"></span><br/>
+                参考研究：<span class="syntax">[[</span><span class="wiki">BABA · 2026Q1</span><span class="syntax">]]</span>，
+                关键词 <span class="syntax">#</span><span class="tag-token">moat/network-effect</span>。
+              </p>
+            </div>
+
+            <p>
+              <span class="syntax hidden">**</span><strong>BRK.B</strong><span class="syntax hidden">**</span> 维持，新增观察标的
+              <span class="syntax link-hidden">[[</span><span class="wiki">Constellation Software</span><span class="syntax link-hidden">]]</span>。
+            </p>
+
+            <h3><span class="syntax hidden">### </span>失误记录</h3>
+            <blockquote>
+              <span class="syntax hidden">&gt; </span>周一开盘前未及时挂限价单，错过 BABA 入场点。下次用 GTC 单子覆盖。
+            </blockquote>
+
+            <h3><span class="syntax hidden">### </span>代码片段</h3>
+            <p>本周 portfolio re-balance 用脚本算了一下权重：</p>
+            <pre>weights = pd.Series({"BABA": 0.08, "BRK.B": 0.20, ...})
+re_balance(weights, current_holdings)</pre>
+
+            <p>
+              小函数 <span class="syntax hidden">`</span><code>re_balance(w, h)</code><span class="syntax hidden">`</span> 已收入工具库。
+            </p>
+
+            <h3><span class="syntax hidden">### </span>下周行动</h3>
+            <p>
+              - 完成 <span class="syntax link-hidden">[[</span><span class="wiki">读书笔记 · The Outsiders</span><span class="syntax link-hidden">]]</span> 卡片化<br/>
+              - <span class="syntax tag-hidden">#</span><span class="tag-token">deep-work</span> 上午 9-12 用于研究<br/>
+              - 周日晚 10 点提交月度复盘
+            </p>
+
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span><span class="swatch" style="background:#4A90E2"></span> Wiki link · #4A90E2</span>
+      <span><span class="swatch" style="background:#5856D6"></span> Inline tag · #5856D6</span>
+      <span><span class="swatch" style="background:#E8893B"></span> Dirty dot · 自动保存</span>
+      <span><span class="swatch" style="background:rgba(74,144,226,.20)"></span> Active paragraph · 当前光标段落</span>
+      <span><span class="swatch" style="background:rgba(27,27,27,.18);"></span> Hidden syntax · 非活动段落的 ** [[ # 等</span>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- Scene 3: Bear-style rendering close-up -->
+  <!-- ============================================================ -->
+  <section class="scene">
+    <div class="scene-label">
+      <span class="tag">M3</span>
+      <h2>编辑器内联渲染 · Active Paragraph 对比</h2>
+      <span class="note">非活动段落隐藏 ** _ # [[ 等语法字符；活动段落（光标所在）显示原始 markdown</span>
+    </div>
+    <div class="window">
+      <div class="titlebar">
+        <div class="traffic-lights"><div class="tl red"></div><div class="tl amber"></div><div class="tl green"></div></div>
+        <div class="titlebar-title">M3 渲染规则示例</div>
+      </div>
+      <div style="display:grid; grid-template-columns: 1fr 1fr;">
+        <!-- Inactive column -->
+        <div class="editor-pane" style="border-right:1px solid var(--divider);">
+          <div class="editor-toolbar">
+            <span class="file-title">非活动段落（已渲染）</span>
+            <span class="spacer"></span>
+            <span class="meta">光标不在此处</span>
+          </div>
+          <div class="editor-body md">
+            <h1><span class="syntax hidden"># </span>Bear 风格内联渲染</h1>
+            <p>
+              这是一段 <span class="syntax hidden">**</span><strong>粗体</strong><span class="syntax hidden">**</span>，
+              这是一段 <span class="syntax hidden">*</span><em>斜体</em><span class="syntax hidden">*</span>。<br/>
+              引用一篇笔记 <span class="syntax link-hidden">[[</span><span class="wiki">卡片盒方法</span><span class="syntax link-hidden">]]</span>，
+              加一个标签 <span class="syntax tag-hidden">#</span><span class="tag-token">pkm/method</span>。
+            </p>
+            <p>
+              行内代码 <span class="syntax hidden">`</span><code>let x = 42</code><span class="syntax hidden">`</span> 自带等宽与浅灰背景。
+            </p>
+            <blockquote>
+              <span class="syntax hidden">&gt; </span>引用块以左侧竖线呈现，配色用 secondaryLabel。
+            </blockquote>
+            <pre>func style(_ text: String) -> NSAttributedString {
+    // active paragraph 之外的语法字符
+    // 用 .clear 隐藏（仍占空间，M7 再做 zero-advance）
+}</pre>
+          </div>
+        </div>
+
+        <!-- Active column -->
+        <div class="editor-pane">
+          <div class="editor-toolbar">
+            <span class="file-title">活动段落（原始 markdown）</span>
+            <span class="spacer"></span>
+            <span class="meta">光标在此处</span>
+          </div>
+          <div class="editor-body md">
+            <div class="active-paragraph">
+              <h1><span class="syntax"># </span>Bear 风格内联渲染</h1>
+            </div>
+            <div class="active-paragraph" style="margin-top:8px;">
+              <p>
+                这是一段 <span class="syntax">**</span><strong>粗体</strong><span class="syntax">**</span>，
+                这是一段 <span class="syntax">*</span><em>斜体</em><span class="syntax">*</span>。<span class="caret"></span><br/>
+                引用一篇笔记 <span class="syntax">[[</span><span class="wiki">卡片盒方法</span><span class="syntax">]]</span>，
+                加一个标签 <span class="syntax">#</span><span class="tag-token">pkm/method</span>。
+              </p>
+            </div>
+            <p>
+              <em style="color:var(--text-tertiary)">下方段落 markdown 字符隐藏；切换光标即在两种状态间过渡 ↓</em>
+            </p>
+            <p>
+              行内代码 <span class="syntax hidden">`</span><code>let x = 42</code><span class="syntax hidden">`</span> 自带等宽与浅灰背景。
+            </p>
+            <blockquote>
+              <span class="syntax hidden">&gt; </span>引用块以左侧竖线呈现，配色用 secondaryLabel。
+            </blockquote>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- Scene 4: Search sheet -->
+  <!-- ============================================================ -->
+  <section class="scene">
+    <div class="scene-label">
+      <span class="tag">M2</span>
+      <h2>Cmd-Shift-F 全文搜索面板</h2>
+      <span class="note">FTS5 · bm25(title 10×, body 1×) · snippet() 高亮 · 300ms debounce</span>
+    </div>
+    <div class="window">
+      <div class="titlebar">
+        <div class="traffic-lights"><div class="tl red"></div><div class="tl amber"></div><div class="tl green"></div></div>
+        <div class="titlebar-title">投资周记.md — Margin</div>
+      </div>
+      <div class="sheet-wrap">
+        <div class="sheet">
+          <div class="sheet-header">
+            <svg class="magnifier" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg>
+            <input class="sheet-input" value="Singleton" />
+            <span class="kbd">esc</span>
+          </div>
+          <div class="sheet-body">
+
+            <div class="sr-row selected">
+              <div class="sr-title">读书笔记 · The Outsiders</div>
+              <div class="sr-snippet">…<mark>Singleton</mark> 的资本配置思维：回购时机、对低估值的耐心。要点拆解为卡片放入…</div>
+              <div class="sr-path">Daily / 2026-W22 / 读书笔记 · The Outsiders.md</div>
+            </div>
+
+            <div class="sr-row">
+              <div class="sr-title">Founders #245 笔记</div>
+              <div class="sr-snippet">Henry <mark>Singleton</mark> 的 Teledyne：80 acquisitions in 10 years, then 90% buyback at undervalued…</div>
+              <div class="sr-path">Inbox / Founders / Founders #245.md</div>
+            </div>
+
+            <div class="sr-row">
+              <div class="sr-title">投资框架 · Capital Allocation</div>
+              <div class="sr-snippet">五种资本去向：reinvest, M&amp;A, dividend, buyback, debt paydown — <mark>Singleton</mark> 的范例…</div>
+              <div class="sr-path">Projects / 投资 / 框架.md</div>
+            </div>
+
+            <div class="sr-row">
+              <div class="sr-title">2026-W18 投资周记</div>
+              <div class="sr-snippet">…<mark>Singleton</mark> 与 Buffett 的对比：长期视角共通，资本配置纪律同样严格…</div>
+              <div class="sr-path">Daily / 2026-W18 / 投资周记.md</div>
+            </div>
+
+          </div>
+          <div class="sheet-footer">
+            <span class="kbd">↑</span><span class="kbd">↓</span> 选中
+            <span class="kbd">↵</span> 打开
+            <span class="kbd">⌘ ↵</span> 在新窗口打开
+            <span class="spacer"></span>
+            <span>4 个结果 · 23ms</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- Scene 5: Search empty state + indexing -->
+  <!-- ============================================================ -->
+  <section class="scene">
+    <div class="scene-label">
+      <span class="tag">M2</span>
+      <h2>搜索辅助态 · 空查询 · 索引中</h2>
+      <span class="note">空 query 不出结果；首次索引时左下角显示 Indexing…</span>
+    </div>
+    <div class="window">
+      <div class="titlebar">
+        <div class="traffic-lights"><div class="tl red"></div><div class="tl amber"></div><div class="tl green"></div></div>
+        <div class="titlebar-title">Margin</div>
+      </div>
+      <div style="display:grid; grid-template-columns: 1fr 1fr;">
+
+        <!-- Empty query -->
+        <div class="sheet-wrap" style="border-right:1px solid var(--divider);">
+          <div class="sheet" style="width:auto;">
+            <div class="sheet-header">
+              <svg class="magnifier" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg>
+              <input class="sheet-input" placeholder="Search notes…" />
+              <span class="kbd">esc</span>
+            </div>
+            <div style="padding: 56px 24px; text-align:center; color: var(--text-tertiary);">
+              <div style="font-size:32px; margin-bottom:8px;">🔍</div>
+              <div style="font-size:14px;">输入关键字开始搜索</div>
+              <div style="font-size:12px; margin-top:6px;">支持中英文前缀匹配 · 多词 AND</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- No results -->
+        <div class="sheet-wrap">
+          <div class="sheet" style="width:auto;">
+            <div class="sheet-header">
+              <svg class="magnifier" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg>
+              <input class="sheet-input" value="zzz不存在的词" />
+              <span class="kbd">esc</span>
+            </div>
+            <div style="padding: 56px 24px; text-align:center; color: var(--text-tertiary);">
+              <div style="font-size:14px; color: var(--text-secondary);">没有匹配的笔记</div>
+              <div style="font-size:12px; margin-top:6px;">尝试更短的词，或用部分单词前缀</div>
+            </div>
+            <div class="sheet-footer">
+              <span class="kbd">⌘ N</span> 新建以此为标题的笔记
+              <span class="spacer"></span>
+              <span style="display:inline-flex; align-items:center; gap:6px;">
+                <span style="width:8px; height:8px; border-radius:50%; background:#4A90E2; box-shadow: 0 0 0 3px rgba(74,144,226,.20); animation: blink 1.4s infinite;"></span>
+                Indexing 1,284 / 1,532 notes…
+              </span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- Scene 6: Dark mode preview -->
+  <!-- ============================================================ -->
+  <section class="scene">
+    <div class="scene-label">
+      <span class="tag">M1 + M3</span>
+      <h2>暗色模式预览</h2>
+      <span class="note">通过 prefers-color-scheme 自动切换；当前若系统是深色，本节展示真实暗色，否则用强制色板</span>
+    </div>
+    <div class="window" style="
+      --bg-window:#2A2A2A; --bg-sidebar:#1F1F1F; --bg-noteList:#232323; --bg-editor:#1B1B1B;
+      --bg-toolbar:#262626; --divider:rgba(255,255,255,.08); --divider-strong:rgba(255,255,255,.14);
+      --text-primary:#ECECEC; --text-secondary:rgba(236,236,236,.60); --text-tertiary:rgba(236,236,236,.38);
+      --text-hidden:rgba(236,236,236,.16); --code-bg:rgba(255,255,255,.08); --quote-bar:rgba(255,255,255,.24);
+      --row-hover:rgba(255,255,255,.05); --row-selected:#2F5BA6; --row-selected-text:#FFFFFF;
+      color: #ECECEC;
+    ">
+      <div class="titlebar">
+        <div class="traffic-lights"><div class="tl red"></div><div class="tl amber"></div><div class="tl green"></div></div>
+        <div class="titlebar-title">投资周记.md — Margin (Dark)</div>
+      </div>
+      <div class="pane-layout" style="height: 460px; grid-template-columns: 260px 1fr;">
+        <aside class="sidebar">
+          <div class="sidebar-tabs">
+            <div class="sb-tab active"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 4h4l1.2 1.4H14V13H2z"/></svg></div>
+            <div class="sb-tab"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg></div>
+            <div class="sb-tab"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M7.5 1.5h6v6L7 14 1.5 8.5z"/><circle cx="10.5" cy="4.5" r="1" fill="currentColor"/></svg></div>
+            <div class="sb-tab"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.5 1.5"/></svg></div>
+          </div>
+          <div class="sidebar-scroll">
+            <div class="sidebar-section">笔记库</div>
+            <div class="tree-row"><span class="chev">▼</span><span class="icon">📂</span><span class="name">Daily</span></div>
+            <div class="tree-row depth-1 file-row-note selected unsaved"><span class="chev empty"></span><span class="icon">📄</span><span class="name">投资周记</span></div>
+            <div class="tree-row depth-1 file-row-note"><span class="chev empty"></span><span class="icon">📄</span><span class="name">读书笔记 · The Outsiders</span></div>
+            <div class="tree-row"><span class="chev">▼</span><span class="icon">📂</span><span class="name">Projects</span></div>
+            <div class="tree-row depth-1 file-row-note"><span class="chev empty"></span><span class="icon">📄</span><span class="name">投资框架</span></div>
+            <div class="tree-row hidden-dir"><span class="chev">▶</span><span class="icon">⚙️</span><span class="name">.obsidian</span></div>
+          </div>
+          <div class="sidebar-footer">
+            <span>1,532 notes</span>
+            <span class="spacer"></span>
+            <span>✓ Indexed</span>
+          </div>
+        </aside>
+        <section class="editor-pane">
+          <div class="editor-toolbar">
+            <span class="file-title">投资周记</span>
+            <span class="dirty-dot"></span>
+            <span class="spacer"></span>
+            <span class="meta">已保存</span>
+          </div>
+          <div class="editor-body md">
+            <h1><span class="syntax hidden"># </span>2026-W22 投资周记</h1>
+            <div class="active-paragraph">
+              <p>
+                <span class="syntax">**</span><strong>BABA</strong><span class="syntax">**</span> 由 5% → 8%。<span class="caret"></span><br/>
+                参考 <span class="syntax">[[</span><span class="wiki">BABA · 2026Q1</span><span class="syntax">]]</span>，标签
+                <span class="syntax">#</span><span class="tag-token">投资/复盘</span>。
+              </p>
+            </div>
+            <p>
+              <span class="syntax hidden">**</span><strong>BRK.B</strong><span class="syntax hidden">**</span> 维持，观察
+              <span class="syntax link-hidden">[[</span><span class="wiki">Constellation Software</span><span class="syntax link-hidden">]]</span>。
+            </p>
+          </div>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <div style="text-align:center; color: rgba(255,255,255,.45); font-size: 12px; margin-top: 16px;">
+    设计基于 plans/2026-05-30-margin-m1/m2/m3 · 颜色取自 M3 Typography palette (linkBlue #4A90E2, tagPurple #5856D6) · macOS NavigationSplitView + AppKit NSTextView
+  </div>
+
+</body>
+</html>
