@@ -49,7 +49,7 @@ private struct MarkdownEditor: NSViewRepresentable {
         layoutManager.delegate = context.coordinator.blockChrome
         context.coordinator.blockChrome.contentStorage = contentStorage
         context.coordinator.blockChrome.palette = theme.palette
-        let tv = NSTextView(frame: .zero, textContainer: container)
+        let tv = MarkdownEditorTextView(frame: .zero, textContainer: container)
         tv.minSize = CGSize(width: 0, height: 0)
         tv.maxSize = CGSize(width: CGFloat.greatestFiniteMagnitude,
                             height: CGFloat.greatestFiniteMagnitude)
@@ -57,6 +57,13 @@ private struct MarkdownEditor: NSViewRepresentable {
         tv.isHorizontallyResizable = false
         tv.autoresizingMask = [.width]
         scroll.documentView = tv
+        context.coordinator.cacheReferences(manager: layoutManager)
+        tv.onHoverPoint = { [weak coord = context.coordinator] point in
+            coord?.updateHover(at: point)
+        }
+        tv.onHoverExit = { [weak coord = context.coordinator] in
+            coord?.clearHover()
+        }
         tv.delegate = context.coordinator
         tv.isAutomaticQuoteSubstitutionEnabled = false
         tv.isAutomaticDashSubstitutionEnabled = false
@@ -104,6 +111,10 @@ private struct MarkdownEditor: NSViewRepresentable {
         let parent: MarkdownEditor
         var typography = Typography.current()
         let blockChrome = BlockChromeDelegate()
+        private weak var cachedLayoutManager: NSTextLayoutManager?
+        /// We use ObjectIdentifier (pointer identity) to track which fragment is hovered,
+        /// and keep a weak reference to that fragment so we can clear it on exit.
+        private weak var hoveredFragment: NSTextLayoutFragment?
         private var suppressDelegate = false
 
         init(_ parent: MarkdownEditor) { self.parent = parent }
@@ -155,6 +166,45 @@ private struct MarkdownEditor: NSViewRepresentable {
         func textViewDidChangeSelection(_ notification: Notification) {
             guard !suppressDelegate, let tv = notification.object as? NSTextView else { return }
             applyAttributes(tv: tv)
+        }
+
+        // MARK: - Hover handling
+
+        func cacheReferences(manager: NSTextLayoutManager) {
+            self.cachedLayoutManager = manager
+        }
+
+        func updateHover(at point: CGPoint) {
+            guard let manager = cachedLayoutManager else { return }
+            let fragment = manager.textLayoutFragment(for: point)
+            // If the same object is still hovered, nothing to do.
+            if fragment === hoveredFragment { return }
+            // Clear old hover.
+            if let prior = hoveredFragment {
+                setHover(false, on: prior)
+                manager.invalidateLayout(for: NSTextRange(location: prior.rangeInElement.location))
+            }
+            hoveredFragment = fragment
+            // Set new hover.
+            if let fragment = fragment {
+                setHover(true, on: fragment)
+                manager.invalidateLayout(for: NSTextRange(location: fragment.rangeInElement.location))
+            }
+        }
+
+        func clearHover() {
+            guard let manager = cachedLayoutManager, let frag = hoveredFragment else {
+                hoveredFragment = nil
+                return
+            }
+            setHover(false, on: frag)
+            manager.invalidateLayout(for: NSTextRange(location: frag.rangeInElement.location))
+            hoveredFragment = nil
+        }
+
+        private func setHover(_ on: Bool, on fragment: NSTextLayoutFragment) {
+            if let q = fragment as? QuoteBlockFragment { q.isHovered = on }
+            if let c = fragment as? CodeBlockFragment { c.isHovered = on }
         }
     }
 }
