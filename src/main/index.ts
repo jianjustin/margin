@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'path'
 import { readFile, writeFile } from 'fs/promises'
 import { IPC } from '../shared/ipc'
+import { scanVault } from './vaultScanner'
 
 function registerIpcHandlers(): void {
   ipcMain.handle(IPC.dialogOpenFile, async () => {
@@ -30,6 +31,14 @@ function registerIpcHandlers(): void {
       throw new Error(`Could not save file: ${(err as Error).message}`)
     }
   })
+
+  ipcMain.handle(IPC.dialogOpenFolder, async () => {
+    const result = await dialog.showOpenDialog({ properties: ['openDirectory'] })
+    if (result.canceled || result.filePaths.length === 0) return null
+    return result.filePaths[0]
+  })
+
+  ipcMain.handle(IPC.vaultScan, (_event, root: string) => scanVault(root))
 }
 
 function createWindow(): void {
