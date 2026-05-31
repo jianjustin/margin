@@ -1,5 +1,24 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'path'
+import { readFile, writeFile } from 'fs/promises'
+import { IPC } from '../shared/ipc'
+
+function registerIpcHandlers(): void {
+  ipcMain.handle(IPC.dialogOpenFile, async () => {
+    const result = await dialog.showOpenDialog({
+      properties: ['openFile'],
+      filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }]
+    })
+    if (result.canceled || result.filePaths.length === 0) return null
+    return result.filePaths[0]
+  })
+
+  ipcMain.handle(IPC.fileRead, (_event, path: string) => readFile(path, 'utf-8'))
+
+  ipcMain.handle(IPC.fileWrite, (_event, path: string, content: string) =>
+    writeFile(path, content, 'utf-8')
+  )
+}
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -29,6 +48,7 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  registerIpcHandlers()
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

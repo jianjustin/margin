@@ -1,4 +1,10 @@
-import { contextBridge } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron'
+import { IPC, type MarginApi } from '../shared/ipc'
 
-// The real API surface is added in M1 (Task 14).
-contextBridge.exposeInMainWorld('margin', {})
+const api: MarginApi = {
+  openFile: () => ipcRenderer.invoke(IPC.dialogOpenFile),
+  readFile: (path) => ipcRenderer.invoke(IPC.fileRead, path),
+  writeFile: (path, content) => ipcRenderer.invoke(IPC.fileWrite, path, content)
+}
+
+contextBridge.exposeInMainWorld('margin', api)
