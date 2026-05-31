@@ -1,9 +1,5 @@
 import SwiftUI
 
-/// 38pt high chrome that replaces the system title bar. The window is
-/// configured with `titlebarAppearsTransparent + fullSizeContentView`
-/// (see MarginApp.swift), so this view paints behind the native traffic
-/// lights. The leading 70pt is reserved for those buttons.
 struct TitleBar: View {
     @EnvironmentObject var state: AppState
     @EnvironmentObject var theme: ThemeStore
@@ -11,9 +7,11 @@ struct TitleBar: View {
     var body: some View {
         ZStack {
             HStack(spacing: 0) {
-                Color.clear.frame(width: 70)   // traffic lights gutter
+                Color.clear.frame(width: 70)
                 Spacer(minLength: 0)
-                // Right-side button slot is added in Task 4.
+                ToolbarButtons()
+                    .environmentObject(theme)
+                    .padding(.trailing, 10)
             }
             BreadcrumbCenter()
                 .environmentObject(state)
@@ -55,8 +53,6 @@ private struct BreadcrumbCenter: View {
             }
         }
         .font(.system(size: 12.5, weight: .medium))
-        // Cap width so a long filename truncates instead of pushing the
-        // right-side button slot off-screen.
         .frame(maxWidth: 420)
     }
 
@@ -64,5 +60,55 @@ private struct BreadcrumbCenter: View {
         let parent = url.deletingLastPathComponent()
         let name = parent.lastPathComponent
         return name.isEmpty ? nil : name
+    }
+}
+
+private struct ToolbarButtons: View {
+    @EnvironmentObject var theme: ThemeStore
+
+    var body: some View {
+        HStack(spacing: 2) {
+            TBButton(systemName: "sidebar.left",
+                     help: "切换笔记列表 (⌘B)",
+                     enabled: false,
+                     action: {})
+            TBButton(systemName: theme.mode == .dark ? "sun.max" : "moon",
+                     help: "切换主题",
+                     enabled: true,
+                     action: { theme.toggleMode() })
+            TBButton(systemName: "gearshape",
+                     help: "设置 (⌘,)",
+                     enabled: false,
+                     action: {})
+            TBButton(systemName: "rectangle.grid.2x2",
+                     help: "块库 (⌘\\)",
+                     enabled: false,
+                     action: {})
+        }
+    }
+}
+
+private struct TBButton: View {
+    let systemName: String
+    let help: String
+    let enabled: Bool
+    let action: () -> Void
+    @EnvironmentObject var theme: ThemeStore
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 14, weight: .regular))
+                .foregroundStyle(Color(enabled ? theme.palette.textDim : theme.palette.textFaint))
+                .frame(width: 30, height: 26)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(Color.clear)
+                )
+                .contentShape(RoundedRectangle(cornerRadius: 6))
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .help(help)
     }
 }

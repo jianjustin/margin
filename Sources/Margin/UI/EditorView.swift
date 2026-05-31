@@ -10,51 +10,11 @@ struct EditorView: View {
             if state.selectedNoteURL == nil {
                 NoNoteSelectedView()
             } else {
-                VStack(spacing: 0) {
-                    EditorToolbar()
-                    MarkdownEditor(text: $state.noteBody,
-                                   onChange: { state.bodyChanged() })
+                MarkdownEditor(text: $state.noteBody,
+                               onChange: { state.bodyChanged() })
                     .background(Color(theme.palette.bg))
-                }
             }
         }
-    }
-}
-
-private struct EditorToolbar: View {
-    @EnvironmentObject var state: AppState
-    @EnvironmentObject var theme: ThemeStore
-
-    var body: some View {
-        HStack(spacing: 8) {
-            if let url = state.selectedNoteURL {
-                Text(url.deletingPathExtension().lastPathComponent)
-                    .font(.headline)
-                    .foregroundStyle(Color(theme.palette.text))
-            }
-            if state.dirty {
-                Circle()
-                    .fill(Color(theme.palette.accent))
-                    .frame(width: 8, height: 8)
-                    .help("Unsaved changes")
-            }
-            Spacer()
-            Button(action: { theme.toggleMode() }) {
-                Image(systemName: theme.mode == .dark ? "sun.max" : "moon")
-                    .foregroundStyle(Color(theme.palette.textDim))
-            }
-            .buttonStyle(.plain)
-            .help("Toggle theme")
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .background(Color(theme.palette.bgPanel))
-        // SwiftUI's Divider() wraps NSBox which paints opaquely on macOS,
-        // ignoring `.background`. Use a thin Color frame as the separator.
-        .overlay(
-            Color(theme.palette.borderSoft).frame(height: 0.5),
-            alignment: .bottom
-        )
     }
 }
 
@@ -78,9 +38,7 @@ private struct MarkdownEditor: NSViewRepresentable {
         tv.textContainerInset = NSSize(width: 48, height: 32)
         tv.backgroundColor = theme.palette.bg
         tv.insertionPointColor = theme.palette.accent
-        tv.selectedTextAttributes = [
-            .backgroundColor: theme.palette.selection
-        ]
+        tv.selectedTextAttributes = [.backgroundColor: theme.palette.selection]
         context.coordinator.typography = Typography.from(palette: theme.palette,
                                                          size: CGFloat(theme.fontSize),
                                                          fontKey: theme.fontKey)
@@ -123,9 +81,6 @@ private struct MarkdownEditor: NSViewRepresentable {
                 tv.setSelectedRange(NSRange(location: clampedLoc, length: 0))
                 suppressDelegate = false
             } else if forceRestyle {
-                // Theme/font snapshot changed — re-style with the new Typography.
-                // We intentionally skip styling when nothing changed; the
-                // selection-tracking restyle is handled by textViewDidChangeSelection.
                 applyAttributes(tv: tv)
             }
         }
