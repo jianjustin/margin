@@ -15,7 +15,7 @@
 You are working in the git repository at `/Users/jianjustin/workspaces/margin`. Today it contains a **native macOS Swift app** (Xcode project, `Sources/`, `Tests/`). We are throwing that away on `main` (after backing it up to a branch) and rebuilding from scratch as an Electron app. Read the design spec first: [docs/superpowers/specs/2026-05-31-margin-wysiwyg-editor-design.md](../specs/2026-05-31-margin-wysiwyg-editor-design.md).
 
 Key facts you need:
-- Node `v22.x`, npm `10.x` are installed.
+- Node `v20.20.1`, npm `10.x` are installed (Node 20 supports the entire stack below).
 - The original interaction mockup (交互稿) is **only** at `/tmp/margin-design/` right now (`index.html` + a `margin/` subfolder). `/tmp` is volatile, so Task 2 rescues it into the repo **early**. Do not skip it.
 - `.gitignore` currently ignores `*.xcodeproj/`, `build/`, and `Margin.xcodeproj` — so those Xcode artifacts are **untracked** (remove them from disk with `rm`, not `git rm`).
 - electron-vite's project layout is `src/main/`, `src/preload/`, `src/renderer/`, with renderer source under `src/renderer/src/`. We add a `src/shared/` folder for types shared across all three processes.
