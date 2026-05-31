@@ -24,7 +24,7 @@ struct FileTreeRow: View {
             Spacer(minLength: 4)
             if row.isFolder, row.childCount > 0 {
                 Text("\(row.childCount)")
-                    .font(.system(size: 10, design: .monospaced))
+                    .font(.system(size: 11, design: .monospaced))
                     .foregroundStyle(Color(theme.palette.textFaint))
                     .padding(.horizontal, 6)
                     .frame(height: 16)
@@ -66,6 +66,7 @@ struct FileTreeRow: View {
             .font(.system(size: 11, weight: .medium))
             .foregroundStyle(Color(iconColor))
             .frame(width: 17, height: 17)
+            .clipShape(RoundedRectangle(cornerRadius: 4))
     }
 
     private var iconSystemName: String {
