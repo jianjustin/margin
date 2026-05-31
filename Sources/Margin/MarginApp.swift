@@ -34,6 +34,9 @@ struct MarginApp: App {
                     win.titlebarAppearsTransparent = true
                     win.titleVisibility = .hidden
                     win.styleMask.insert(.fullSizeContentView)
+                    // Empty title so neither the titlebar overlay nor the
+                    // app's Window menu shows the "Margin" label.
+                    win.title = ""
                     // No system toolbar; the SwiftUI TitleBar paints this region.
                     win.toolbarStyle = .unified
                     // (isMovableByWindowBackground stays at its NSWindow default
