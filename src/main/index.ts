@@ -3,6 +3,16 @@ import { join } from 'path'
 import { readFile, writeFile } from 'fs/promises'
 import { IPC } from '../shared/ipc'
 import { scanVault } from './vaultScanner'
+import { watchVault } from './fileWatcher'
+
+let stopWatch: (() => void) | null = null
+
+function armWatcher(win: BrowserWindow, root: string): void {
+  stopWatch?.()
+  stopWatch = watchVault(root, () => {
+    if (!win.isDestroyed()) win.webContents.send(IPC.vaultChanged, root)
+  })
+}
 
 function registerIpcHandlers(): void {
   ipcMain.handle(IPC.dialogOpenFile, async () => {
@@ -38,7 +48,11 @@ function registerIpcHandlers(): void {
     return result.filePaths[0]
   })
 
-  ipcMain.handle(IPC.vaultScan, (_event, root: string) => scanVault(root))
+  ipcMain.handle(IPC.vaultScan, (event, root: string) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    if (win) armWatcher(win, root)
+    return scanVault(root)
+  })
 }
 
 function createWindow(): void {
@@ -78,4 +92,8 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
+})
+
+app.on('will-quit', () => {
+  stopWatch?.()
 })
