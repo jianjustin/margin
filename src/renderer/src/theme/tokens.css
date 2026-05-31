@@ -1,0 +1,62 @@
+/* Semantic Bear palette — single source of truth (oklch). Dark is default. */
+:root {
+  --bg: oklch(0.165 0.006 70);
+  --bg-panel: oklch(0.205 0.006 70);
+  --bg-elev: oklch(0.245 0.007 70);
+  --bg-hover: oklch(0.275 0.008 70);
+  --border: oklch(0.305 0.006 70);
+  --border-soft: oklch(0.255 0.006 70);
+  --text: oklch(0.905 0.01 85);
+  --text-dim: oklch(0.66 0.01 80);
+  --text-faint: oklch(0.49 0.01 80);
+  --accent: oklch(0.82 0.11 90);
+  --accent-ink: oklch(0.3 0.05 80);
+  --accent-soft: oklch(0.82 0.11 90 / 0.14);
+  --accent-line: oklch(0.82 0.11 90 / 0.32);
+  --sel: oklch(0.82 0.11 90 / 0.2);
+  --red: oklch(0.62 0.18 25);
+
+  /* Font stacks: Latin from bundled IBM Plex; CJK from system PingFang SC. */
+  --ui: 'IBM Plex Sans', 'PingFang SC', system-ui, sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --serif: 'IBM Plex Serif', Georgia, serif;
+
+  --radius: 0.5rem;
+
+  /* shadcn variable names mapped onto the semantic tokens. */
+  --background: var(--bg);
+  --foreground: var(--text);
+  --card: var(--bg-panel);
+  --card-foreground: var(--text);
+  --popover: var(--bg-panel);
+  --popover-foreground: var(--text);
+  --primary: var(--accent);
+  --primary-foreground: var(--accent-ink);
+  --secondary: var(--bg-elev);
+  --secondary-foreground: var(--text);
+  --muted: var(--bg-elev);
+  --muted-foreground: var(--text-dim);
+  --accent-color: var(--bg-hover);
+  --accent-color-foreground: var(--text);
+  --destructive: var(--red);
+  --destructive-foreground: oklch(0.99 0.02 90);
+  --input: var(--border);
+  --ring: var(--accent);
+}
+
+[data-theme='light'] {
+  --bg: oklch(0.975 0.005 85);
+  --bg-panel: oklch(0.945 0.007 85);
+  --bg-elev: oklch(0.995 0.003 85);
+  --bg-hover: oklch(0.915 0.009 85);
+  --border: oklch(0.875 0.008 85);
+  --border-soft: oklch(0.915 0.007 85);
+  --text: oklch(0.265 0.012 75);
+  --text-dim: oklch(0.46 0.012 75);
+  --text-faint: oklch(0.64 0.012 75);
+  --accent: oklch(0.6 0.12 70);
+  --accent-ink: oklch(0.99 0.02 90);
+  --accent-soft: oklch(0.6 0.12 70 / 0.12);
+  --accent-line: oklch(0.6 0.12 70 / 0.3);
+  --sel: oklch(0.6 0.12 70 / 0.18);
+}
