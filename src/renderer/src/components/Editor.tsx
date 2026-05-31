@@ -66,7 +66,8 @@ export function Editor({ docKey, initialValue, onChange, onSave }: EditorProps):
             maxWidth: '720px',
             margin: '0 auto',
             padding: '56px 40px',
-            fontFamily: 'ui-sans-serif, system-ui, -apple-system, sans-serif'
+            fontFamily: 'var(--ui)',
+            lineHeight: '1.72'
           }
         })
       ]
