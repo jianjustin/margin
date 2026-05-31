@@ -15,10 +15,6 @@ struct RootView: View {
                 }
             }
         }
-        // Extend the SwiftUI content to the absolute top of the window so the
-        // TitleBar paints behind the native (transparent) title bar region.
-        // The system still renders the traffic lights on top.
-        .ignoresSafeArea(.all, edges: .top)
         .frame(minWidth: 900, minHeight: 600)
         .preferredColorScheme(theme.mode == .dark ? .dark : .light)
         .sheet(isPresented: $state.searchSheetVisible) {

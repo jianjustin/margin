@@ -47,7 +47,11 @@ struct MarginApp: App {
                 })
                 .task { state.loadStoredVault() }
         }
-        .windowStyle(.titleBar)
+        // .hiddenTitleBar removes the entire native title-bar / toolbar
+        // region (including the auto-rendered NavigationSplitView toolbar
+        // items) while keeping the traffic-light cluster. The custom
+        // SwiftUI TitleBar at the top of RootView now paints from y=0.
+        .windowStyle(.hiddenTitleBar)
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("Choose Vault…") { state.chooseVault() }
@@ -64,6 +68,13 @@ struct MarginApp: App {
                 }
                 .keyboardShortcut("f", modifiers: [.command, .shift])
                 .disabled(state.vaultRoot == nil)
+            }
+            CommandGroup(after: .sidebar) {
+                // Native toolbar's rescan button vanished with .hiddenTitleBar;
+                // surface the action via Cmd-R + View menu.
+                Button("Rescan Vault") { state.rescan() }
+                    .keyboardShortcut("r", modifiers: .command)
+                    .disabled(state.vaultRoot == nil)
             }
         }
     }
