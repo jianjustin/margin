@@ -1,8 +1,12 @@
 import { useEffect, useRef } from 'react'
 import { EditorState } from '@codemirror/state'
-import { EditorView, keymap, lineNumbers } from '@codemirror/view'
+import { EditorView, keymap } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
-import { markdown } from '@codemirror/lang-markdown'
+import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
+import { languages } from '@codemirror/language-data'
+import { syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language'
+import { livePreview } from '@/editor/livePreview/livePreviewPlugin'
+import { marginEditorTheme } from '@/editor/livePreview/theme'
 
 interface EditorProps {
   /** Identifies the open document; changing it reloads the editor contents. */
@@ -43,9 +47,11 @@ export function Editor({ docKey, initialValue, onChange, onSave }: EditorProps):
     const state = EditorState.create({
       doc: initialValue,
       extensions: [
-        lineNumbers(),
         history(),
-        markdown(),
+        markdown({ base: markdownLanguage, codeLanguages: languages }),
+        syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+        livePreview,
+        marginEditorTheme,
         EditorView.lineWrapping,
         saveKeymap,
         keymap.of([...defaultKeymap, ...historyKeymap]),
@@ -56,8 +62,12 @@ export function Editor({ docKey, initialValue, onChange, onSave }: EditorProps):
         }),
         EditorView.theme({
           '&': { height: '100%', fontSize: '16px' },
-          '.cm-scroller': { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' },
-          '.cm-content': { maxWidth: '720px', margin: '0 auto', padding: '56px 40px' }
+          '.cm-content': {
+            maxWidth: '720px',
+            margin: '0 auto',
+            padding: '56px 40px',
+            fontFamily: 'ui-sans-serif, system-ui, -apple-system, sans-serif'
+          }
         })
       ]
     })
