@@ -18,6 +18,12 @@ final class BlockChromeDelegate: NSObject, NSTextLayoutManagerDelegate {
                                           range: textElement.elementRange)
             frag.barColor = palette.accent
             return frag
+        case .code:
+            let frag = CodeBlockFragment(textElement: textElement,
+                                         range: textElement.elementRange)
+            frag.fillColor = palette.bgElev
+            frag.borderColor = palette.borderSoft
+            return frag
         default:
             return NSTextLayoutFragment(textElement: textElement,
                                         range: textElement.elementRange)
