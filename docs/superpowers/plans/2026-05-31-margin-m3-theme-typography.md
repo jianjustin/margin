@@ -18,7 +18,7 @@ Key facts:
 - Node `v20.20.1`, npm `10.x`. Builds directly on `main` (approved); no worktree.
 - Vitest runs `test/**/*.test.ts` in node, `@` → `src/renderer/src`. DOM-dependent tests use a `// @vitest-environment jsdom` header (jsdom is already installed).
 - **This Bash environment mangles large/multiline stdout** — for load-bearing checks write to a temp file and Read it, and trust the git push refspec line.
-- `@fontsource/ibm-plex-sans@5.2.6`, `-mono@5.2.6`, `-serif@5.2.5` exist. **`@fontsource/ibm-plex-sans-sc` does NOT exist** — Chinese is served by system PingFang SC via the font stack, do not try to install it.
+- `@fontsource/ibm-plex-sans` (5.2.8), `-mono` (5.2.7), `-serif` (5.2.7) all exist on npm; the `^5.2.x` ranges below resolve to these. **`@fontsource/ibm-plex-sans-sc` does NOT exist (404)** — Chinese is served by system PingFang SC via the font stack, do not try to install it.
 - Current relevant files:
   - `src/renderer/src/index.css` — hand-filled shadcn HSL light/dark vars + body base.
   - `tailwind.config.js` — colors as `hsl(var(--x))` (must become `var(--x)`).
