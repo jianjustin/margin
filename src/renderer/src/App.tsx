@@ -5,6 +5,7 @@ import { saveDocument } from '@/lib/saveDocument'
 import { useDocumentStore } from '@/stores/documentStore'
 import { useVaultStore, loadPersistedRoot } from '@/stores/vaultStore'
 import { Sidebar } from '@/components/FileTree/Sidebar'
+import { RowContextMenu, type ContextMenuState } from '@/components/FileTree/RowContextMenu'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { useThemeStore, resolveTheme } from '@/stores/themeStore'
 import { useSystemTheme } from '@/hooks/useSystemTheme'
@@ -20,6 +21,7 @@ export default function App(): JSX.Element {
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [menu, setMenu] = useState<ContextMenuState | null>(null)
 
   const themeMode = useThemeStore((s) => s.mode)
   const systemDark = useSystemTheme()
@@ -79,7 +81,56 @@ export default function App(): JSX.Element {
   }, [])
 
   // Context menu is implemented in a later task; no-op for now.
-  function handleContextMenu(_node: TreeNode, _x: number, _y: number): void {}
+  function handleContextMenu(node: TreeNode, x: number, y: number): void {
+    setMenu({ node, x, y })
+  }
+
+  async function refreshTree(): Promise<void> {
+    const root = useVaultStore.getState().root
+    if (!root) return
+    const tree = await window.margin.scanVault(root)
+    useVaultStore.getState().setTree(tree)
+  }
+
+  function targetDir(node: TreeNode): string {
+    return node.type === 'folder' ? node.path : node.path.replace(/\/[^/]+$/, '')
+  }
+
+  async function newNote(folder: TreeNode): Promise<void> {
+    const name = window.prompt('New note name:')
+    if (!name) return
+    const created = await window.margin.createNote(targetDir(folder), name)
+    await refreshTree()
+    await openFileByPath(created)
+  }
+
+  async function newFolder(folder: TreeNode): Promise<void> {
+    const name = window.prompt('New folder name:')
+    if (!name) return
+    await window.margin.createFolder(targetDir(folder), name)
+    await refreshTree()
+  }
+
+  async function renameNode(node: TreeNode): Promise<void> {
+    const name = window.prompt('Rename to:', node.name)
+    if (!name || name === node.name) return
+    const newPath = await window.margin.renamePath(node.path, name)
+    await refreshTree()
+    if (useDocumentStore.getState().path === node.path) {
+      const text = await window.margin.readFile(newPath)
+      useDocumentStore.getState().load(newPath, text)
+      useVaultStore.getState().select(newPath)
+    }
+  }
+
+  async function trashNode(node: TreeNode): Promise<void> {
+    if (!window.confirm(`Move "${node.name}" to Trash?`)) return
+    await window.margin.trashPath(node.path)
+    if (useDocumentStore.getState().path === node.path) {
+      useDocumentStore.getState().reset()
+    }
+    await refreshTree()
+  }
 
   const fileName = path ? path.split('/').pop() : 'No file open'
 
@@ -137,6 +188,28 @@ export default function App(): JSX.Element {
           )}
         </main>
       </div>
+      {menu && (
+        <RowContextMenu
+          menu={menu}
+          onClose={() => setMenu(null)}
+          onNewNote={(n) => {
+            setMenu(null)
+            void newNote(n)
+          }}
+          onNewFolder={(n) => {
+            setMenu(null)
+            void newFolder(n)
+          }}
+          onRename={(n) => {
+            setMenu(null)
+            void renameNode(n)
+          }}
+          onTrash={(n) => {
+            setMenu(null)
+            void trashNode(n)
+          }}
+        />
+      )}
     </div>
   )
 }
