@@ -10,6 +10,8 @@ import { ThemeToggle } from '@/components/ThemeToggle'
 import { useThemeStore, resolveTheme } from '@/stores/themeStore'
 import { useSystemTheme } from '@/hooks/useSystemTheme'
 import { useVaultWatch } from '@/hooks/useVaultWatch'
+import { StatusBar } from '@/components/StatusBar'
+import { useDocStats } from '@/hooks/useDocStats'
 import type { TreeNode } from '../../shared/ipc'
 
 const AUTOSAVE_MS = 800
@@ -18,6 +20,8 @@ export default function App(): JSX.Element {
   const path = useDocumentStore((s) => s.path)
   const content = useDocumentStore((s) => s.content)
   const saveStatus = useDocumentStore((s) => s.saveStatus)
+  const dirty = useDocumentStore((s) => s.content !== s.savedContent)
+  const stats = useDocStats(content)
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -56,12 +60,6 @@ export default function App(): JSX.Element {
     const text = await window.margin.readFile(filePath)
     useDocumentStore.getState().load(filePath, text)
     useVaultStore.getState().select(filePath)
-  }
-
-  async function openFileDialog(): Promise<void> {
-    const chosen = await window.margin.openFile()
-    if (!chosen) return
-    await openFileByPath(chosen)
   }
 
   function save(): Promise<void> {
@@ -132,7 +130,9 @@ export default function App(): JSX.Element {
     await refreshTree()
   }
 
-  const fileName = path ? path.split('/').pop() : 'No file open'
+  const parts = path ? path.split('/') : []
+  const fileName = parts.length > 0 ? parts[parts.length - 1] : ''
+  const parentName = parts.length > 1 ? parts[parts.length - 2] : ''
 
   return (
     <div className="flex h-screen flex-col bg-background text-foreground">
@@ -145,25 +145,22 @@ export default function App(): JSX.Element {
         >
           <PanelLeft size={16} />
         </button>
-        <button
-          onClick={() => void openFileDialog()}
-          className="rounded-md bg-secondary px-2 py-1 text-secondary-foreground hover:bg-accent"
-        >
-          Open…
-        </button>
-        <span className="truncate">{fileName}</span>
-        <div className="ml-auto flex items-center gap-2">
-          <span className={`text-xs ${saveStatus === 'error' ? 'text-destructive' : ''}`}>
-            {saveStatus === 'saved'
-              ? 'Saved'
-              : saveStatus === 'saving'
-                ? 'Saving…'
-                : saveStatus === 'error'
-                  ? 'Save failed — retrying on next edit'
-                  : 'Unsaved'}
-          </span>
-          <ThemeToggle />
+        <div className="flex min-w-0 flex-1 items-center justify-center gap-1.5 text-[12.5px] text-[color:var(--text-dim)]">
+          {path ? (
+            <>
+              {parentName && <span className="text-[color:var(--text-faint)]">{parentName} /</span>}
+              <span className="truncate">{fileName}</span>
+              <span
+                className="h-1.5 w-1.5 flex-none rounded-full bg-[color:var(--accent)] transition-opacity"
+                style={{ opacity: dirty ? 1 : 0 }}
+                aria-hidden
+              />
+            </>
+          ) : (
+            <span className="text-[color:var(--text-faint)]">No file open</span>
+          )}
         </div>
+        <ThemeToggle />
       </header>
       <div className="flex min-h-0 flex-1">
         {sidebarOpen && (
@@ -188,6 +185,7 @@ export default function App(): JSX.Element {
           )}
         </main>
       </div>
+      <StatusBar stats={stats} saveStatus={saveStatus} hasFile={path !== null} />
       {menu && (
         <RowContextMenu
           menu={menu}
