@@ -73,3 +73,26 @@ final class StatsCalculatorTests: XCTestCase {
         XCTAssertEqual(s.blocks, 0)
     }
 }
+
+@MainActor
+final class StatsTrackerTests: XCTestCase {
+
+    func testScheduledUpdatePublishesAfterDebounce() async throws {
+        let t = StatsTracker(debounce: .milliseconds(50))
+        XCTAssertEqual(t.stats, Stats.empty)
+
+        t.schedule("hello world")
+        try await Task.sleep(nanoseconds: 200_000_000)  // 200ms
+        XCTAssertEqual(t.stats.words, 2)
+        XCTAssertEqual(t.stats.chars, 10)
+    }
+
+    func testRapidUpdatesCoalesceToLast() async throws {
+        let t = StatsTracker(debounce: .milliseconds(50))
+        t.schedule("one")
+        t.schedule("one two")
+        t.schedule("one two three")
+        try await Task.sleep(nanoseconds: 200_000_000)
+        XCTAssertEqual(t.stats.words, 3)
+    }
+}

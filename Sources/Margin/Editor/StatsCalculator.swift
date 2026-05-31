@@ -51,3 +51,44 @@ enum StatsCalculator {
         return Stats(chars: nonWS, words: total, minutes: minutes, blocks: blocks)
     }
 }
+
+/// Debounced observable that recomputes Stats from a stream of text updates.
+/// Drop the latest text in via `schedule(_:)`; after the debounce window
+/// expires it computes Stats off the main actor and publishes the result.
+@MainActor
+final class StatsTracker: ObservableObject {
+    @Published private(set) var stats: Stats = .empty
+
+    private let debounce: DispatchTimeInterval
+    private var pendingTask: Task<Void, Never>?
+
+    init(debounce: DispatchTimeInterval = .milliseconds(200)) {
+        self.debounce = debounce
+    }
+
+    func schedule(_ text: String) {
+        pendingTask?.cancel()
+        pendingTask = Task { [weak self, debounce] in
+            guard let nanos = debounce.nanoseconds else { return }
+            try? await Task.sleep(nanoseconds: nanos)
+            if Task.isCancelled { return }
+            let computed = await Task.detached(priority: .utility) {
+                StatsCalculator.compute(text)
+            }.value
+            if Task.isCancelled { return }
+            self?.stats = computed
+        }
+    }
+}
+
+private extension DispatchTimeInterval {
+    var nanoseconds: UInt64? {
+        switch self {
+        case .seconds(let s): return UInt64(s) * 1_000_000_000
+        case .milliseconds(let ms): return UInt64(ms) * 1_000_000
+        case .microseconds(let us): return UInt64(us) * 1_000
+        case .nanoseconds(let ns): return UInt64(ns)
+        default: return nil
+        }
+    }
+}
