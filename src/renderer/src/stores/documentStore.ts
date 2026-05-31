@@ -13,6 +13,7 @@ interface DocumentState {
   markSaving(): void
   markSaved(content: string): void
   markError(): void
+  reset(): void
 }
 
 export const useDocumentStore = create<DocumentState>((set, get) => ({
@@ -42,5 +43,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
 
   // Leaves savedContent untouched so the document stays dirty and the
   // failed write can be retried.
-  markError: () => set({ saveStatus: 'error' })
+  markError: () => set({ saveStatus: 'error' }),
+
+  reset: () => set({ path: null, content: '', savedContent: '', saveStatus: 'saved' })
 }))

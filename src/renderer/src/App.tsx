@@ -8,6 +8,7 @@ import { Sidebar } from '@/components/FileTree/Sidebar'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { useThemeStore, resolveTheme } from '@/stores/themeStore'
 import { useSystemTheme } from '@/hooks/useSystemTheme'
+import { useVaultWatch } from '@/hooks/useVaultWatch'
 import type { TreeNode } from '../../shared/ipc'
 
 const AUTOSAVE_MS = 800
@@ -22,6 +23,8 @@ export default function App(): JSX.Element {
 
   const themeMode = useThemeStore((s) => s.mode)
   const systemDark = useSystemTheme()
+
+  useVaultWatch()
 
   useEffect(() => {
     const effective = resolveTheme(themeMode, systemDark)
