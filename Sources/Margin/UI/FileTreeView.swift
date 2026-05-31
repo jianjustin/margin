@@ -32,14 +32,9 @@ struct FileTreeView: View {
             .padding(.vertical, 4)
         }
         .background(Color(theme.palette.bgPanel))
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    state.rescan()
-                } label: { Image(systemName: "arrow.clockwise") }
-                .help("Rescan vault")
-            }
-        }
+        // The native NavigationSplitView toolbar is suppressed by
+        // .windowStyle(.hiddenTitleBar) in MarginApp; rescan is exposed
+        // via the Cmd-R menu command instead.
     }
 
     private func isSelected(_ row: RowDescriptor) -> Bool {
