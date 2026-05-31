@@ -25,7 +25,9 @@ struct MarginApp: App {
     }
 
     var body: some Scene {
-        WindowGroup("Margin") {
+        // Empty WindowGroup title so neither the macOS title bar overlay
+        // nor the Window menu surface the "Margin" string.
+        WindowGroup("") {
             RootView()
                 .environmentObject(state)
                 .environmentObject(theme)
