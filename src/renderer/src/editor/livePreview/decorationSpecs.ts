@@ -24,6 +24,24 @@ export interface DecoSpec {
   checked?: boolean
 }
 
+/** Push a point spec at the start of every line in [from, to]. */
+function eachLine(
+  state: EditorState,
+  from: number,
+  to: number,
+  make: (lineFrom: number) => DecoSpec
+): DecoSpec[] {
+  const out: DecoSpec[] = []
+  let pos = from
+  while (pos <= to) {
+    const line = state.doc.lineAt(pos)
+    out.push(make(line.from))
+    if (line.to >= to) break
+    pos = line.to + 1
+  }
+  return out
+}
+
 /**
  * Walk the markdown syntax tree of `state` and emit a flat list of decoration
  * specs. Pure: depends only on the document text, syntax tree, and selection.
@@ -82,6 +100,80 @@ export function collectDecorations(state: EditorState): DecoSpec[] {
       }
       if (name === 'CodeMark') {
         pushHide(node.from, node.to)
+        return
+      }
+
+      // Blockquote
+      if (name === 'Blockquote') {
+        for (const s of eachLine(state, node.from, node.to, (lineFrom) => ({
+          kind: 'quoteLine',
+          from: lineFrom,
+          to: lineFrom,
+          revealed: false
+        }))) {
+          specs.push(s)
+        }
+        return
+      }
+      if (name === 'QuoteMark') {
+        pushHide(node.from, node.to)
+        return
+      }
+
+      // Fenced code
+      if (name === 'FencedCode') {
+        for (const s of eachLine(state, node.from, node.to, (lineFrom) => ({
+          kind: 'codeLine',
+          from: lineFrom,
+          to: lineFrom,
+          revealed: false
+        }))) {
+          specs.push(s)
+        }
+        return
+      }
+      if (name === 'CodeInfo') {
+        pushHide(node.from, node.to)
+        return
+      }
+
+      // Horizontal rule
+      if (name === 'HorizontalRule') {
+        const line = doc.lineAt(node.from)
+        specs.push({
+          kind: 'hr',
+          from: line.from,
+          to: line.to,
+          revealed: rangeRevealed(state, line.from, line.to)
+        })
+        return
+      }
+
+      // Task checkbox
+      if (name === 'TaskMarker') {
+        const raw = doc.sliceString(node.from, node.to)
+        specs.push({
+          kind: 'task',
+          from: node.from,
+          to: node.to,
+          revealed: rangeRevealed(state, node.from, node.to),
+          checked: /\[[xX]\]/.test(raw)
+        })
+        return
+      }
+
+      // Links: style the whole node, hide its [] and (url) children.
+      // (Images are a separate `Image` node and are intentionally left untouched.)
+      if (name === 'Link') {
+        specs.push({ kind: 'link', from: node.from, to: node.to, revealed: false })
+        const linkRevealed = rangeRevealed(state, node.from, node.to)
+        let child = node.node.firstChild
+        while (child) {
+          if (child.name === 'LinkMark' || child.name === 'URL') {
+            specs.push({ kind: 'hide', from: child.from, to: child.to, revealed: linkRevealed })
+          }
+          child = child.nextSibling
+        }
         return
       }
     }
