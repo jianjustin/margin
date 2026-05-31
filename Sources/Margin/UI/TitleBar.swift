@@ -101,10 +101,6 @@ private struct TBButton: View {
                 .font(.system(size: 14, weight: .regular))
                 .foregroundStyle(Color(enabled ? theme.palette.textDim : theme.palette.textFaint))
                 .frame(width: 30, height: 26)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(Color.clear)
-                )
                 .contentShape(RoundedRectangle(cornerRadius: 6))
         }
         .buttonStyle(.plain)
