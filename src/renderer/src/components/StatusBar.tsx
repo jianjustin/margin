@@ -21,10 +21,10 @@ export function StatusBar({ stats, saveStatus, hasFile }: StatusBarProps): JSX.E
       className="flex h-7 shrink-0 items-center justify-between border-t border-[color:var(--border-soft)] bg-[color:var(--bg-panel)] px-4 text-[11.5px] text-[color:var(--text-faint)]"
       style={{ fontVariantNumeric: 'tabular-nums' }}
     >
-      <div className="flex items-center gap-3">
-        <span>{stats.chars} 字符</span>
-        <span>{stats.words} 词</span>
-        <span>约 {stats.minutes} 分钟</span>
+      <div className="flex items-center">
+        <span>
+          {stats.chars} 字符 · {stats.words} 词 · 约 {stats.minutes} 分钟
+        </span>
       </div>
       <div className="flex items-center gap-3">
         <span>{stats.blocks} 块</span>

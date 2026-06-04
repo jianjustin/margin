@@ -78,7 +78,6 @@ export default function App(): JSX.Element {
     }
   }, [])
 
-  // Context menu is implemented in a later task; no-op for now.
   function handleContextMenu(node: TreeNode, x: number, y: number): void {
     setMenu({ node, x, y })
   }

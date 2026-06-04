@@ -7,11 +7,10 @@ import { computeStats } from '@/lib/computeStats'
 afterEach(cleanup)
 
 describe('StatusBar', () => {
-  it('renders the counts from stats', () => {
+  it('renders counts in spec format with · separators', () => {
     const stats = computeStats('你好 hello world')
     render(<StatusBar stats={stats} saveStatus="saved" hasFile />)
-    expect(screen.getByText('2 字符')).toBeTruthy()
-    expect(screen.getByText('4 词')).toBeTruthy()
+    expect(screen.getByText(/2 字符 · 4 词 · 约 \d+ 分钟/)).toBeTruthy()
     expect(screen.getByText(/块$/)).toBeTruthy()
   })
 
