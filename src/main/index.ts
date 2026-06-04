@@ -4,6 +4,8 @@ import { readFile, writeFile } from 'fs/promises'
 import { IPC } from '../shared/ipc'
 import { scanVault } from './vaultScanner'
 import { watchVault } from './fileWatcher'
+import { createNote, createFolder, renamePath, trashPath } from './fsOps'
+import { registerIpcHandlers, type IpcHandlerDeps } from './ipcHandlers'
 
 let stopWatch: (() => void) | null = null
 
@@ -14,45 +16,47 @@ function armWatcher(win: BrowserWindow, root: string): void {
   })
 }
 
-function registerIpcHandlers(): void {
-  ipcMain.handle(IPC.dialogOpenFile, async () => {
-    const result = await dialog.showOpenDialog({
-      properties: ['openFile'],
-      filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }]
-    })
-    if (result.canceled || result.filePaths.length === 0) return null
-    return result.filePaths[0]
-  })
-
-  ipcMain.handle(IPC.fileRead, async (_event, path: string) => {
-    try {
-      return await readFile(path, 'utf-8')
-    } catch (err) {
-      console.error(`Failed to read ${path}:`, err)
-      throw new Error(`Could not read file: ${(err as Error).message}`)
-    }
-  })
-
-  ipcMain.handle(IPC.fileWrite, async (_event, path: string, content: string) => {
-    try {
-      await writeFile(path, content, 'utf-8')
-    } catch (err) {
-      console.error(`Failed to write ${path}:`, err)
-      throw new Error(`Could not save file: ${(err as Error).message}`)
-    }
-  })
-
-  ipcMain.handle(IPC.dialogOpenFolder, async () => {
-    const result = await dialog.showOpenDialog({ properties: ['openDirectory'] })
-    if (result.canceled || result.filePaths.length === 0) return null
-    return result.filePaths[0]
-  })
-
-  ipcMain.handle(IPC.vaultScan, (event, root: string) => {
-    const win = BrowserWindow.fromWebContents(event.sender)
-    if (win) armWatcher(win, root)
-    return scanVault(root)
-  })
+function makeIpcDeps(): IpcHandlerDeps {
+  return {
+    dialogOpenFile: async () => {
+      const result = await dialog.showOpenDialog({
+        properties: ['openFile'],
+        filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }]
+      })
+      if (result.canceled || result.filePaths.length === 0) return null
+      return result.filePaths[0]
+    },
+    dialogOpenFolder: async () => {
+      const result = await dialog.showOpenDialog({ properties: ['openDirectory'] })
+      if (result.canceled || result.filePaths.length === 0) return null
+      return result.filePaths[0]
+    },
+    readFile: async (path) => {
+      try {
+        return await readFile(path, 'utf-8')
+      } catch (err) {
+        console.error(`Failed to read ${path}:`, err)
+        throw new Error(`Could not read file: ${(err as Error).message}`)
+      }
+    },
+    writeFile: async (path, content) => {
+      try {
+        await writeFile(path, content, 'utf-8')
+      } catch (err) {
+        console.error(`Failed to write ${path}:`, err)
+        throw new Error(`Could not save file: ${(err as Error).message}`)
+      }
+    },
+    scanVault: (event, root) => {
+      const win = BrowserWindow.fromWebContents((event as Electron.IpcMainInvokeEvent).sender)
+      if (win) armWatcher(win, root)
+      return scanVault(root)
+    },
+    createNote,
+    createFolder,
+    renamePath,
+    trashPath
+  }
 }
 
 function createWindow(): void {
@@ -83,7 +87,7 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
-  registerIpcHandlers()
+  registerIpcHandlers(ipcMain, makeIpcDeps())
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
