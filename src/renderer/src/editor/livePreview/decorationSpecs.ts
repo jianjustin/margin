@@ -81,6 +81,20 @@ export function collectDecorations(state: EditorState): DecoSpec[] {
     specs.push({ kind: 'hide', from, to, revealed: rangeRevealed(state, from, to) })
   }
 
+  // For markers that live inside a block (fenced code fences, blockquote `>`),
+  // reveal should follow the WHOLE block — Typora-style — not just the marker's
+  // own line. Walk parents to find a FencedCode or Blockquote container.
+  const blockRevealFor = (node: { parent: { name: string; from: number; to: number } | null }):
+    | { from: number; to: number }
+    | null => {
+    let p = node.parent
+    while (p) {
+      if (p.name === 'FencedCode' || p.name === 'Blockquote') return { from: p.from, to: p.to }
+      p = (p as unknown as { parent: typeof p }).parent
+    }
+    return null
+  }
+
   // Frontmatter: style each line muted, and suppress the bogus hr/setext
   // decorations the grammar produces for the region (suppressed in the iterate
   // guard below).
@@ -144,7 +158,11 @@ export function collectDecorations(state: EditorState): DecoSpec[] {
         return
       }
       if (name === 'CodeMark') {
-        pushHide(node.from, node.to)
+        const block = blockRevealFor(node.node)
+        const revealed = block
+          ? rangeRevealed(state, block.from, block.to)
+          : rangeRevealed(state, node.from, node.to)
+        specs.push({ kind: 'hide', from: node.from, to: node.to, revealed })
         return
       }
 
@@ -161,7 +179,11 @@ export function collectDecorations(state: EditorState): DecoSpec[] {
         return
       }
       if (name === 'QuoteMark') {
-        pushHide(node.from, node.to)
+        const block = blockRevealFor(node.node)
+        const revealed = block
+          ? rangeRevealed(state, block.from, block.to)
+          : rangeRevealed(state, node.from, node.to)
+        specs.push({ kind: 'hide', from: node.from, to: node.to, revealed })
         return
       }
 
