@@ -49,7 +49,9 @@ export async function renamePath(oldPath: string, newName: string): Promise<stri
   const dir = dirname(oldPath)
   const hadMd = /\.(md|markdown)$/i.test(oldPath)
   const finalName = hadMd && !/\.(md|markdown)$/i.test(newName) ? `${newName}.md` : newName
-  const newPath = join(dir, finalName)
+  const naivePath = join(dir, finalName)
+  if (naivePath === oldPath) return oldPath
+  const newPath = await uniquePath(dir, finalName)
   await rename(oldPath, newPath)
   return newPath
 }
