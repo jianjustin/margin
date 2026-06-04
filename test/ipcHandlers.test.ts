@@ -107,4 +107,75 @@ describe('registerIpcHandlers', () => {
     expect(scanVault).toHaveBeenCalledWith(event, '/v')
     expect(result).toEqual([{ name: 'a.md', path: '/v/a.md', type: 'file' }])
   })
+
+  describe('protected path policy', () => {
+    const protectedCases: Array<{
+      name: string
+      channel: keyof typeof IPC
+      args: unknown[]
+      depKey: keyof IpcHandlerDeps
+    }> = [
+      { name: 'file:read', channel: 'fileRead', args: ['/v/.obsidian/config'], depKey: 'readFile' },
+      {
+        name: 'file:write',
+        channel: 'fileWrite',
+        args: ['/v/.git/HEAD', 'x'],
+        depKey: 'writeFile'
+      },
+      { name: 'vault:scan', channel: 'vaultScan', args: ['/v/.trash'], depKey: 'scanVault' },
+      {
+        name: 'file:create on protected dir',
+        channel: 'fileCreate',
+        args: ['/v/.obsidian', 'note.md'],
+        depKey: 'createNote'
+      },
+      {
+        name: 'file:create with protected name',
+        channel: 'fileCreate',
+        args: ['/v', '.obsidian'],
+        depKey: 'createNote'
+      },
+      {
+        name: 'folder:create on protected dir',
+        channel: 'folderCreate',
+        args: ['/v/.trash', 'sub'],
+        depKey: 'createFolder'
+      },
+      {
+        name: 'folder:create with protected name',
+        channel: 'folderCreate',
+        args: ['/v', '.git'],
+        depKey: 'createFolder'
+      },
+      {
+        name: 'path:rename of protected source',
+        channel: 'pathRename',
+        args: ['/v/.obsidian/config', 'renamed'],
+        depKey: 'renamePath'
+      },
+      {
+        name: 'path:rename to protected name',
+        channel: 'pathRename',
+        args: ['/v/old.md', '.obsidian'],
+        depKey: 'renamePath'
+      },
+      {
+        name: 'path:trash on protected path',
+        channel: 'pathTrash',
+        args: ['/v/.obsidian'],
+        depKey: 'trashPath'
+      }
+    ]
+
+    for (const { name, channel, args, depKey } of protectedCases) {
+      it(`rejects ${name}`, async () => {
+        const depFn = vi.fn()
+        const fake = makeFakeIpcMain()
+        registerIpcHandlers(fake, makeStubDeps({ [depKey]: depFn } as Partial<IpcHandlerDeps>))
+        const handler = fake.handlers.get(IPC[channel])!
+        await expect(async () => await handler({}, ...args)).rejects.toThrow(/protected/i)
+        expect(depFn).not.toHaveBeenCalled()
+      })
+    }
+  })
 })
