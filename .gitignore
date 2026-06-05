@@ -4,6 +4,7 @@ node_modules/
 # Build output
 out/
 dist/
+release/
 
 # Logs
 *.log
@@ -15,3 +16,6 @@ npm-debug.log*
 # Editor
 .vscode/
 .idea/
+
+# Brainstorming companion (HTML mockups, server state)
+.superpowers/
