@@ -4,9 +4,10 @@ import { EditorView, keymap } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { languages } from '@codemirror/language-data'
-import { syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language'
+import { syntaxHighlighting } from '@codemirror/language'
 import { livePreview } from '@/editor/livePreview/livePreviewPlugin'
 import { marginEditorTheme } from '@/editor/livePreview/theme'
+import { marginHighlightStyle } from '@/editor/livePreview/highlightStyle'
 import { SlashMenu, type SlashMenuItem } from './SlashMenu'
 
 interface EditorProps {
@@ -106,7 +107,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       extensions: [
         history(),
         markdown({ base: markdownLanguage, codeLanguages: languages }),
-        syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+        syntaxHighlighting(marginHighlightStyle, { fallback: true }),
         livePreview,
         marginEditorTheme,
         EditorView.lineWrapping,
