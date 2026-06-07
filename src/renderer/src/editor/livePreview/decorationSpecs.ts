@@ -15,6 +15,9 @@ export type DecoKind =
   | 'hr'
   | 'task'
   | 'frontmatter'
+  | 'codeBlock'
+  | 'table'
+  | 'properties'
 
 export interface DecoSpec {
   kind: DecoKind
@@ -23,6 +26,8 @@ export interface DecoSpec {
   revealed: boolean
   level?: number
   checked?: boolean
+  info?: string
+  source?: string
 }
 
 /**
@@ -95,17 +100,35 @@ export function collectDecorations(state: EditorState): DecoSpec[] {
     return null
   }
 
-  // Frontmatter: style each line muted, and suppress the bogus hr/setext
-  // decorations the grammar produces for the region (suppressed in the iterate
-  // guard below).
+  // Frontmatter: render as an editable properties panel when the cursor is
+  // outside the block; reveal raw YAML (muted lines) when inside. Either way the
+  // grammar's bogus hr/setext nodes for the region are suppressed by the fmEnd
+  // guard in the iterate callback below.
   const fmEnd = frontmatterEnd(state)
   if (fmEnd > 0) {
-    for (let n = 1; n <= doc.lines; n++) {
-      const line = doc.line(n)
-      if (line.from >= fmEnd) break
-      specs.push({ kind: 'frontmatter', from: line.from, to: line.from, revealed: false })
+    if (rangeRevealed(state, 0, fmEnd)) {
+      for (let n = 1; n <= doc.lines; n++) {
+        const line = doc.line(n)
+        if (line.from >= fmEnd) break
+        specs.push({ kind: 'frontmatter', from: line.from, to: line.from, revealed: true })
+      }
+    } else {
+      specs.push({
+        kind: 'properties',
+        from: 0,
+        to: fmEnd,
+        revealed: false,
+        source: doc.sliceString(0, fmEnd)
+      })
     }
   }
+
+  // When a node is replaced by a block widget (fenced code, table), its inner
+  // grammar nodes (CodeMark, TableDelimiter, …) must not emit their own
+  // decorations — they would overlap the block replacement. Iteration is in
+  // document order with children immediately after their parent, so a single
+  // forward "skip until" offset suffices (block regions never nest).
+  let blockGuardEnd = 0
 
   tree.iterate({
     enter: (node) => {
@@ -118,6 +141,9 @@ export function collectDecorations(state: EditorState): DecoSpec[] {
       // it is rendered as muted metadata, not headings/rules. (`return` does not
       // stop descent, so nodes after the region are still visited.)
       if (fmEnd > 0 && node.from < fmEnd) return
+
+      // Skip nodes nested inside an already-emitted block replacement.
+      if (node.from < blockGuardEnd) return
 
       // Headings: ATXHeading1..6
       if (/^ATXHeading[1-6]$/.test(name)) {
@@ -187,8 +213,27 @@ export function collectDecorations(state: EditorState): DecoSpec[] {
         return
       }
 
-      // Fenced code
+      // Fenced code: render as a scrollable highlighted block when the cursor is
+      // outside; reveal raw editable lines (cm-code-block) when inside.
       if (name === 'FencedCode') {
+        const revealed = rangeRevealed(state, node.from, node.to)
+        if (!revealed) {
+          const firstLine = doc.lineAt(node.from)
+          const info = firstLine.text.replace(/^[`~]+/, '').trim()
+          // Strip the opening/closing fence lines for the rendered code body.
+          const lines = doc.sliceString(node.from, node.to).split('\n')
+          const body = lines.slice(1, lines.length - 1).join('\n')
+          specs.push({
+            kind: 'codeBlock',
+            from: node.from,
+            to: node.to,
+            revealed: false,
+            info,
+            source: body
+          })
+          blockGuardEnd = node.to
+          return
+        }
         for (const s of eachLine(state, node.from, node.to, (lineFrom) => ({
           kind: 'codeLine',
           from: lineFrom,
@@ -201,6 +246,23 @@ export function collectDecorations(state: EditorState): DecoSpec[] {
       }
       if (name === 'CodeInfo') {
         pushHide(node.from, node.to)
+        return
+      }
+
+      // GFM table: render as an editable HTML table when the cursor is outside;
+      // reveal raw markdown when inside for complex edits (add/remove rows).
+      if (name === 'Table') {
+        const revealed = rangeRevealed(state, node.from, node.to)
+        if (!revealed) {
+          specs.push({
+            kind: 'table',
+            from: node.from,
+            to: node.to,
+            revealed: false,
+            source: doc.sliceString(node.from, node.to)
+          })
+          blockGuardEnd = node.to
+        }
         return
       }
 

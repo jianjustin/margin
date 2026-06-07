@@ -24,12 +24,16 @@ describe('collectDecorations — blocks', () => {
     expect(hide!.revealed).toBe(false)
   })
 
-  it('styles every line of a fenced code block and hides the fences', () => {
+  it('replaces a fenced code block with a codeBlock widget spec when cursor is outside', () => {
     const doc = '```js\nconst x = 1\n```\n\nbody'
     const specs = collectDecorations(stateWith(doc, doc.length - 1)) // cursor in "body"
-    const codeLines = specs.filter((s) => s.kind === 'codeLine')
-    expect(codeLines.length).toBeGreaterThanOrEqual(3) // fence, code, fence
-    expect(specs.some((s) => s.kind === 'hide' && text(doc, s).includes('```'))).toBe(true)
+    const code = specs.find((s) => s.kind === 'codeBlock')
+    expect(code).toBeTruthy()
+    expect(code!.info).toBe('js')
+    expect(code!.source).toBe('const x = 1')
+    // The whole block is replaced — no per-line / fence-hide specs leak out.
+    expect(specs.some((s) => s.kind === 'codeLine')).toBe(false)
+    expect(specs.some((s) => s.kind === 'hide' && text(doc, s).includes('```'))).toBe(false)
   })
 
   it('replaces a horizontal rule with a gated hr spec', () => {

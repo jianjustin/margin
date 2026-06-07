@@ -48,7 +48,12 @@ afterEach(() => {
   view = null
 })
 
-describe('livePreview ViewPlugin — DOM smoke', () => {
+// Stable offsets into ALL_FEATURES for placing the cursor.
+const bodyPos = ALL_FEATURES.indexOf('italic') // in prose, away from rich blocks
+const codePos = ALL_FEATURES.indexOf('const x') // inside the fenced code block
+const fmPos = ALL_FEATURES.indexOf('title:') // inside the frontmatter
+
+describe('livePreview StateField — DOM smoke', () => {
   it('mounts an all-features document without throwing', () => {
     expect(() => {
       view = mount(ALL_FEATURES, 0)
@@ -56,21 +61,36 @@ describe('livePreview ViewPlugin — DOM smoke', () => {
     expect(view!.dom.querySelectorAll('.cm-line').length).toBeGreaterThan(0)
   })
 
-  it('renders heading and code-block line decorations', () => {
-    view = mount(ALL_FEATURES, 200) // cursor near end, away from the heading
+  it('renders heading decoration and the fenced-code widget when cursor is away', () => {
+    view = mount(ALL_FEATURES, bodyPos)
     expect(view.dom.querySelector('.cm-heading')).not.toBeNull()
+    // Code block is replaced by the scrollable render widget (not raw lines).
+    expect(view.dom.querySelector('.cm-code-render')).not.toBeNull()
+    expect(view.dom.querySelector('.cm-code-block')).toBeNull()
+  })
+
+  it('reveals raw code lines when the cursor enters the fence', () => {
+    view = mount(ALL_FEATURES, codePos)
     expect(view.dom.querySelector('.cm-code-block')).not.toBeNull()
+    expect(view.dom.querySelector('.cm-code-render')).toBeNull()
   })
 
   it('renders the hr and checkbox widgets', () => {
-    view = mount(ALL_FEATURES, 100) // cursor away from hr/tasks
+    view = mount(ALL_FEATURES, bodyPos) // cursor away from hr/tasks
     expect(view.dom.querySelector('hr.cm-hr')).not.toBeNull()
     expect(view.dom.querySelector('input.cm-task-checkbox')).not.toBeNull()
   })
 
-  it('renders frontmatter as muted metadata, not as a giant heading', () => {
-    view = mount(ALL_FEATURES, ALL_FEATURES.length) // cursor in body
+  it('renders frontmatter as an editable properties panel when cursor is away', () => {
+    view = mount(ALL_FEATURES, bodyPos)
+    expect(view.dom.querySelector('.cm-properties')).not.toBeNull()
+    expect(view.dom.querySelector('.cm-frontmatter')).toBeNull()
+  })
+
+  it('reveals raw frontmatter lines when the cursor enters the region', () => {
+    view = mount(ALL_FEATURES, fmPos)
     expect(view.dom.querySelector('.cm-frontmatter')).not.toBeNull()
+    expect(view.dom.querySelector('.cm-properties')).toBeNull()
   })
 
   it('does not throw when the selection moves across every line', () => {
