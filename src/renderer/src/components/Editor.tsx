@@ -21,6 +21,24 @@ export interface EditorHandle {
   jumpToLine: (line: number) => void
 }
 
+/**
+ * Offset of the first body character after a leading YAML frontmatter block,
+ * or 0 if the document has none. Used to place the initial cursor below the
+ * frontmatter so the properties panel renders instead of revealing raw YAML.
+ */
+function bodyStart(doc: string): number {
+  const lines = doc.split('\n')
+  if (lines[0] !== '---') return 0
+  for (let i = 1; i < lines.length; i++) {
+    if (lines[i] === '---') {
+      // Offset just past the closing `---` line and its trailing newline.
+      const through = lines.slice(0, i + 1).join('\n').length + 1
+      return Math.min(through, doc.length)
+    }
+  }
+  return 0
+}
+
 export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   { docKey, initialValue, onChange, onSave },
   ref
@@ -104,6 +122,9 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
 
     const state = EditorState.create({
       doc: initialValue,
+      // Start the cursor below any frontmatter so the properties panel renders
+      // (Obsidian-style) instead of opening as revealed raw YAML.
+      selection: { anchor: bodyStart(initialValue) },
       extensions: [
         history(),
         markdown({ base: markdownLanguage, codeLanguages: languages }),

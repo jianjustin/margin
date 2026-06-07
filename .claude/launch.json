@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "editor-demo",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "--config", "vite.demo.config.ts"],
+      "port": 5199
+    }
+  ]
+}
