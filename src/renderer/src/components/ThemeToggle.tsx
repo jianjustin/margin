@@ -2,9 +2,9 @@ import { Monitor, Moon, Sun } from 'lucide-react'
 import { useThemeStore, type ThemeMode } from '@/stores/themeStore'
 
 const LABEL: Record<ThemeMode, string> = {
-  auto: 'Theme: follow system (click to lock light)',
-  light: 'Theme: light (click to lock dark)',
-  dark: 'Theme: dark (click to follow system)'
+  auto: '切换主题',
+  light: '切换主题',
+  dark: '切换主题'
 }
 
 export function ThemeToggle(): JSX.Element {
@@ -18,9 +18,9 @@ export function ThemeToggle(): JSX.Element {
       onClick={cycleMode}
       title={LABEL[mode]}
       aria-label={LABEL[mode]}
-      className="grid h-[26px] w-[30px] place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+      className="grid h-[26px] w-[30px] place-items-center rounded-md text-[color:var(--text-dim)] transition-colors hover:bg-[color:var(--bg-hover)] hover:text-foreground"
     >
-      <Icon size={16} />
+      <Icon size={17} />
     </button>
   )
 }

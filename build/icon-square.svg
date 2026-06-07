@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#d4a840"/>
+      <stop offset="100%" stop-color="#b8882e"/>
+    </linearGradient>
+  </defs>
+  <!-- squircle starts at 50px inset, 924x924, matching macOS ICNS safe area -->
+  <rect x="50" y="50" width="924" height="924" rx="207" fill="url(#bg)"/>
+  <text x="512" y="512" font-family="Georgia, 'Times New Roman', serif" font-size="460" font-weight="500" fill="#1f1810" text-anchor="middle" dominant-baseline="central">M</text>
+</svg>

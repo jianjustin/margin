@@ -2,11 +2,6 @@ import { EditorView } from '@codemirror/view'
 
 const MONO = "'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
 
-/**
- * Visual styling for the editor + live-preview decoration classes, driven by
- * the semantic Bear tokens in tokens.css. Light/dark is handled by the
- * `[data-theme]` cascade, so this theme is not hard-coded to either.
- */
 export const marginEditorTheme = EditorView.theme({
   '.cm-content': { caretColor: 'var(--text)' },
   '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--text)' },
@@ -16,29 +11,32 @@ export const marginEditorTheme = EditorView.theme({
   '&.cm-focused .cm-selectionBackground': { backgroundColor: 'var(--sel)' },
 
   '.cm-heading': { fontWeight: '600', lineHeight: '1.3' },
-  '.cm-h1': { fontSize: '1.62em' },
-  '.cm-h2': { fontSize: '1.32em' },
-  '.cm-h3': { fontSize: '1.1em' },
+  '.cm-h1': { fontSize: '1.62em', fontWeight: '680', lineHeight: '1.3', letterSpacing: '-.01em', marginTop: '18px' },
+  '.cm-h2': { fontSize: '1.32em', fontWeight: '650', lineHeight: '1.35', marginTop: '14px' },
+  '.cm-h3': { fontSize: '1.1em', fontWeight: '640', lineHeight: '1.4', marginTop: '10px' },
   '.cm-h4': { fontSize: '1em' },
   '.cm-h5': { fontSize: '0.95em' },
   '.cm-h6': { fontSize: '0.9em', color: 'var(--text-dim)' },
 
-  '.cm-strong': { fontWeight: '700' },
+  '.cm-strong': { fontWeight: '680' },
   '.cm-em': { fontStyle: 'italic' },
   '.cm-strike': { textDecoration: 'line-through', color: 'var(--text-dim)' },
 
   '.cm-inline-code': {
     fontFamily: MONO,
-    fontSize: '0.9em',
+    fontSize: '0.88em',
     backgroundColor: 'var(--bg-elev)',
-    padding: '0.1em 0.3em',
-    borderRadius: '4px'
+    padding: '1px 5px',
+    borderRadius: '4px',
+    color: 'var(--accent)',
+    border: '1px solid var(--border-soft)'
   },
 
   '.cm-blockquote': {
-    borderLeft: '3px solid var(--accent)',
+    borderLeft: '3px solid var(--accent-line)',
     paddingLeft: '0.8em',
-    color: 'var(--text-dim)'
+    color: 'var(--text-dim)',
+    fontStyle: 'italic'
   },
 
   '.cm-code-block': {
@@ -47,7 +45,7 @@ export const marginEditorTheme = EditorView.theme({
     backgroundColor: 'var(--bg-elev)'
   },
 
-  '.cm-link': { color: 'var(--accent)', textDecoration: 'underline', cursor: 'pointer' },
+  '.cm-link': { color: 'var(--accent)', textDecoration: 'none', borderBottom: '1px solid var(--accent-line)', cursor: 'pointer' },
 
   '.cm-hr': {
     border: 'none',
@@ -61,5 +59,13 @@ export const marginEditorTheme = EditorView.theme({
     fontFamily: MONO,
     fontSize: '0.85em',
     color: 'var(--text-dim)'
+  },
+
+  '.cm-activeLine': {
+    backgroundColor: 'transparent'
+  },
+
+  '.cm-line': {
+    padding: '1px 0'
   }
 })

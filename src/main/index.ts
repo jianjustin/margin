@@ -1,6 +1,8 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, nativeImage, Menu } from 'electron'
 import { join } from 'path'
 import { readFile, writeFile } from 'fs/promises'
+
+app.setName('Margin')
 import { IPC } from '../shared/ipc'
 import { scanVault } from './vaultScanner'
 import { watchVault } from './fileWatcher'
@@ -87,6 +89,35 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  if (process.platform === 'darwin') {
+    const iconPath = join(__dirname, '../../build/icon.png')
+    if (app.dock) app.dock.setIcon(nativeImage.createFromPath(iconPath))
+
+    const appMenu: Electron.MenuItemConstructorOptions = {
+      label: 'Margin',
+      submenu: [
+        { role: 'about', label: '关于 Margin' },
+        { type: 'separator' },
+        { role: 'services' },
+        { type: 'separator' },
+        { role: 'hide', label: '隐藏 Margin' },
+        { role: 'hideOthers' },
+        { role: 'unhide' },
+        { type: 'separator' },
+        { role: 'quit', label: '退出 Margin' }
+      ]
+    }
+    Menu.setApplicationMenu(
+      Menu.buildFromTemplate([
+        appMenu,
+        { role: 'fileMenu' },
+        { role: 'editMenu' },
+        { role: 'viewMenu' },
+        { role: 'windowMenu' }
+      ])
+    )
+  }
+
   registerIpcHandlers(ipcMain, makeIpcDeps())
   createWindow()
   app.on('activate', () => {

@@ -6,15 +6,18 @@ import { FileTreeRow } from './FileTreeRow'
 interface FileTreeProps {
   onOpenFile: (node: TreeNode) => void
   onContextMenu: (node: TreeNode, x: number, y: number) => void
+  filteredTree?: TreeNode[] | null
 }
 
-export function FileTree({ onOpenFile, onContextMenu }: FileTreeProps): JSX.Element {
+export function FileTree({ onOpenFile, onContextMenu, filteredTree }: FileTreeProps): JSX.Element {
   const tree = useVaultStore((s) => s.tree)
   const expanded = useVaultStore((s) => s.expanded)
   const selectedPath = useVaultStore((s) => s.selectedPath)
   const toggleExpanded = useVaultStore((s) => s.toggleExpanded)
 
-  const rows = flattenTree(tree, expanded)
+  const sourceTree = filteredTree ?? tree
+  const expandAll = filteredTree != null
+  const rows = flattenTree(sourceTree, expandAll ? 'all' : expanded)
 
   if (rows.length === 0) {
     return (
@@ -31,7 +34,7 @@ export function FileTree({ onOpenFile, onContextMenu }: FileTreeProps): JSX.Elem
           key={node.path}
           node={node}
           depth={depth}
-          expanded={expanded.has(node.path)}
+          expanded={expandAll || expanded.has(node.path)}
           selected={selectedPath === node.path}
           onSelect={onOpenFile}
           onToggle={(n) => toggleExpanded(n.path)}

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useImperativeHandle, useRef, forwardRef, useState } from 'react'
 import { EditorState } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
@@ -7,29 +7,66 @@ import { languages } from '@codemirror/language-data'
 import { syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language'
 import { livePreview } from '@/editor/livePreview/livePreviewPlugin'
 import { marginEditorTheme } from '@/editor/livePreview/theme'
+import { SlashMenu, type SlashMenuItem } from './SlashMenu'
 
 interface EditorProps {
-  /** Identifies the open document; changing it reloads the editor contents. */
   docKey: string | null
-  /** Initial text for the current docKey. */
   initialValue: string
-  /** Called on every edit with the full document text. */
   onChange: (value: string) => void
-  /** Called when the user presses Cmd/Ctrl-S. */
   onSave: () => void
 }
 
-export function Editor({ docKey, initialValue, onChange, onSave }: EditorProps): JSX.Element {
+export interface EditorHandle {
+  jumpToLine: (line: number) => void
+}
+
+export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
+  { docKey, initialValue, onChange, onSave },
+  ref
+): JSX.Element {
   const hostRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
 
-  // Keep the latest callbacks without re-creating the editor.
   const onChangeRef = useRef(onChange)
   const onSaveRef = useRef(onSave)
   onChangeRef.current = onChange
   onSaveRef.current = onSave
 
-  // Create the EditorView once per docKey.
+  const [slashMenu, setSlashMenu] = useState<{ x: number; y: number; from: number } | null>(null)
+
+  useImperativeHandle(ref, () => ({
+    jumpToLine(line: number) {
+      const view = viewRef.current
+      if (!view) return
+      const lineCount = view.state.doc.lines
+      if (line < 0 || line >= lineCount) return
+      const docLine = view.state.doc.line(line + 1)
+      view.dispatch({
+        selection: { anchor: docLine.from },
+        effects: EditorView.scrollIntoView(docLine.from, { y: 'center' })
+      })
+      view.focus()
+    }
+  }))
+
+  const handleSlashSelect = useCallback((item: SlashMenuItem) => {
+    const view = viewRef.current
+    if (!view || !slashMenu) return
+    const from = slashMenu.from
+    const to = view.state.selection.main.head
+    view.dispatch({
+      changes: { from: from - 1, to, insert: item.markdown },
+      selection: { anchor: from - 1 + item.markdown.length }
+    })
+    setSlashMenu(null)
+    view.focus()
+  }, [slashMenu])
+
+  const handleSlashClose = useCallback(() => {
+    setSlashMenu(null)
+    viewRef.current?.focus()
+  }, [])
+
   useEffect(() => {
     if (!hostRef.current) return
 
@@ -44,6 +81,26 @@ export function Editor({ docKey, initialValue, onChange, onSave }: EditorProps):
       }
     ])
 
+    const slashKeymap = keymap.of([
+      {
+        key: '/',
+        run: (view) => {
+          const pos = view.state.selection.main.head
+          const line = view.state.doc.lineAt(pos)
+          const textBefore = view.state.doc.sliceString(line.from, pos)
+          if (textBefore.trim() === '') {
+            setTimeout(() => {
+              const coords = view.coordsAtPos(pos)
+              if (coords) {
+                setSlashMenu({ x: coords.left, y: coords.bottom + 4, from: pos + 1 })
+              }
+            }, 0)
+          }
+          return false
+        }
+      }
+    ])
+
     const state = EditorState.create({
       doc: initialValue,
       extensions: [
@@ -53,6 +110,7 @@ export function Editor({ docKey, initialValue, onChange, onSave }: EditorProps):
         livePreview,
         marginEditorTheme,
         EditorView.lineWrapping,
+        slashKeymap,
         saveKeymap,
         keymap.of([...defaultKeymap, ...historyKeymap]),
         EditorView.updateListener.of((update) => {
@@ -65,7 +123,7 @@ export function Editor({ docKey, initialValue, onChange, onSave }: EditorProps):
           '.cm-content': {
             maxWidth: '720px',
             margin: '0 auto',
-            padding: '56px 40px',
+            padding: '56px 40px 240px',
             fontFamily: 'var(--ui)',
             lineHeight: '1.72'
           }
@@ -80,9 +138,20 @@ export function Editor({ docKey, initialValue, onChange, onSave }: EditorProps):
       view.destroy()
       viewRef.current = null
     }
-    // Re-create only when switching documents, not on every keystroke.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [docKey])
 
-  return <div ref={hostRef} className="h-full w-full overflow-hidden" />
-}
+  return (
+    <>
+      <div ref={hostRef} className="h-full w-full overflow-hidden" />
+      {slashMenu && (
+        <SlashMenu
+          x={slashMenu.x}
+          y={slashMenu.y}
+          onSelect={handleSlashSelect}
+          onClose={handleSlashClose}
+        />
+      )}
+    </>
+  )
+})

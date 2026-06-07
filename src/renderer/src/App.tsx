@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import { PanelLeft } from 'lucide-react'
-import { Editor } from '@/components/Editor'
+import { PanelLeft, AlignLeft } from 'lucide-react'
+import { Editor, type EditorHandle } from '@/components/Editor'
 import { saveDocument } from '@/lib/saveDocument'
 import { useDocumentStore } from '@/stores/documentStore'
 import { useVaultStore, loadPersistedRoot } from '@/stores/vaultStore'
 import { Sidebar } from '@/components/FileTree/Sidebar'
 import { RowContextMenu, type ContextMenuState } from '@/components/FileTree/RowContextMenu'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { OutlineDrawer } from '@/components/OutlineDrawer'
 import { useThemeStore, resolveTheme } from '@/stores/themeStore'
 import { useSystemTheme } from '@/hooks/useSystemTheme'
 import { useVaultWatch } from '@/hooks/useVaultWatch'
@@ -24,7 +25,9 @@ export default function App(): JSX.Element {
   const stats = useDocStats(content)
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const editorRef = useRef<EditorHandle>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [drawerOpen, setDrawerOpen] = useState(false)
   const [menu, setMenu] = useState<ContextMenuState | null>(null)
 
   const themeMode = useThemeStore((s) => s.mode)
@@ -39,7 +42,6 @@ export default function App(): JSX.Element {
     else root.removeAttribute('data-theme')
   }, [themeMode, systemDark])
 
-  // Reopen the last vault on launch.
   useEffect(() => {
     const saved = loadPersistedRoot()
     if (!saved) return
@@ -47,6 +49,21 @@ export default function App(): JSX.Element {
       .scanVault(saved)
       .then((tree) => useVaultStore.getState().openRoot(saved, tree))
       .catch(() => useVaultStore.getState().closeVault())
+  }, [])
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent): void {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
+        e.preventDefault()
+        setSidebarOpen((v) => !v)
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
+        e.preventDefault()
+        setDrawerOpen((v) => !v)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
   async function openFolder(): Promise<void> {
@@ -133,34 +150,66 @@ export default function App(): JSX.Element {
   const fileName = parts.length > 0 ? parts[parts.length - 1] : ''
   const parentName = parts.length > 1 ? parts[parts.length - 2] : ''
 
+  function handleJumpToLine(line: number): void {
+    editorRef.current?.jumpToLine(line)
+  }
+
   return (
     <div className="flex h-screen flex-col bg-background text-foreground">
-      <header className="flex h-10 shrink-0 items-center gap-3 border-b border-border px-4 pl-20 text-sm text-muted-foreground">
-        <button
-          onClick={() => setSidebarOpen((v) => !v)}
-          title="Toggle sidebar"
-          aria-label="Toggle sidebar"
-          className="grid h-[26px] w-[30px] place-items-center rounded-md hover:bg-accent hover:text-foreground"
-        >
-          <PanelLeft size={16} />
-        </button>
-        <div className="flex min-w-0 flex-1 items-center justify-center gap-1.5 text-[12.5px] text-[color:var(--text-dim)]">
+      <header className="flex h-[38px] shrink-0 items-center gap-3.5 border-b border-[color:var(--border-soft)] bg-[color:var(--bg-panel)] px-3.5 pl-20 text-sm [-webkit-app-region:drag]">
+        <div className="flex gap-0.5 [-webkit-app-region:no-drag]">
+          <button
+            onClick={() => setSidebarOpen((v) => !v)}
+            title="切换笔记列表 (⌘B)"
+            aria-label="Toggle sidebar"
+            className={[
+              'grid h-[26px] w-[30px] place-items-center rounded-md transition-colors',
+              sidebarOpen
+                ? 'bg-[color:var(--accent-soft)] text-[color:var(--accent)]'
+                : 'text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)] hover:text-foreground'
+            ].join(' ')}
+          >
+            <PanelLeft size={17} />
+          </button>
+        </div>
+
+        <div className="flex min-w-0 flex-1 items-center justify-center gap-2 text-[12.5px] font-medium tracking-[.01em] text-[color:var(--text-dim)]">
           {path ? (
             <>
-              {parentName && <span className="text-[color:var(--text-faint)]">{parentName} /</span>}
-              <span className="truncate">{fileName}</span>
+              {parentName && <span className="text-[color:var(--text-faint)]">{parentName}</span>}
+              {parentName && <span className="text-[color:var(--text-faint)]">/</span>}
+              <span id="title-name" className="truncate">{fileName}</span>
               <span
-                className="h-1.5 w-1.5 flex-none rounded-full bg-[color:var(--accent)] transition-opacity"
+                className="text-[color:var(--accent)] transition-opacity"
                 style={{ opacity: dirty ? 1 : 0 }}
                 aria-hidden
-              />
+              >
+                ●
+              </span>
             </>
           ) : (
             <span className="text-[color:var(--text-faint)]">No file open</span>
           )}
         </div>
-        <ThemeToggle />
+
+        <div className="flex gap-0.5 [-webkit-app-region:no-drag]">
+          <ThemeToggle />
+          <button
+            onClick={() => setDrawerOpen((v) => !v)}
+            title="大纲 (⌘\)"
+            aria-label="Toggle outline"
+            className={[
+              'grid h-[26px] w-[30px] place-items-center rounded-md transition-colors',
+              drawerOpen
+                ? 'bg-[color:var(--accent-soft)] text-[color:var(--accent)]'
+                : 'text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)] hover:text-foreground'
+            ].join(' ')}
+          >
+            <AlignLeft size={17} />
+          </button>
+        </div>
       </header>
+
       <div className="flex min-h-0 flex-1">
         {sidebarOpen && (
           <Sidebar
@@ -172,6 +221,7 @@ export default function App(): JSX.Element {
         <main className="min-h-0 min-w-0 flex-1">
           {path ? (
             <Editor
+              ref={editorRef}
               docKey={path}
               initialValue={content}
               onChange={handleChange}
@@ -183,8 +233,13 @@ export default function App(): JSX.Element {
             </div>
           )}
         </main>
+        {drawerOpen && path && (
+          <OutlineDrawer onJumpToLine={handleJumpToLine} />
+        )}
       </div>
+
       <StatusBar stats={stats} saveStatus={saveStatus} hasFile={path !== null} />
+
       {menu && (
         <RowContextMenu
           menu={menu}

@@ -16,12 +16,19 @@
   --sel: oklch(0.82 0.11 90 / 0.2);
   --red: oklch(0.62 0.18 25);
 
+  --tl-red: #ff5f57;
+  --tl-yellow: #febc2e;
+  --tl-green: #28c840;
+
   /* Font stacks: Latin from bundled IBM Plex; CJK from system PingFang SC. */
   --ui: 'IBM Plex Sans', 'PingFang SC', system-ui, sans-serif;
   --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   --serif: 'IBM Plex Serif', Georgia, serif;
 
+  --r: 7px;
   --radius: 0.5rem;
+  --sidebar-w: 244px;
+  --drawer-w: 296px;
 
   /* shadcn variable names mapped onto the semantic tokens. */
   --background: var(--bg);
