@@ -1,13 +1,13 @@
-import {
-  Decoration,
-  type DecorationSet,
-  EditorView,
-  ViewPlugin,
-  type ViewUpdate
-} from '@codemirror/view'
-import type { EditorState, Range } from '@codemirror/state'
+import { Decoration, type DecorationSet, EditorView } from '@codemirror/view'
+import { StateField, type EditorState, type Range } from '@codemirror/state'
 import { collectDecorations } from './decorationSpecs'
-import { CheckboxWidget, HrWidget } from './widgets'
+import {
+  CheckboxWidget,
+  HrWidget,
+  CodeBlockWidget,
+  TableWidget,
+  PropertiesWidget
+} from './widgets'
 
 const hideMark = Decoration.replace({})
 const boldMark = Decoration.mark({ class: 'cm-strong' })
@@ -67,6 +67,30 @@ function buildDecorations(state: EditorState): DecorationSet {
           )
         }
         break
+      case 'codeBlock':
+        ranges.push(
+          Decoration.replace({
+            widget: new CodeBlockWidget(s.source ?? '', s.info ?? ''),
+            block: true
+          }).range(s.from, s.to)
+        )
+        break
+      case 'table':
+        ranges.push(
+          Decoration.replace({
+            widget: new TableWidget(s.source ?? '', s.from, s.to),
+            block: true
+          }).range(s.from, s.to)
+        )
+        break
+      case 'properties':
+        ranges.push(
+          Decoration.replace({
+            widget: new PropertiesWidget(s.source ?? '', s.from, s.to),
+            block: true
+          }).range(s.from, s.to)
+        )
+        break
     }
   }
 
@@ -74,22 +98,20 @@ function buildDecorations(state: EditorState): DecorationSet {
   return Decoration.set(ranges, true)
 }
 
-/** The live-preview decoration layer: rebuilds on doc/selection/viewport change. */
-export const livePreview = ViewPlugin.fromClass(
-  class {
-    decorations: DecorationSet
-
-    constructor(view: EditorView) {
-      this.decorations = buildDecorations(view.state)
-    }
-
-    update(update: ViewUpdate): void {
-      if (update.docChanged || update.selectionSet || update.viewportChanged) {
-        this.decorations = buildDecorations(update.state)
-      }
-    }
+/**
+ * The live-preview decoration layer. Implemented as a StateField (not a
+ * ViewPlugin) because block-level replacing decorations that cross line breaks
+ * — our fenced-code / table / properties widgets — may only be provided through
+ * the editor state, not a plugin. Rebuilds whenever the document or selection
+ * changes (selection drives Typora-style cursor reveal).
+ */
+export const livePreview = StateField.define<DecorationSet>({
+  create(state) {
+    return buildDecorations(state)
   },
-  {
-    decorations: (v) => v.decorations
-  }
-)
+  update(deco, tr) {
+    if (tr.docChanged || tr.selection) return buildDecorations(tr.state)
+    return deco
+  },
+  provide: (f) => EditorView.decorations.from(f)
+})

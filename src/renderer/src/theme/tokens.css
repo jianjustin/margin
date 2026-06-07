@@ -20,6 +20,19 @@
   --tl-yellow: #febc2e;
   --tl-green: #28c840;
 
+  /* Code syntax token colors (dark). */
+  --code-keyword: #c792ea;
+  --code-variable: #e6e6e6;
+  --code-property: #82aaff;
+  --code-function: #82aaff;
+  --code-constant: #f78c6c;
+  --code-string: #c3e88d;
+  --code-number: #f78c6c;
+  --code-type: #ffcb6b;
+  --code-comment: #7a8499;
+  --code-operator: #89ddff;
+  --code-invalid: #ff5370;
+
   /* Font stacks: Latin from bundled IBM Plex; CJK from system PingFang SC. */
   --ui: 'IBM Plex Sans', 'PingFang SC', system-ui, sans-serif;
   --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
@@ -66,4 +79,17 @@
   --accent-soft: oklch(0.6 0.12 70 / 0.12);
   --accent-line: oklch(0.6 0.12 70 / 0.3);
   --sel: oklch(0.6 0.12 70 / 0.18);
+
+  /* Code syntax token colors (light). */
+  --code-keyword: #9c27b0;
+  --code-variable: #24292e;
+  --code-property: #1565c0;
+  --code-function: #1565c0;
+  --code-constant: #c25800;
+  --code-string: #2e7d32;
+  --code-number: #c25800;
+  --code-type: #b8860b;
+  --code-comment: #8a919e;
+  --code-operator: #0277bd;
+  --code-invalid: #d32f2f;
 }

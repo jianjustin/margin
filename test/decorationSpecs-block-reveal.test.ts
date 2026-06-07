@@ -37,14 +37,13 @@ describe('collectDecorations — block-level reveal', () => {
       }
     })
 
-    it('keeps fences hidden when cursor is outside the block', () => {
-      // cursor in "body"
+    it('replaces the whole block with a codeBlock spec when cursor is outside', () => {
+      // cursor in "body" — the block renders as a widget, not raw lines/fences
       const specs = collectDecorations(stateWith(doc, doc.length - 1))
+      expect(specs.some((s) => s.kind === 'codeBlock')).toBe(true)
+      expect(specs.some((s) => s.kind === 'codeLine')).toBe(false)
       const fenceHides = specs.filter((s) => s.kind === 'hide' && text(doc, s).includes('```'))
-      expect(fenceHides.length).toBeGreaterThanOrEqual(2)
-      for (const s of fenceHides) {
-        expect(s.revealed).toBe(false)
-      }
+      expect(fenceHides.length).toBe(0)
     })
   })
 

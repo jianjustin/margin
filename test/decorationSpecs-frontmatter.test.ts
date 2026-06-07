@@ -37,10 +37,20 @@ describe('frontmatterEnd', () => {
 })
 
 describe('collectDecorations — frontmatter', () => {
-  it('styles every frontmatter line as frontmatter, not as a heading', () => {
+  it('replaces frontmatter with a single properties spec when cursor is outside', () => {
     const specs = collectDecorations(stateWith(FM_DOC, FM_DOC.length)) // cursor in body
+    const props = specs.filter((s: DecoSpec) => s.kind === 'properties')
+    expect(props.length).toBe(1)
+    expect(props[0].from).toBe(0)
+    // No per-line frontmatter specs when the panel owns the region.
+    expect(specs.some((s: DecoSpec) => s.kind === 'frontmatter')).toBe(false)
+  })
+
+  it('reveals raw frontmatter lines when the cursor is inside the region', () => {
+    const specs = collectDecorations(stateWith(FM_DOC, 5)) // cursor on "title: X"
     const fm = specs.filter((s: DecoSpec) => s.kind === 'frontmatter')
     expect(fm.length).toBe(4) // ---, title, tags, ---
+    expect(specs.some((s: DecoSpec) => s.kind === 'properties')).toBe(false)
   })
 
   it('emits no hr or heading decorations inside the frontmatter region', () => {
