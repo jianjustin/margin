@@ -6,6 +6,7 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { languages } from '@codemirror/language-data'
 import { syntaxHighlighting } from '@codemirror/language'
 import { livePreview } from '@/editor/livePreview/livePreviewPlugin'
+import { listContinuation } from '@/editor/listContinuation'
 import { marginEditorTheme } from '@/editor/livePreview/theme'
 import { marginHighlightStyle } from '@/editor/livePreview/highlightStyle'
 import { SlashMenu, type SlashMenuItem } from './SlashMenu'
@@ -134,6 +135,8 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
         EditorView.lineWrapping,
         slashKeymap,
         saveKeymap,
+        // List continuation must outrank the default Enter (insertNewline).
+        listContinuation,
         keymap.of([...defaultKeymap, ...historyKeymap]),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {

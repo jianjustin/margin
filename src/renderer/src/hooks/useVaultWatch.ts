@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { api } from '@/lib/api'
 import { useVaultStore } from '@/stores/vaultStore'
 import { useDocumentStore } from '@/stores/documentStore'
 
@@ -17,8 +18,8 @@ function pathExists(nodes: import('../../../shared/ipc').TreeNode[], target: str
  */
 export function useVaultWatch(): void {
   useEffect(() => {
-    const unsubscribe = window.margin.onVaultChanged(async (root) => {
-      const tree = await window.margin.scanVault(root)
+    const unsubscribe = api.onVaultChanged(async (root) => {
+      const tree = await api.scanVault(root)
       useVaultStore.getState().setTree(tree)
 
       const doc = useDocumentStore.getState()
@@ -34,7 +35,7 @@ export function useVaultWatch(): void {
       }
 
       // Re-read; if disk differs from what we have saved, reconcile.
-      const disk = await window.margin.readFile(openPath)
+      const disk = await api.readFile(openPath)
       if (disk === doc.savedContent) return // no real change for us
       if (!doc.isDirty()) {
         doc.load(openPath, disk) // clean → silently adopt disk

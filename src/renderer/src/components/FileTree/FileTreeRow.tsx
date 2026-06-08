@@ -67,12 +67,20 @@ export function FileTreeRow({
     else onSelect(node)
   }
 
+  const handleRightClick = (e: React.MouseEvent): void => {
+    e.preventDefault()
+    e.stopPropagation()
+    onContextMenu(node, e.clientX, e.clientY)
+  }
+
   return (
     <div
       onClick={handleClick}
-      onContextMenu={(e) => {
-        e.preventDefault()
-        onContextMenu(node, e.clientX, e.clientY)
+      onContextMenu={handleRightClick}
+      onAuxClick={(e) => {
+        // Fallback: some Electron builds on macOS don't fire `contextmenu`
+        // reliably; `auxclick` with button 2 catches those cases.
+        if (e.button === 2) handleRightClick(e)
       }}
       title={node.name}
       style={{ paddingLeft: `${8 + depth * 14}px` }}

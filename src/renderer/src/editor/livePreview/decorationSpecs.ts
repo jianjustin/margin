@@ -281,11 +281,21 @@ export function collectDecorations(state: EditorState): DecoSpec[] {
       // Task checkbox
       if (name === 'TaskMarker') {
         const raw = doc.sliceString(node.from, node.to)
+        const revealed = rangeRevealed(state, node.from, node.to)
+        // Hide the leading list bullet ("- ") so a task renders as a bare
+        // checkbox, not "- ☐". Walk up to the ListItem and swallow everything
+        // from its ListMark up to the checkbox.
+        let li: typeof node.node | null = node.node.parent
+        while (li && li.name !== 'ListItem') li = li.parent
+        const mark = li?.getChild('ListMark')
+        if (mark && mark.from < node.from) {
+          specs.push({ kind: 'hide', from: mark.from, to: node.from, revealed })
+        }
         specs.push({
           kind: 'task',
           from: node.from,
           to: node.to,
-          revealed: rangeRevealed(state, node.from, node.to),
+          revealed,
           checked: /\[[xX]\]/.test(raw)
         })
         return

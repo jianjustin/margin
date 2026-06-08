@@ -1,16 +1,3 @@
-export const IPC = {
-  dialogOpenFile: 'dialog:openFile',
-  dialogOpenFolder: 'dialog:openFolder',
-  fileRead: 'file:read',
-  fileWrite: 'file:write',
-  vaultScan: 'vault:scan',
-  fileCreate: 'file:create',
-  folderCreate: 'folder:create',
-  pathRename: 'path:rename',
-  pathTrash: 'path:trash',
-  vaultChanged: 'vault:changed'
-} as const
-
 export interface TreeNode {
   name: string
   path: string
@@ -28,5 +15,7 @@ export interface MarginApi {
   createFolder(dir: string, name: string): Promise<string>
   renamePath(oldPath: string, newName: string): Promise<string>
   trashPath(path: string): Promise<void>
+  movePath(srcPath: string, destDir: string): Promise<string>
+  ensureNote(dir: string, name: string, template?: string): Promise<string>
   onVaultChanged(callback: (root: string) => void): () => void
 }

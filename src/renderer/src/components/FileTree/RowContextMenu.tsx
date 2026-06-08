@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import type { TreeNode } from '../../../../shared/ipc'
 
 export interface ContextMenuState {
@@ -13,6 +13,7 @@ interface RowContextMenuProps {
   onNewNote: (folder: TreeNode) => void
   onNewFolder: (folder: TreeNode) => void
   onRename: (node: TreeNode) => void
+  onMove: (node: TreeNode) => void
   onTrash: (node: TreeNode) => void
 }
 
@@ -22,15 +23,38 @@ export function RowContextMenu({
   onNewNote,
   onNewFolder,
   onRename,
+  onMove,
   onTrash
 }: RowContextMenuProps): JSX.Element {
+  const menuRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
-    const close = (): void => onClose()
-    window.addEventListener('click', close)
-    window.addEventListener('contextmenu', close)
+    // Delay listener registration by one frame so the `contextmenu` /
+    // `auxclick` event that opened this menu finishes propagating before
+    // the "click-outside-to-close" listener is live. Without this, the
+    // opening event bubbles to window → immediately closes the menu.
+    const rafId = requestAnimationFrame(() => {
+      window.addEventListener('mousedown', handleOutside)
+      window.addEventListener('contextmenu', handleOutside)
+    })
+
+    function handleOutside(e: Event): void {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        onClose()
+      }
+    }
+
+    function handleKey(e: KeyboardEvent): void {
+      if (e.key === 'Escape') onClose()
+    }
+
+    window.addEventListener('keydown', handleKey)
+
     return () => {
-      window.removeEventListener('click', close)
-      window.removeEventListener('contextmenu', close)
+      cancelAnimationFrame(rafId)
+      window.removeEventListener('mousedown', handleOutside)
+      window.removeEventListener('contextmenu', handleOutside)
+      window.removeEventListener('keydown', handleKey)
     }
   }, [onClose])
 
@@ -40,25 +64,32 @@ export function RowContextMenu({
 
   return (
     <div
+      ref={menuRef}
       style={{ left: menu.x, top: menu.y }}
       className="fixed z-50 min-w-[160px] rounded-md border border-[color:var(--border)] bg-[color:var(--bg-elev)] py-1 shadow-lg"
       onClick={(e) => e.stopPropagation()}
+      onContextMenu={(e) => e.preventDefault()}
     >
       {isFolder && (
         <>
           <button className={item} onClick={() => onNewNote(menu.node)}>
-            New note
+            新建笔记
           </button>
           <button className={item} onClick={() => onNewFolder(menu.node)}>
-            New folder
+            新建文件夹
           </button>
+          <div className="my-1 border-t border-[color:var(--border-soft)]" />
         </>
       )}
       <button className={item} onClick={() => onRename(menu.node)}>
-        Rename…
+        重命名…
       </button>
+      <button className={item} onClick={() => onMove(menu.node)}>
+        移动到…
+      </button>
+      <div className="my-1 border-t border-[color:var(--border-soft)]" />
       <button className={item} onClick={() => onTrash(menu.node)}>
-        Move to Trash
+        移到废纸篓
       </button>
     </div>
   )
