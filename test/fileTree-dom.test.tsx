@@ -40,4 +40,17 @@ describe('FileTree', () => {
     fireEvent.click(screen.getByText('folderA'))
     expect(screen.getByText('inner.md')).toBeTruthy()
   })
+
+  it('fires onContextMenu with node and coordinates on right-click', () => {
+    const onContextMenu = vi.fn()
+    render(<FileTree onOpenFile={() => {}} onContextMenu={onContextMenu} />)
+    const row = screen.getByText('root.md').closest('[class*="cursor-pointer"]')!
+    fireEvent.contextMenu(row, { clientX: 100, clientY: 200 })
+    expect(onContextMenu).toHaveBeenCalledOnce()
+    expect(onContextMenu).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'root.md', type: 'file' }),
+      100,
+      200
+    )
+  })
 })
