@@ -19,6 +19,8 @@ import { useThemeStore, resolveTheme } from '@/stores/themeStore'
 import { useSystemTheme } from '@/hooks/useSystemTheme'
 import { useVaultWatch } from '@/hooks/useVaultWatch'
 import { useProjectConfig } from '@/hooks/useProjectConfig'
+import { useDraft } from '@/hooks/useDraft'
+import { DraftBanner } from '@/components/DraftBanner'
 import { StatusBar } from '@/components/StatusBar'
 import { api } from '@/lib/api'
 import type { TreeNode } from '../../shared/ipc'
@@ -50,12 +52,13 @@ function DirtyDot(): JSX.Element {
 }
 
 export default function App(): JSX.Element {
-  // Only `path` is subscribed here — a keystroke changes `content`, not `path`,
-  // so the App component (and the whole file-tree subtree below it) does NOT
-  // re-render while typing. Content is consumed by leaf subscribers: the editor
-  // reads it non-reactively on (re)mount, the dirty dot and status bar subscribe
-  // to it themselves.
+  // Only `path` and `epoch` are subscribed here — a keystroke changes `content`,
+  // not `path` or `epoch`, so the App component (and the whole file-tree subtree
+  // below it) does NOT re-render while typing. Content is consumed by leaf
+  // subscribers: the editor reads it non-reactively on (re)mount, the dirty dot
+  // and status bar subscribe to it themselves.
   const path = useDocumentStore((s) => s.path)
+  const epoch = useDocumentStore((s) => s.epoch)
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const editorRef = useRef<EditorHandle>(null)
@@ -81,6 +84,7 @@ export default function App(): JSX.Element {
 
   useVaultWatch()
   useProjectConfig()
+  useDraft()
 
   /* ── Theme ─────────────────────────────────────────────────── */
 
@@ -138,6 +142,11 @@ export default function App(): JSX.Element {
     const text = await api.readFile(filePath)
     useDocumentStore.getState().load(filePath, text)
     useVaultStore.getState().select(filePath)
+    const root = useVaultStore.getState().root
+    if (root) {
+      const draft = await api.readDraft(root, filePath).catch(() => null)
+      if (draft != null && draft !== text) useDocumentStore.getState().setPendingDraft(draft)
+    }
   }, [])
 
   const handleOpenFolder = useCallback(() => void openFolder(), [openFolder])
@@ -361,16 +370,22 @@ export default function App(): JSX.Element {
         )}
         <main className="min-h-0 min-w-0 flex-1">
           {path ? (
-            <Editor
-              ref={editorRef}
-              docKey={path}
-              // Read non-reactively: the editor is uncontrolled and keyed by
-              // `path`, so it only consumes this on (re)mount when a file opens.
-              // `load()` sets path+content together, so it's current here.
-              initialValue={useDocumentStore.getState().content}
-              onChange={handleChange}
-              onSave={() => void save()}
-            />
+            <div className="flex h-full flex-col">
+              <DraftBanner />
+              <div className="min-h-0 flex-1">
+                <Editor
+                  ref={editorRef}
+                  docKey={`${path}:${epoch}`}
+                  // Read non-reactively: the editor is uncontrolled and keyed by
+                  // `${path}:${epoch}`, so it only consumes this on (re)mount when
+                  // a file opens or a draft is applied. `load()` sets
+                  // path+content together, so it's current here.
+                  initialValue={useDocumentStore.getState().content}
+                  onChange={handleChange}
+                  onSave={() => void save()}
+                />
+              </div>
+            </div>
           ) : (
             <div className="flex h-full items-center justify-center text-muted-foreground">
               Open a folder or file to start editing
