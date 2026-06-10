@@ -10,6 +10,7 @@ import { listContinuation } from '@/editor/listContinuation'
 import { marginEditorTheme } from '@/editor/livePreview/theme'
 import { marginHighlightStyle } from '@/editor/livePreview/highlightStyle'
 import { SlashMenu, type SlashMenuItem } from './SlashMenu'
+import { slashMenuTriggers } from '@/editor/slashTrigger'
 
 interface EditorProps {
   docKey: string | null
@@ -107,8 +108,12 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
         run: (view) => {
           const pos = view.state.selection.main.head
           const line = view.state.doc.lineAt(pos)
-          const textBefore = view.state.doc.sliceString(line.from, pos)
-          if (textBefore.trim() === '') {
+          // Open the menu when "/" starts a new "word": at the very start of the
+          // line, or right after whitespace (so it also works after a list marker
+          // "- ", a quote "> ", or mid-line after a space). The whitespace guard
+          // avoids false triggers like typing the second slash in "http://".
+          const charBefore = pos > line.from ? view.state.doc.sliceString(pos - 1, pos) : ''
+          if (slashMenuTriggers(charBefore)) {
             setTimeout(() => {
               const coords = view.coordsAtPos(pos)
               if (coords) {

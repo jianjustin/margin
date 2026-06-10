@@ -99,19 +99,50 @@ function buildDecorations(state: EditorState): DecorationSet {
 }
 
 /**
+ * A cheap fingerprint of which lines the selection touches. Typora-style reveal
+ * is line-based (see `rangeRevealed`): a node is revealed iff a selection range
+ * touches its line span. So two selections that touch the same set of lines
+ * produce byte-identical decorations. Cursor movement *within* a line (left/right
+ * arrows, intra-line clicks/selection) keeps this signature constant, letting us
+ * skip a full rebuild — the common case during editing.
+ */
+function revealSignature(state: EditorState): string {
+  const doc = state.doc
+  let sig = ''
+  for (const r of state.selection.ranges) {
+    sig += doc.lineAt(r.from).number + ':' + doc.lineAt(r.to).number + ','
+  }
+  return sig
+}
+
+interface LivePreviewValue {
+  deco: DecorationSet
+  /** revealSignature of the state this `deco` was built from. */
+  sig: string
+}
+
+/**
  * The live-preview decoration layer. Implemented as a StateField (not a
  * ViewPlugin) because block-level replacing decorations that cross line breaks
  * — our fenced-code / table / properties widgets — may only be provided through
- * the editor state, not a plugin. Rebuilds whenever the document or selection
- * changes (selection drives Typora-style cursor reveal).
+ * the editor state, not a plugin. Rebuilds when the document changes, or when the
+ * selection moves to a different set of lines (which changes Typora-style reveal);
+ * a selection change that stays on the same lines reuses the prior decorations.
  */
-export const livePreview = StateField.define<DecorationSet>({
+export const livePreview = StateField.define<LivePreviewValue>({
   create(state) {
-    return buildDecorations(state)
+    return { deco: buildDecorations(state), sig: revealSignature(state) }
   },
-  update(deco, tr) {
-    if (tr.docChanged || tr.selection) return buildDecorations(tr.state)
-    return deco
+  update(value, tr) {
+    if (tr.docChanged) {
+      return { deco: buildDecorations(tr.state), sig: revealSignature(tr.state) }
+    }
+    if (tr.selection) {
+      const sig = revealSignature(tr.state)
+      if (sig === value.sig) return value
+      return { deco: buildDecorations(tr.state), sig }
+    }
+    return value
   },
-  provide: (f) => EditorView.decorations.from(f)
+  provide: (f) => EditorView.decorations.from(f, (v) => v.deco)
 })

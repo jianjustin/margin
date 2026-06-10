@@ -18,8 +18,8 @@ import { OutlineDrawer } from '@/components/OutlineDrawer'
 import { useThemeStore, resolveTheme } from '@/stores/themeStore'
 import { useSystemTheme } from '@/hooks/useSystemTheme'
 import { useVaultWatch } from '@/hooks/useVaultWatch'
+import { useProjectConfig } from '@/hooks/useProjectConfig'
 import { StatusBar } from '@/components/StatusBar'
-import { useDocStats } from '@/hooks/useDocStats'
 import { api } from '@/lib/api'
 import type { TreeNode } from '../../shared/ipc'
 
@@ -34,12 +34,28 @@ type DialogState =
   | { type: 'rename'; node: TreeNode }
   | { type: 'trash'; node: TreeNode }
 
-export default function App(): JSX.Element {
-  const path = useDocumentStore((s) => s.path)
-  const content = useDocumentStore((s) => s.content)
-  const saveStatus = useDocumentStore((s) => s.saveStatus)
+/** Unsaved-changes indicator. A leaf subscriber so it re-renders on each
+ *  keystroke without dragging App (and the file tree) along. */
+function DirtyDot(): JSX.Element {
   const dirty = useDocumentStore((s) => s.content !== s.savedContent)
-  const stats = useDocStats(content)
+  return (
+    <span
+      className="text-[color:var(--accent)] transition-opacity"
+      style={{ opacity: dirty ? 1 : 0 }}
+      aria-hidden
+    >
+      ●
+    </span>
+  )
+}
+
+export default function App(): JSX.Element {
+  // Only `path` is subscribed here — a keystroke changes `content`, not `path`,
+  // so the App component (and the whole file-tree subtree below it) does NOT
+  // re-render while typing. Content is consumed by leaf subscribers: the editor
+  // reads it non-reactively on (re)mount, the dirty dot and status bar subscribe
+  // to it themselves.
+  const path = useDocumentStore((s) => s.path)
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const editorRef = useRef<EditorHandle>(null)
@@ -64,6 +80,7 @@ export default function App(): JSX.Element {
   )
 
   useVaultWatch()
+  useProjectConfig()
 
   /* ── Theme ─────────────────────────────────────────────────── */
 
@@ -108,18 +125,26 @@ export default function App(): JSX.Element {
 
   /* ── Core file operations ──────────────────────────────────── */
 
-  async function openFolder(): Promise<void> {
+  // Stable identities so the memoized <Sidebar> doesn't reconcile the whole
+  // file tree when App re-renders for unrelated reasons (dialogs, drawer/theme).
+  const openFolder = useCallback(async (): Promise<void> => {
     const chosen = await api.openFolder()
     if (!chosen) return
     const tree = await api.scanVault(chosen)
     useVaultStore.getState().openRoot(chosen, tree)
-  }
+  }, [])
 
-  async function openFileByPath(filePath: string): Promise<void> {
+  const openFileByPath = useCallback(async (filePath: string): Promise<void> => {
     const text = await api.readFile(filePath)
     useDocumentStore.getState().load(filePath, text)
     useVaultStore.getState().select(filePath)
-  }
+  }, [])
+
+  const handleOpenFolder = useCallback(() => void openFolder(), [openFolder])
+  const handleOpenFile = useCallback(
+    (node: TreeNode) => void openFileByPath(node.path),
+    [openFileByPath]
+  )
 
   function save(): Promise<void> {
     return saveDocument(api.writeFile)
@@ -137,9 +162,9 @@ export default function App(): JSX.Element {
     }
   }, [])
 
-  function handleContextMenu(node: TreeNode, x: number, y: number): void {
+  const handleContextMenu = useCallback((node: TreeNode, x: number, y: number): void => {
     setMenu({ node, x, y })
-  }
+  }, [])
 
   async function refreshTree(): Promise<void> {
     const root = useVaultStore.getState().root
@@ -268,13 +293,7 @@ export default function App(): JSX.Element {
               {parentName && <span className="text-[color:var(--text-faint)]">{parentName}</span>}
               {parentName && <span className="text-[color:var(--text-faint)]">/</span>}
               <span id="title-name" className="truncate">{fileName}</span>
-              <span
-                className="text-[color:var(--accent)] transition-opacity"
-                style={{ opacity: dirty ? 1 : 0 }}
-                aria-hidden
-              >
-                ●
-              </span>
+              <DirtyDot />
             </>
           ) : (
             <span className="text-[color:var(--text-faint)]">No file open</span>
@@ -335,8 +354,8 @@ export default function App(): JSX.Element {
       <div className="flex min-h-0 flex-1">
         {sidebarOpen && (
           <Sidebar
-            onOpenFolder={() => void openFolder()}
-            onOpenFile={(node) => void openFileByPath(node.path)}
+            onOpenFolder={handleOpenFolder}
+            onOpenFile={handleOpenFile}
             onContextMenu={handleContextMenu}
           />
         )}
@@ -345,7 +364,10 @@ export default function App(): JSX.Element {
             <Editor
               ref={editorRef}
               docKey={path}
-              initialValue={content}
+              // Read non-reactively: the editor is uncontrolled and keyed by
+              // `path`, so it only consumes this on (re)mount when a file opens.
+              // `load()` sets path+content together, so it's current here.
+              initialValue={useDocumentStore.getState().content}
               onChange={handleChange}
               onSave={() => void save()}
             />
@@ -360,7 +382,7 @@ export default function App(): JSX.Element {
         )}
       </div>
 
-      <StatusBar stats={stats} saveStatus={saveStatus} hasFile={path !== null} />
+      <StatusBar hasFile={path !== null} />
 
       {/* ── Context menu ──────────────────────────────────────── */}
 

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { memo, useState, useMemo } from 'react'
 import { Search } from 'lucide-react'
 import type { TreeNode } from '../../../../shared/ipc'
 import { useVaultStore } from '@/stores/vaultStore'
@@ -27,7 +27,7 @@ function filterTree(nodes: TreeNode[], query: string): TreeNode[] {
   return result
 }
 
-export function Sidebar({ onOpenFolder, onOpenFile, onContextMenu }: SidebarProps): JSX.Element {
+function SidebarInner({ onOpenFolder, onOpenFile, onContextMenu }: SidebarProps): JSX.Element {
   const root = useVaultStore((s) => s.root)
   const tree = useVaultStore((s) => s.tree)
   const [searchQuery, setSearchQuery] = useState('')
@@ -85,3 +85,10 @@ export function Sidebar({ onOpenFolder, onOpenFile, onContextMenu }: SidebarProp
     </aside>
   )
 }
+
+/**
+ * Memoized so an App re-render with the same (stable) callback props skips the
+ * whole file-tree subtree. The component still updates on its own store reads
+ * (tree/expanded/selected/search) via the hooks inside SidebarInner.
+ */
+export const Sidebar = memo(SidebarInner)

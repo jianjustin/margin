@@ -1,9 +1,7 @@
-import type { DocStats } from '@/lib/computeStats'
-import type { SaveStatus } from '@/stores/documentStore'
+import { useDocumentStore, type SaveStatus } from '@/stores/documentStore'
+import { useDocStats } from '@/hooks/useDocStats'
 
 interface StatusBarProps {
-  stats: DocStats
-  saveStatus: SaveStatus
   hasFile: boolean
 }
 
@@ -14,7 +12,15 @@ const SAVE_LABEL: Record<SaveStatus, string> = {
   error: '保存失败'
 }
 
-export function StatusBar({ stats, saveStatus, hasFile }: StatusBarProps): JSX.Element {
+/**
+ * Subscribes to the document store itself (rather than receiving content via
+ * props) so that per-keystroke content changes re-render only this tiny footer
+ * — never App and the file-tree subtree. Word-count stats stay debounced.
+ */
+export function StatusBar({ hasFile }: StatusBarProps): JSX.Element {
+  const content = useDocumentStore((s) => s.content)
+  const saveStatus = useDocumentStore((s) => s.saveStatus)
+  const stats = useDocStats(content)
   return (
     <footer
       className="flex h-7 shrink-0 items-center gap-4 border-t border-[color:var(--border-soft)] bg-[color:var(--bg-panel)] px-4 text-[11.5px] text-[color:var(--text-faint)]"
