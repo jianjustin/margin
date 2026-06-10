@@ -158,6 +158,19 @@ export const marginEditorTheme = EditorView.theme({
   },
   '.cm-prop-add:hover': { color: 'var(--accent)' },
 
+  '.cm-image-wrap': { display: 'inline-block', maxWidth: '100%' },
+  '.cm-image-wrap img': {
+    maxWidth: '100%',
+    borderRadius: '6px',
+    display: 'block',
+    margin: '4px auto'
+  },
+  '.cm-image-error': {
+    color: 'var(--text-faint)',
+    fontSize: '13px',
+    fontStyle: 'italic'
+  },
+
   '.cm-activeLine': {
     backgroundColor: 'transparent'
   },

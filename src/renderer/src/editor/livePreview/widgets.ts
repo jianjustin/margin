@@ -1,4 +1,5 @@
 import { WidgetType, type EditorView } from '@codemirror/view'
+import { convertFileSrc } from '@tauri-apps/api/core'
 import { findLanguage, highlightInto } from './codeHighlight'
 import { parseTable, serializeTable, type Align } from './tableModel'
 import { parseFrontmatter, serializeFrontmatter, type FmField } from './frontmatterModel'
@@ -319,6 +320,72 @@ export class PropertiesWidget extends WidgetType {
     root.appendChild(add)
 
     return root
+  }
+
+  ignoreEvent(): boolean {
+    return true
+  }
+}
+
+/** Natural-size cache so decoration rebuilds don't cause layout jumps. */
+const imageDims = new Map<string, { w: number; h: number }>()
+
+function toDisplayUrl(p: string): string {
+  if (/^(https?:|data:|asset:)/i.test(p)) return p
+  try {
+    return convertFileSrc(p)
+  } catch {
+    return 'file://' + p // non-Tauri contexts (tests, demo harness)
+  }
+}
+
+/** Renders `![alt](src)` as an inline image with graceful error fallback. */
+export class ImageWidget extends WidgetType {
+  constructor(
+    readonly src: string,
+    readonly alt: string,
+    /** Absolute path or external URL; null when unresolvable (no doc path). */
+    readonly resolved: string | null
+  ) {
+    super()
+  }
+
+  eq(other: ImageWidget): boolean {
+    return other.src === this.src && other.alt === this.alt && other.resolved === this.resolved
+  }
+
+  toDOM(view: EditorView): HTMLElement {
+    const wrap = document.createElement('span')
+    wrap.className = 'cm-image-wrap'
+    if (!this.resolved) return this.renderError(wrap)
+
+    const url = toDisplayUrl(this.resolved)
+    const img = document.createElement('img')
+    img.alt = this.alt
+    const dims = imageDims.get(url)
+    if (dims) img.style.aspectRatio = `${dims.w} / ${dims.h}`
+    img.addEventListener('load', () => {
+      if (!imageDims.has(url)) {
+        imageDims.set(url, { w: img.naturalWidth, h: img.naturalHeight })
+        view.requestMeasure()
+      }
+    })
+    img.addEventListener('error', () => {
+      wrap.textContent = ''
+      this.renderError(wrap)
+      view.requestMeasure()
+    })
+    img.src = url
+    wrap.appendChild(img)
+    return wrap
+  }
+
+  private renderError(wrap: HTMLElement): HTMLElement {
+    const ph = document.createElement('span')
+    ph.className = 'cm-image-error'
+    ph.textContent = `图片加载失败: ${this.alt || ''} (${this.src})`
+    wrap.appendChild(ph)
+    return wrap
   }
 
   ignoreEvent(): boolean {

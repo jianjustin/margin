@@ -6,8 +6,11 @@ import {
   HrWidget,
   CodeBlockWidget,
   TableWidget,
-  PropertiesWidget
+  PropertiesWidget,
+  ImageWidget
 } from './widgets'
+import { docPathFacet } from '../docPathFacet'
+import { isExternal, resolveRelative } from '@/lib/resolvePath'
 
 const hideMark = Decoration.replace({})
 const boldMark = Decoration.mark({ class: 'cm-strong' })
@@ -91,6 +94,15 @@ function buildDecorations(state: EditorState): DecorationSet {
           }).range(s.from, s.to)
         )
         break
+      case 'image': {
+        const src = s.source ?? ''
+        const dp = state.facet(docPathFacet)
+        const resolved = isExternal(src) ? src : resolveRelative(src, dp)
+        ranges.push(
+          Decoration.replace({ widget: new ImageWidget(src, s.info ?? '', resolved) }).range(s.from, s.to)
+        )
+        break
+      }
     }
   }
 

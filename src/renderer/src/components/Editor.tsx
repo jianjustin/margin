@@ -6,6 +6,7 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { languages } from '@codemirror/language-data'
 import { syntaxHighlighting } from '@codemirror/language'
 import { livePreview } from '@/editor/livePreview/livePreviewPlugin'
+import { docPathFacet } from '@/editor/docPathFacet'
 import { listContinuation } from '@/editor/listContinuation'
 import { marginEditorTheme } from '@/editor/livePreview/theme'
 import { marginHighlightStyle } from '@/editor/livePreview/highlightStyle'
@@ -17,6 +18,7 @@ interface EditorProps {
   initialValue: string
   onChange: (value: string) => void
   onSave: () => void
+  filePath?: string | null
 }
 
 export interface EditorHandle {
@@ -42,7 +44,7 @@ function bodyStart(doc: string): number {
 }
 
 export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
-  { docKey, initialValue, onChange, onSave },
+  { docKey, initialValue, onChange, onSave, filePath = null },
   ref
 ): JSX.Element {
   const hostRef = useRef<HTMLDivElement>(null)
@@ -129,6 +131,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
         history(),
         markdown({ base: markdownLanguage, codeLanguages: languages }),
         syntaxHighlighting(marginHighlightStyle, { fallback: true }),
+        docPathFacet.of(filePath),
         livePreview,
         marginEditorTheme,
         EditorView.lineWrapping,

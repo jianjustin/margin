@@ -387,6 +387,7 @@ export default function App(): JSX.Element {
                   initialValue={useDocumentStore.getState().content}
                   onChange={handleChange}
                   onSave={() => void save()}
+                  filePath={path}
                 />
               </div>
             </div>

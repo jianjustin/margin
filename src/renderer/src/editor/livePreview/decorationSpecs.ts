@@ -18,6 +18,7 @@ export type DecoKind =
   | 'codeBlock'
   | 'table'
   | 'properties'
+  | 'image'
 
 export interface DecoSpec {
   kind: DecoKind
@@ -301,8 +302,19 @@ export function collectDecorations(state: EditorState): DecoSpec[] {
         return
       }
 
+      // Inline image: replace `![alt](src)` with a rendered <img> when the cursor
+      // is outside the node's line; reveal raw source when inside.
+      if (name === 'Image') {
+        const revealed = rangeRevealed(state, node.from, node.to)
+        if (revealed) return // raw text shows; let children render unstyled
+        const urlNode = node.node.getChild('URL')
+        const url = urlNode ? doc.sliceString(urlNode.from, urlNode.to) : ''
+        const alt = /^!\[([^\]]*)\]/.exec(doc.sliceString(node.from, node.to))?.[1] ?? ''
+        specs.push({ kind: 'image', from: node.from, to: node.to, revealed: false, source: url, info: alt })
+        return false // widget replaces the range — skip children
+      }
+
       // Links: style the whole node, hide its [] and (url) children.
-      // (Images are a separate `Image` node and are intentionally left untouched.)
       if (name === 'Link') {
         specs.push({ kind: 'link', from: node.from, to: node.to, revealed: false })
         const linkRevealed = rangeRevealed(state, node.from, node.to)
