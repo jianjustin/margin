@@ -22,4 +22,8 @@ export interface MarginApi {
   /** Write `<root>/.margin/config.json`, creating the hidden dir if needed. */
   writeProjectConfig(root: string, content: string): Promise<void>
   onVaultChanged(callback: (root: string) => void): () => void
+  /** Crash-recovery drafts stored under `<root>/.margin/drafts/`. */
+  writeDraft(root: string, path: string, content: string): Promise<void>
+  readDraft(root: string, path: string): Promise<string | null>
+  deleteDraft(root: string, path: string): Promise<void>
 }

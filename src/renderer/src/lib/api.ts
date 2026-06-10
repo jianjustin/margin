@@ -16,6 +16,9 @@ export const api: MarginApi = {
   ensureNote: (dir, name, template) => invoke<string>('ensure_note', { dir, name, template: template ?? '' }),
   readProjectConfig: (root) => invoke<string | null>('read_project_config', { root }),
   writeProjectConfig: (root, content) => invoke<void>('write_project_config', { root, content }),
+  writeDraft: (root, path, content) => invoke<void>('write_draft', { root, path, content }),
+  readDraft: (root, path) => invoke<string | null>('read_draft', { root, path }),
+  deleteDraft: (root, path) => invoke<void>('delete_draft', { root, path }),
   onVaultChanged: (callback) => {
     let unlisten: (() => void) | null = null
     listen<string>('vault-changed', (event) => callback(event.payload))

@@ -6,7 +6,10 @@ function reset(): void {
     path: null,
     content: '',
     savedContent: '',
-    saveStatus: 'saved'
+    saveStatus: 'saved',
+    pendingDraft: null,
+    conflict: null,
+    epoch: 0
   })
 }
 
@@ -66,5 +69,40 @@ describe('documentStore', () => {
     expect(s.saveStatus).toBe('error')
     expect(s.savedContent).toBe('a')
     expect(s.isDirty()).toBe(true)
+  })
+})
+
+describe('draft restore & epoch', () => {
+  beforeEach(reset)
+
+  it('load clears pendingDraft/conflict and bumps epoch', () => {
+    const s = useDocumentStore.getState()
+    s.load('/v/a.md', 'disk')
+    s.setPendingDraft('draft!')
+    const epochBefore = useDocumentStore.getState().epoch
+    s.load('/v/b.md', 'other')
+    expect(useDocumentStore.getState().pendingDraft).toBeNull()
+    expect(useDocumentStore.getState().epoch).toBe(epochBefore + 1)
+  })
+
+  it('applyDraft makes the draft the dirty content and bumps epoch', () => {
+    const s = useDocumentStore.getState()
+    s.load('/v/a.md', 'disk')
+    s.setPendingDraft('draft!')
+    const epochBefore = useDocumentStore.getState().epoch
+    useDocumentStore.getState().applyDraft()
+    const after = useDocumentStore.getState()
+    expect(after.content).toBe('draft!')
+    expect(after.savedContent).toBe('disk')
+    expect(after.saveStatus).toBe('dirty')
+    expect(after.pendingDraft).toBeNull()
+    expect(after.epoch).toBe(epochBefore + 1)
+  })
+
+  it('applyDraft is a no-op without a pending draft', () => {
+    const s = useDocumentStore.getState()
+    s.load('/v/a.md', 'disk')
+    useDocumentStore.getState().applyDraft()
+    expect(useDocumentStore.getState().content).toBe('disk')
   })
 })
