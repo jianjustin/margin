@@ -47,6 +47,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
 ): JSX.Element {
   const hostRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
+  const retryRafRef = useRef<number | null>(null)
 
   const onChangeRef = useRef(onChange)
   const onSaveRef = useRef(onSave)
@@ -100,7 +101,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     view.requestMeasure({
       read: () => null,
       write: () => {
-        if (!place()) requestAnimationFrame(() => place())
+        if (!place()) retryRafRef.current = requestAnimationFrame(() => place())
       }
     })
   }, [])
@@ -161,6 +162,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     viewRef.current = view
 
     return () => {
+      if (retryRafRef.current != null) cancelAnimationFrame(retryRafRef.current)
       view.destroy()
       viewRef.current = null
     }
