@@ -36,11 +36,14 @@ export function useVaultWatch(): void {
 
       // Re-read; if disk differs from what we have saved, reconcile.
       const disk = await api.readFile(openPath)
-      if (disk === doc.savedContent) return // no real change for us
-      if (!doc.isDirty()) {
-        doc.load(openPath, disk) // clean → silently adopt disk (editor remounts via epoch)
+      // The user may have switched files while we awaited; never act on a stale path.
+      const current = useDocumentStore.getState()
+      if (current.path !== openPath) return
+      if (disk === current.savedContent) return // no real change for us
+      if (!current.isDirty()) {
+        current.load(openPath, disk) // clean → silently adopt disk (editor remounts via epoch)
       } else {
-        doc.setConflict(disk) // dirty → non-blocking conflict bar decides
+        current.setConflict(disk) // dirty → non-blocking conflict bar decides
       }
     })
     return unsubscribe
