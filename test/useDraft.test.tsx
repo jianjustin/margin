@@ -46,4 +46,12 @@ describe('useDraft', () => {
     expect(api.deleteDraft).toHaveBeenCalledWith('/vault', '/vault/a.md')
     unmount()
   })
+
+  it('does not delete the new file draft when switching from a dirty file', () => {
+    const { unmount } = renderHook(() => useDraft())
+    useDocumentStore.getState().setContent('edited') // current file dirty
+    useDocumentStore.getState().load('/vault/b.md', 'disk-b') // switch file: dirty → saved
+    expect(api.deleteDraft).not.toHaveBeenCalled()
+    unmount()
+  })
 })

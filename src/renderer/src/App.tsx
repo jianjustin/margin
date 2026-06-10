@@ -145,7 +145,9 @@ export default function App(): JSX.Element {
     const root = useVaultStore.getState().root
     if (root) {
       const draft = await api.readDraft(root, filePath).catch(() => null)
-      if (draft != null && draft !== text) useDocumentStore.getState().setPendingDraft(draft)
+      if (draft != null && draft !== text && useDocumentStore.getState().path === filePath) {
+        useDocumentStore.getState().setPendingDraft(draft)
+      }
     }
   }, [])
 

@@ -24,6 +24,10 @@ export function useDraft(): void {
     }, DRAFT_INTERVAL_MS)
 
     const unsub = useDocumentStore.subscribe((s, prev) => {
+      if (s.path !== prev.path) {
+        lastWritten = null
+        return // a file switch is not a save — never delete the new file's draft
+      }
       if (s.path && s.saveStatus === 'saved' && prev.saveStatus !== 'saved') {
         const root = useVaultStore.getState().root
         if (root) void api.deleteDraft(root, s.path).catch(() => {})
