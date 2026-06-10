@@ -23,6 +23,9 @@ interface DocumentState {
   reset(): void
   setPendingDraft(draft: string | null): void
   applyDraft(): void
+  setConflict(disk: string): void
+  keepMine(): void
+  takeDisk(): void
 }
 
 export const useDocumentStore = create<DocumentState>((set, get) => ({
@@ -72,6 +75,35 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
             content: s.pendingDraft,
             saveStatus: s.pendingDraft === s.savedContent ? 'saved' : 'dirty',
             pendingDraft: null,
+            epoch: s.epoch + 1
+          }
+    ),
+
+  setConflict: (disk) => set({ conflict: disk }),
+
+  // 保留本地编辑：把磁盘版本记为"已知的磁盘内容"，文档保持 dirty，
+  // 下一次保存按用户意愿覆盖磁盘。
+  keepMine: () =>
+    set((s) =>
+      s.conflict == null
+        ? s
+        : {
+            savedContent: s.conflict,
+            saveStatus: s.content === s.conflict ? 'saved' : 'dirty',
+            conflict: null
+          }
+    ),
+
+  // 采用磁盘版本：替换内容并 remount 编辑器。
+  takeDisk: () =>
+    set((s) =>
+      s.conflict == null
+        ? s
+        : {
+            content: s.conflict,
+            savedContent: s.conflict,
+            saveStatus: 'saved',
+            conflict: null,
             epoch: s.epoch + 1
           }
     ),

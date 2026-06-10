@@ -109,4 +109,24 @@ describe('saveDocument', () => {
     expect(ok).toHaveBeenCalledWith('/notes/a.md', 'b')
     expect(useDocumentStore.getState().saveStatus).toBe('saved')
   })
+
+  it('blocks the save and raises a conflict when disk changed externally', async () => {
+    useDocumentStore.getState().load('/v/a.md', 'base')
+    useDocumentStore.getState().setContent('mine')
+    const writeFile = vi.fn(() => Promise.resolve())
+    const readFile = vi.fn(() => Promise.resolve('external change'))
+    await saveDocument(writeFile, readFile)
+    expect(writeFile).not.toHaveBeenCalled()
+    expect(useDocumentStore.getState().conflict).toBe('external change')
+  })
+
+  it('saves normally when disk matches what we last saw', async () => {
+    useDocumentStore.getState().load('/v/a.md', 'base')
+    useDocumentStore.getState().setContent('mine')
+    const writeFile = vi.fn(() => Promise.resolve())
+    const readFile = vi.fn(() => Promise.resolve('base'))
+    await saveDocument(writeFile, readFile)
+    expect(writeFile).toHaveBeenCalledWith('/v/a.md', 'mine')
+    expect(useDocumentStore.getState().saveStatus).toBe('saved')
+  })
 })

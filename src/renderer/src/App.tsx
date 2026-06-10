@@ -21,6 +21,7 @@ import { useVaultWatch } from '@/hooks/useVaultWatch'
 import { useProjectConfig } from '@/hooks/useProjectConfig'
 import { useDraft } from '@/hooks/useDraft'
 import { DraftBanner } from '@/components/DraftBanner'
+import { ConflictBar } from '@/components/ConflictBar'
 import { StatusBar } from '@/components/StatusBar'
 import { api } from '@/lib/api'
 import type { TreeNode } from '../../shared/ipc'
@@ -158,7 +159,7 @@ export default function App(): JSX.Element {
   )
 
   function save(): Promise<void> {
-    return saveDocument(api.writeFile)
+    return saveDocument(api.writeFile, api.readFile)
   }
 
   function handleChange(value: string): void {
@@ -374,6 +375,7 @@ export default function App(): JSX.Element {
           {path ? (
             <div className="flex h-full flex-col">
               <DraftBanner />
+              <ConflictBar />
               <div className="min-h-0 flex-1">
                 <Editor
                   ref={editorRef}

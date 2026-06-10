@@ -38,12 +38,9 @@ export function useVaultWatch(): void {
       const disk = await api.readFile(openPath)
       if (disk === doc.savedContent) return // no real change for us
       if (!doc.isDirty()) {
-        doc.load(openPath, disk) // clean → silently adopt disk
+        doc.load(openPath, disk) // clean → silently adopt disk (editor remounts via epoch)
       } else {
-        const takeDisk = window.confirm(
-          'This file changed outside Margin.\n\nOK = load the disk version (discard your edits)\nCancel = keep your version'
-        )
-        if (takeDisk) doc.load(openPath, disk)
+        doc.setConflict(disk) // dirty → non-blocking conflict bar decides
       }
     })
     return unsubscribe

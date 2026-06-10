@@ -106,3 +106,35 @@ describe('draft restore & epoch', () => {
     expect(useDocumentStore.getState().content).toBe('disk')
   })
 })
+
+describe('external-change conflict', () => {
+  beforeEach(reset)
+
+  it('keepMine adopts disk as savedContent and stays dirty', () => {
+    const s = useDocumentStore.getState()
+    s.load('/v/a.md', 'base')
+    s.setContent('mine')
+    s.setConflict('theirs')
+    useDocumentStore.getState().keepMine()
+    const after = useDocumentStore.getState()
+    expect(after.conflict).toBeNull()
+    expect(after.savedContent).toBe('theirs')
+    expect(after.saveStatus).toBe('dirty')
+    expect(after.content).toBe('mine')
+  })
+
+  it('takeDisk replaces content, marks saved, bumps epoch', () => {
+    const s = useDocumentStore.getState()
+    s.load('/v/a.md', 'base')
+    s.setContent('mine')
+    s.setConflict('theirs')
+    const epochBefore = useDocumentStore.getState().epoch
+    useDocumentStore.getState().takeDisk()
+    const after = useDocumentStore.getState()
+    expect(after.content).toBe('theirs')
+    expect(after.savedContent).toBe('theirs')
+    expect(after.saveStatus).toBe('saved')
+    expect(after.conflict).toBeNull()
+    expect(after.epoch).toBe(epochBefore + 1)
+  })
+})
