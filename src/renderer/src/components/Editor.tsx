@@ -10,7 +10,7 @@ import { listContinuation } from '@/editor/listContinuation'
 import { marginEditorTheme } from '@/editor/livePreview/theme'
 import { marginHighlightStyle } from '@/editor/livePreview/highlightStyle'
 import { SlashMenu, type SlashMenuItem } from './SlashMenu'
-import { slashMenuTriggers } from '@/editor/slashTrigger'
+import { slashInsertedAt } from '@/editor/slashTrigger'
 
 interface EditorProps {
   docKey: string | null
@@ -88,6 +88,23 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     viewRef.current?.focus()
   }, [])
 
+  // 在事务确认 "/" 已插入后再测量坐标；测量落空（如尚未布局）下一帧重试一次，
+  // 不再静默失败。
+  const openSlashMenuAt = useCallback((view: EditorView, pos: number) => {
+    const place = (): boolean => {
+      const coords = view.coordsAtPos(pos)
+      if (!coords) return false
+      setSlashMenu({ x: coords.left, y: coords.bottom + 4, from: pos })
+      return true
+    }
+    view.requestMeasure({
+      read: () => null,
+      write: () => {
+        if (!place()) requestAnimationFrame(() => place())
+      }
+    })
+  }, [])
+
   useEffect(() => {
     if (!hostRef.current) return
 
@@ -98,30 +115,6 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
         run: () => {
           onSaveRef.current()
           return true
-        }
-      }
-    ])
-
-    const slashKeymap = keymap.of([
-      {
-        key: '/',
-        run: (view) => {
-          const pos = view.state.selection.main.head
-          const line = view.state.doc.lineAt(pos)
-          // Open the menu when "/" starts a new "word": at the very start of the
-          // line, or right after whitespace (so it also works after a list marker
-          // "- ", a quote "> ", or mid-line after a space). The whitespace guard
-          // avoids false triggers like typing the second slash in "http://".
-          const charBefore = pos > line.from ? view.state.doc.sliceString(pos - 1, pos) : ''
-          if (slashMenuTriggers(charBefore)) {
-            setTimeout(() => {
-              const coords = view.coordsAtPos(pos)
-              if (coords) {
-                setSlashMenu({ x: coords.left, y: coords.bottom + 4, from: pos + 1 })
-              }
-            }, 0)
-          }
-          return false
         }
       }
     ])
@@ -138,7 +131,6 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
         livePreview,
         marginEditorTheme,
         EditorView.lineWrapping,
-        slashKeymap,
         saveKeymap,
         // List continuation must outrank the default Enter (insertNewline).
         listContinuation,
@@ -146,6 +138,10 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             onChangeRef.current(update.state.doc.toString())
+          }
+          for (const tr of update.transactions) {
+            const pos = slashInsertedAt(tr)
+            if (pos != null) openSlashMenuAt(update.view, pos)
           }
         }),
         EditorView.theme({
