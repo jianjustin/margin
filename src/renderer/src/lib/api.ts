@@ -14,6 +14,8 @@ export const api: MarginApi = {
   trashPath: (path) => invoke<void>('trash_path', { path }),
   movePath: (srcPath, destDir) => invoke<string>('move_path', { src_path: srcPath, dest_dir: destDir }),
   ensureNote: (dir, name, template) => invoke<string>('ensure_note', { dir, name, template: template ?? '' }),
+  readProjectConfig: (root) => invoke<string | null>('read_project_config', { root }),
+  writeProjectConfig: (root, content) => invoke<void>('write_project_config', { root, content }),
   onVaultChanged: (callback) => {
     let unlisten: (() => void) | null = null
     listen<string>('vault-changed', (event) => callback(event.payload))

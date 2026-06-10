@@ -17,5 +17,9 @@ export interface MarginApi {
   trashPath(path: string): Promise<void>
   movePath(srcPath: string, destDir: string): Promise<string>
   ensureNote(dir: string, name: string, template?: string): Promise<string>
+  /** Read `<root>/.margin/config.json`; null when no config has been written. */
+  readProjectConfig(root: string): Promise<string | null>
+  /** Write `<root>/.margin/config.json`, creating the hidden dir if needed. */
+  writeProjectConfig(root: string, content: string): Promise<void>
   onVaultChanged(callback: (root: string) => void): () => void
 }

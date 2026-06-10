@@ -206,6 +206,9 @@ export function SettingsPanel({ tree, onClose }: SettingsPanelProps): JSX.Elemen
             <div className={`${descClass}`}>
               Margin v2.0 · 更多功能设置即将到来
             </div>
+            <div className={`${descClass} mt-1.5`}>
+              本文件库的设置保存在 <code className="font-[family-name:var(--mono)]">.margin/config.json</code>，随文件库一起迁移。
+            </div>
           </div>
         </div>
       </div>

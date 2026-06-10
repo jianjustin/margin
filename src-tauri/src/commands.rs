@@ -3,6 +3,7 @@ use crate::fs_ops;
 use crate::path_policy::assert_safe_path;
 use crate::vault_scanner;
 use crate::vault_scanner::TreeNode;
+use std::path::Path;
 use std::sync::Mutex;
 use tauri::State;
 use tauri_plugin_dialog::DialogExt;
@@ -61,6 +62,41 @@ pub fn write_file(path: String, content: String) -> Result<(), String> {
 }
 
 // ---------------------------------------------------------------------------
+// Project-level config (stored in a hidden `.margin/` directory in the vault)
+// ---------------------------------------------------------------------------
+
+/// Hidden vault directory holding project-level configuration.
+const CONFIG_DIR: &str = ".margin";
+/// Config file name within `CONFIG_DIR`.
+const CONFIG_FILE: &str = "config.json";
+
+/// Read `<root>/.margin/config.json`. Returns `None` when the file does not
+/// exist yet (a fresh vault), or the raw JSON string when present.
+#[tauri::command]
+pub fn read_project_config(root: String) -> Result<Option<String>, String> {
+    assert_safe_path(&root)?;
+    let path = Path::new(&root).join(CONFIG_DIR).join(CONFIG_FILE);
+    match std::fs::read_to_string(&path) {
+        Ok(s) => Ok(Some(s)),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(format!("Could not read project config: {}", e)),
+    }
+}
+
+/// Write `<root>/.margin/config.json`, creating the hidden config directory if
+/// needed. The directory is skipped by the vault scanner, so it never shows in
+/// the file tree.
+#[tauri::command]
+pub fn write_project_config(root: String, content: String) -> Result<(), String> {
+    assert_safe_path(&root)?;
+    let dir = Path::new(&root).join(CONFIG_DIR);
+    std::fs::create_dir_all(&dir)
+        .map_err(|e| format!("Could not create config directory: {}", e))?;
+    let path = dir.join(CONFIG_FILE);
+    std::fs::write(&path, &content).map_err(|e| format!("Could not write project config: {}", e))
+}
+
+// ---------------------------------------------------------------------------
 // Vault scanning
 // ---------------------------------------------------------------------------
 
@@ -115,4 +151,34 @@ pub fn move_path(src_path: String, dest_dir: String) -> Result<String, String> {
 #[tauri::command]
 pub fn ensure_note(dir: String, name: String, template: String) -> Result<String, String> {
     fs_ops::ensure_note(&dir, &name, &template)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn project_config_round_trip_and_missing() {
+        let root = std::env::temp_dir().join("__margin_test_project_config__");
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let root_str = root.to_string_lossy().to_string();
+
+        // Missing config reads as None.
+        assert_eq!(read_project_config(root_str.clone()).unwrap(), None);
+
+        // Write then read back.
+        write_project_config(root_str.clone(), "{\"scheduleDir\":\"X\"}".to_string()).unwrap();
+        assert!(root.join(".margin").join("config.json").exists());
+        assert_eq!(
+            read_project_config(root_str.clone()).unwrap(),
+            Some("{\"scheduleDir\":\"X\"}".to_string())
+        );
+
+        // Protected paths are rejected.
+        assert!(read_project_config("/vault/.obsidian".to_string()).is_err());
+        assert!(write_project_config("".to_string(), "{}".to_string()).is_err());
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
 }

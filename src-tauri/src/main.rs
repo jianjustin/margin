@@ -27,6 +27,8 @@ fn main() {
             commands::trash_path,
             commands::move_path,
             commands::ensure_note,
+            commands::read_project_config,
+            commands::write_project_config,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Margin");
