@@ -6,6 +6,7 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { languages } from '@codemirror/language-data'
 import { syntaxHighlighting } from '@codemirror/language'
 import { livePreview } from '@/editor/livePreview/livePreviewPlugin'
+import { linkUrlAt } from '@/editor/livePreview/linkAt'
 import { docPathFacet } from '@/editor/docPathFacet'
 import { listContinuation } from '@/editor/listContinuation'
 import { marginEditorTheme } from '@/editor/livePreview/theme'
@@ -18,6 +19,7 @@ interface EditorProps {
   initialValue: string
   onChange: (value: string) => void
   onSave: () => void
+  onOpenLink?: (url: string) => void
   filePath?: string | null
 }
 
@@ -44,7 +46,7 @@ function bodyStart(doc: string): number {
 }
 
 export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
-  { docKey, initialValue, onChange, onSave, filePath = null },
+  { docKey, initialValue, onChange, onSave, onOpenLink, filePath = null },
   ref
 ): JSX.Element {
   const hostRef = useRef<HTMLDivElement>(null)
@@ -53,8 +55,10 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
 
   const onChangeRef = useRef(onChange)
   const onSaveRef = useRef(onSave)
+  const onOpenLinkRef = useRef(onOpenLink)
   onChangeRef.current = onChange
   onSaveRef.current = onSave
+  onOpenLinkRef.current = onOpenLink
 
   const [slashMenu, setSlashMenu] = useState<{ x: number; y: number; from: number } | null>(null)
 
@@ -136,6 +140,18 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
         marginEditorTheme,
         EditorView.lineWrapping,
         saveKeymap,
+        EditorView.domEventHandlers({
+          mousedown: (e, view) => {
+            if (!(e.metaKey || e.ctrlKey)) return false
+            const pos = view.posAtCoords({ x: e.clientX, y: e.clientY })
+            if (pos == null) return false
+            const url = linkUrlAt(view.state, pos)
+            if (!url) return false
+            e.preventDefault()
+            onOpenLinkRef.current?.(url)
+            return true
+          }
+        }),
         // List continuation must outrank the default Enter (insertNewline).
         listContinuation,
         keymap.of([...defaultKeymap, ...historyKeymap]),

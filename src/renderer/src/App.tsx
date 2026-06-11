@@ -23,6 +23,8 @@ import { useDraft } from '@/hooks/useDraft'
 import { DraftBanner } from '@/components/DraftBanner'
 import { ConflictBar } from '@/components/ConflictBar'
 import { StatusBar } from '@/components/StatusBar'
+import { open as shellOpen } from '@tauri-apps/plugin-shell'
+import { isExternal, resolveRelative } from '@/lib/resolvePath'
 import { api } from '@/lib/api'
 import type { TreeNode } from '../../shared/ipc'
 
@@ -151,6 +153,23 @@ export default function App(): JSX.Element {
       }
     }
   }, [])
+
+  const handleOpenLink = useCallback(
+    (url: string): void => {
+      if (isExternal(url)) {
+        void shellOpen(url).catch(() => {})
+        return
+      }
+      const docPath = useDocumentStore.getState().path
+      const target = resolveRelative(url, docPath)
+      if (target && target.endsWith('.md')) {
+        void openFileByPath(target).catch(() => {
+          window.alert(`无法打开链接目标: ${url}`)
+        })
+      }
+    },
+    [openFileByPath]
+  )
 
   const handleOpenFolder = useCallback(() => void openFolder(), [openFolder])
   const handleOpenFile = useCallback(
@@ -387,6 +406,7 @@ export default function App(): JSX.Element {
                   initialValue={useDocumentStore.getState().content}
                   onChange={handleChange}
                   onSave={() => void save()}
+                  onOpenLink={handleOpenLink}
                   filePath={path}
                 />
               </div>
