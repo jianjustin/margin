@@ -104,6 +104,27 @@ export const marginEditorTheme = EditorView.theme({
     outlineOffset: '-2px'
   },
 
+  '.cm-table-toolbar': {
+    display: 'none',
+    gap: '4px',
+    marginTop: '4px'
+  },
+  '.cm-table-wrap:hover .cm-table-toolbar': {
+    display: 'flex'
+  },
+  '.cm-table-toolbar button': {
+    fontSize: '12px',
+    padding: '2px 8px',
+    border: '1px solid var(--border, #ccc)',
+    borderRadius: '4px',
+    background: 'var(--bg-elev, #f5f5f5)',
+    cursor: 'pointer',
+    color: 'var(--text-dim, #666)'
+  },
+  '.cm-table-toolbar button:hover': {
+    background: 'var(--bg-panel, #e8e8e8)'
+  },
+
   '.cm-properties': {
     border: '1px solid var(--border-soft)',
     borderRadius: '8px',

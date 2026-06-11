@@ -162,6 +162,34 @@ export class TableWidget extends WidgetType {
       td.addEventListener('blur', () => {
         if (!composing) commit()
       })
+      td.addEventListener('keydown', (e) => {
+        if (e.key !== 'Tab') return
+        e.preventDefault()
+        const cells = Array.from(table.querySelectorAll('th, td')) as HTMLElement[]
+        const idx = cells.indexOf(td)
+        const next = e.shiftKey ? idx - 1 : idx + 1
+        if (next >= 0 && next < cells.length) {
+          cells[next].focus()
+        } else if (!e.shiftKey && next >= cells.length) {
+          // Tab from last cell → append row via DOM read + serialize
+          const headCells = Array.from(table.tHead?.rows[0]?.cells ?? [])
+          const header = headCells.map((c) => c.textContent ?? '')
+          const rows = Array.from(table.tBodies[0]?.rows ?? []).map((r) =>
+            Array.from(r.cells).map((c) => c.textContent ?? '')
+          )
+          rows.push(header.map(() => ''))
+          const insert = serializeTable({ header, align: model.align, rows })
+          if (insert !== this.source) {
+            view.dispatch({ changes: { from: this.from, to: this.to, insert } })
+          }
+          // After dispatch the widget rebuilds; focus the first cell of the new row
+          requestAnimationFrame(() => {
+            const newCells = Array.from(table.querySelectorAll('td'))
+            const target = newCells[newCells.length - header.length]
+            if (target) target.focus()
+          })
+        }
+      })
     }
 
     const thead = document.createElement('thead')
@@ -189,6 +217,78 @@ export class TableWidget extends WidgetType {
     table.appendChild(tbody)
 
     wrap.appendChild(table)
+
+    // Hover toolbar for row/column operations
+    const toolbar = document.createElement('div')
+    toolbar.className = 'cm-table-toolbar'
+
+    const addRowBtn = document.createElement('button')
+    addRowBtn.textContent = '+ 行'
+    addRowBtn.title = '添加行'
+    addRowBtn.addEventListener('click', () => {
+      const headCells = Array.from(table.tHead?.rows[0]?.cells ?? [])
+      const header = headCells.map((c) => c.textContent ?? '')
+      const rows = Array.from(table.tBodies[0]?.rows ?? []).map((r) =>
+        Array.from(r.cells).map((c) => c.textContent ?? '')
+      )
+      rows.push(header.map(() => ''))
+      const insert = serializeTable({ header, align: model.align, rows })
+      if (insert !== this.source) view.dispatch({ changes: { from: this.from, to: this.to, insert } })
+    })
+
+    const removeRowBtn = document.createElement('button')
+    removeRowBtn.textContent = '- 行'
+    removeRowBtn.title = '删除最后一行'
+    removeRowBtn.addEventListener('click', () => {
+      const headCells = Array.from(table.tHead?.rows[0]?.cells ?? [])
+      const header = headCells.map((c) => c.textContent ?? '')
+      const rows = Array.from(table.tBodies[0]?.rows ?? []).map((r) =>
+        Array.from(r.cells).map((c) => c.textContent ?? '')
+      )
+      if (rows.length > 1) {
+        rows.pop()
+        const insert = serializeTable({ header, align: model.align, rows })
+        if (insert !== this.source) view.dispatch({ changes: { from: this.from, to: this.to, insert } })
+      }
+    })
+
+    const addColBtn = document.createElement('button')
+    addColBtn.textContent = '+ 列'
+    addColBtn.title = '添加列'
+    addColBtn.addEventListener('click', () => {
+      const headCells = Array.from(table.tHead?.rows[0]?.cells ?? [])
+      const header = headCells.map((c) => c.textContent ?? '')
+      const rows = Array.from(table.tBodies[0]?.rows ?? []).map((r) =>
+        Array.from(r.cells).map((c) => c.textContent ?? '')
+      )
+      header.push('')
+      const newAlign = [...model.align, null as Align]
+      rows.forEach((r) => r.push(''))
+      const insert = serializeTable({ header, align: newAlign, rows })
+      if (insert !== this.source) view.dispatch({ changes: { from: this.from, to: this.to, insert } })
+    })
+
+    const removeColBtn = document.createElement('button')
+    removeColBtn.textContent = '- 列'
+    removeColBtn.title = '删除最后一列'
+    removeColBtn.addEventListener('click', () => {
+      const headCells = Array.from(table.tHead?.rows[0]?.cells ?? [])
+      const header = headCells.map((c) => c.textContent ?? '')
+      const rows = Array.from(table.tBodies[0]?.rows ?? []).map((r) =>
+        Array.from(r.cells).map((c) => c.textContent ?? '')
+      )
+      if (header.length > 1) {
+        header.pop()
+        const newAlign = model.align.slice(0, -1)
+        rows.forEach((r) => r.pop())
+        const insert = serializeTable({ header, align: newAlign, rows })
+        if (insert !== this.source) view.dispatch({ changes: { from: this.from, to: this.to, insert } })
+      }
+    })
+
+    toolbar.append(addRowBtn, removeRowBtn, addColBtn, removeColBtn)
+    wrap.appendChild(toolbar)
+
     return wrap
   }
 
