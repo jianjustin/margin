@@ -365,12 +365,14 @@ export class ImageWidget extends WidgetType {
     const dims = imageDims.get(url)
     if (dims) img.style.aspectRatio = `${dims.w} / ${dims.h}`
     img.addEventListener('load', () => {
+      if (!wrap.isConnected) return
       if (!imageDims.has(url)) {
         imageDims.set(url, { w: img.naturalWidth, h: img.naturalHeight })
         view.requestMeasure()
       }
     })
     img.addEventListener('error', () => {
+      if (!wrap.isConnected) return
       wrap.textContent = ''
       this.renderError(wrap)
       view.requestMeasure()

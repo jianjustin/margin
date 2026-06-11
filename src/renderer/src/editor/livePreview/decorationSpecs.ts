@@ -309,7 +309,15 @@ export function collectDecorations(state: EditorState): DecoSpec[] {
         if (revealed) return // raw text shows; let children render unstyled
         const urlNode = node.node.getChild('URL')
         const url = urlNode ? doc.sliceString(urlNode.from, urlNode.to) : ''
-        const alt = /^!\[([^\]]*)\]/.exec(doc.sliceString(node.from, node.to))?.[1] ?? ''
+        let alt = ''
+        let firstMark: { to: number } | null = null
+        for (let c = node.node.firstChild; c; c = c.nextSibling) {
+          if (c.name === 'LinkMark') {
+            if (!firstMark) { firstMark = c; continue }
+            alt = doc.sliceString(firstMark.to, c.from)
+            break
+          }
+        }
         specs.push({ kind: 'image', from: node.from, to: node.to, revealed: false, source: url, info: alt })
         return false // widget replaces the range — skip children
       }
