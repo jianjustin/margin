@@ -6,21 +6,29 @@ import { parseFrontmatter, serializeFrontmatter, type FmField } from './frontmat
 
 /** Renders a task-list checkbox replacing the raw `[ ]` / `[x]` token. */
 export class CheckboxWidget extends WidgetType {
-  constructor(readonly checked: boolean) {
+  constructor(
+    readonly checked: boolean,
+    readonly from: number,
+    readonly to: number
+  ) {
     super()
   }
 
   eq(other: CheckboxWidget): boolean {
-    return other.checked === this.checked
+    return other.checked === this.checked && other.from === this.from && other.to === this.to
   }
 
-  toDOM(): HTMLElement {
+  toDOM(view: EditorView): HTMLElement {
     const box = document.createElement('input')
     box.type = 'checkbox'
     box.checked = this.checked
     box.className = 'cm-task-checkbox'
-    // Read-only rendering in M2: toggling is a later milestone.
-    box.disabled = true
+    box.addEventListener('mousedown', (e) => {
+      e.preventDefault()
+      view.dispatch({
+        changes: { from: this.from, to: this.to, insert: this.checked ? '[ ]' : '[x]' }
+      })
+    })
     return box
   }
 

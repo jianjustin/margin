@@ -66,7 +66,7 @@ function buildDecorations(state: EditorState): DecorationSet {
       case 'task':
         if (!s.revealed) {
           ranges.push(
-            Decoration.replace({ widget: new CheckboxWidget(s.checked ?? false) }).range(s.from, s.to)
+            Decoration.replace({ widget: new CheckboxWidget(s.checked ?? false, s.from, s.to) }).range(s.from, s.to)
           )
         }
         break
