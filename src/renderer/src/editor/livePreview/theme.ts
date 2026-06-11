@@ -192,6 +192,13 @@ export const marginEditorTheme = EditorView.theme({
     fontStyle: 'italic'
   },
 
+  '.cm-footnote-ref': {
+    color: 'var(--accent)',
+    fontSize: '11px',
+    cursor: 'default',
+    padding: '0 1px'
+  },
+
   '.cm-activeLine': {
     backgroundColor: 'transparent'
   },

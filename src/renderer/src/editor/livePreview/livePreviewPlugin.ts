@@ -7,7 +7,8 @@ import {
   CodeBlockWidget,
   TableWidget,
   PropertiesWidget,
-  ImageWidget
+  ImageWidget,
+  FootnoteWidget
 } from './widgets'
 import { docPathFacet } from '../docPathFacet'
 import { isExternal, resolveRelative } from '@/lib/resolvePath'
@@ -103,6 +104,13 @@ function buildDecorations(state: EditorState): DecorationSet {
         )
         break
       }
+      case 'footnoteRef':
+        ranges.push(
+          Decoration.replace({
+            widget: new FootnoteWidget(s.source ?? '', s.info ?? '')
+          }).range(s.from, s.to)
+        )
+        break
     }
   }
 

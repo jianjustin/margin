@@ -502,3 +502,45 @@ export class ImageWidget extends WidgetType {
     return true
   }
 }
+
+/** Superscript badge for a `[^label]` footnote reference with hover preview. */
+export class FootnoteWidget extends WidgetType {
+  constructor(
+    readonly label: string,
+    readonly def: string
+  ) {
+    super()
+  }
+
+  eq(other: FootnoteWidget): boolean {
+    return other.label === this.label && other.def === this.def
+  }
+
+  toDOM(): HTMLElement {
+    const sup = document.createElement('sup')
+    sup.className = 'cm-footnote-ref'
+    sup.textContent = `[${this.label}]`
+    if (this.def) {
+      let tip: HTMLElement | null = null
+      sup.addEventListener('mouseenter', () => {
+        tip = document.createElement('div')
+        tip.className = 'cm-footnote-tip'
+        tip.textContent = this.def
+        const r = sup.getBoundingClientRect()
+        tip.style.position = 'fixed'
+        tip.style.left = `${r.left}px`
+        tip.style.top = `${r.bottom + 6}px`
+        document.body.appendChild(tip)
+      })
+      sup.addEventListener('mouseleave', () => {
+        tip?.remove()
+        tip = null
+      })
+    }
+    return sup
+  }
+
+  ignoreEvent(): boolean {
+    return true
+  }
+}

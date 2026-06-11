@@ -1,6 +1,8 @@
 import type { EditorState } from '@codemirror/state'
 import { ensureSyntaxTree, syntaxTree } from '@codemirror/language'
+import type { SyntaxNode } from '@lezer/common'
 import { rangeRevealed } from './reveal'
+import { collectFootnoteRefs, findFootnoteDef } from './footnotes'
 
 export type DecoKind =
   | 'hide'
@@ -19,6 +21,7 @@ export type DecoKind =
   | 'table'
   | 'properties'
   | 'image'
+  | 'footnoteRef'
 
 export interface DecoSpec {
   kind: DecoKind
@@ -337,6 +340,40 @@ export function collectDecorations(state: EditorState): DecoSpec[] {
       }
     }
   })
+
+  const fullText = doc.toString()
+  const skipAt = (pos: number): boolean => {
+    if (fmEnd > 0 && pos < fmEnd) return true
+    let n: SyntaxNode | null = tree.resolveInner(pos, 1)
+    while (n) {
+      if (
+        n.name === 'FencedCode' ||
+        n.name === 'InlineCode' ||
+        n.name === 'CodeText' ||
+        n.name === 'Table'
+      ) {
+        return true
+      }
+      n = n.parent
+    }
+    return false
+  }
+  for (const ref of collectFootnoteRefs(fullText)) {
+    if (skipAt(ref.index)) continue
+    const from = ref.index
+    const to = ref.index + ref.length
+    const revealed = rangeRevealed(state, from, to)
+    if (!revealed) {
+      specs.push({
+        kind: 'footnoteRef',
+        from,
+        to,
+        revealed,
+        source: ref.label,
+        info: findFootnoteDef(fullText, ref.label) ?? ''
+      })
+    }
+  }
 
   return specs
 }

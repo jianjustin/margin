@@ -42,3 +42,15 @@
   background: var(--text-faint);
   background-clip: padding-box;
 }
+
+.cm-footnote-tip {
+  max-width: 320px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  color: var(--text-dim);
+  font-size: 12.5px;
+  z-index: 80;
+  box-shadow: 0 8px 24px oklch(0 0 0 / 0.35);
+}
