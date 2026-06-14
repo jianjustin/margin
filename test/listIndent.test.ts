@@ -18,6 +18,10 @@ describe('indentListLine', () => {
     expect(indentListLine('plain text')).toBeNull()
     expect(indentListLine('# heading')).toBeNull()
   })
+  it('works with * and + bullet markers', () => {
+    expect(indentListLine('* item')).toBe('  * item')
+    expect(indentListLine('+ item')).toBe('  + item')
+  })
 })
 
 describe('outdentListLine', () => {
@@ -35,5 +39,12 @@ describe('outdentListLine', () => {
   })
   it('returns null for non-list lines', () => {
     expect(outdentListLine('plain text')).toBeNull()
+  })
+  it('works with task list items that have indent', () => {
+    expect(outdentListLine('  - [ ] task')).toBe('- [ ] task')
+  })
+  it('works with * and + bullet markers', () => {
+    expect(outdentListLine('  * item')).toBe('* item')
+    expect(outdentListLine('  + item')).toBe('+ item')
   })
 })

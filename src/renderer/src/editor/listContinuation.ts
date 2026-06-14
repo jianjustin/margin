@@ -142,11 +142,11 @@ function handleShiftTab(view: EditorView): boolean {
   const range = state.selection.main
   if (!range.empty) return false
   const line = state.doc.lineAt(range.head)
-  const parsed = parseListLine(line.text)
-  if (!parsed || parsed.indent.length === 0) return false
-  const trim = Math.min(2, parsed.indent.length)
+  const newText = outdentListLine(line.text)
+  if (!newText) return false
+  const trim = line.text.length - newText.length
   view.dispatch({
-    changes: { from: line.from, to: line.to, insert: line.text.slice(trim) },
+    changes: { from: line.from, to: line.to, insert: newText },
     selection: { anchor: range.head - trim },
     scrollIntoView: true,
     userEvent: 'input'
