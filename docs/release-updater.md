@@ -48,7 +48,10 @@ newly signed artifacts from a different keypair.
    `src-tauri/target/release/bundle/macos/`.
 4. Create or update a GitHub Release for the new version.
 5. Upload the updater bundle and its `.sig` file.
-6. Upload `latest.json` to the release as `latest.json`.
+6. Create or update `latest.json` manually from the manifest shape below.
+   Use the contents of the generated `.sig` file as `signature`, and use the
+   final GitHub Release asset URL as `url`.
+7. Upload `latest.json` to the release as `latest.json`.
 
 ## Static Manifest Shape
 

@@ -11,6 +11,7 @@ import type {
 } from '../../../shared/ipc'
 
 let pendingUpdate: Update | null = null
+let latestCheckId = 0
 
 function closeUpdate(update: Update | null): void {
   if (!update) return
@@ -47,10 +48,17 @@ export const api: MarginApi = {
   deleteDraft: (root, path) => invoke<void>('delete_draft', { root, path }),
   getCurrentVersion: () => getVersion(),
   checkUpdate: async (): Promise<UpdateCheckResult> => {
+    const checkId = latestCheckId + 1
+    latestCheckId = checkId
     closeUpdate(pendingUpdate)
     pendingUpdate = null
     const currentVersion = await getVersion()
+    if (checkId !== latestCheckId) return { available: false, currentVersion }
     const update = await check()
+    if (checkId !== latestCheckId) {
+      closeUpdate(update)
+      return { available: false, currentVersion }
+    }
     pendingUpdate = update
     if (!update) return { available: false, currentVersion }
     return {

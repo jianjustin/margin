@@ -6,6 +6,20 @@ const getVersion = vi.fn()
 const check = vi.fn()
 const relaunch = vi.fn()
 
+function deferred<T>(): {
+  promise: Promise<T>
+  resolve: (value: T) => void
+  reject: (reason?: unknown) => void
+} {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+  return { promise, resolve, reject }
+}
+
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: (...args: unknown[]) => invoke(...args)
 }))
@@ -174,6 +188,49 @@ describe('api command arguments', () => {
     expect(secondUpdate.close).not.toHaveBeenCalled()
 
     await api.downloadAndInstallUpdate(() => {})
+  })
+
+  it('keeps the newest pending update when concurrent checks resolve out of order', async () => {
+    const firstUpdate = {
+      currentVersion: '2.0.0',
+      version: '2.1.0',
+      downloadAndInstall: vi.fn(async () => {}),
+      close: vi.fn(() => Promise.resolve())
+    }
+    const secondUpdate = {
+      currentVersion: '2.0.0',
+      version: '2.2.0',
+      downloadAndInstall: vi.fn(async () => {}),
+      close: vi.fn(() => Promise.resolve())
+    }
+    const firstResult = deferred<typeof firstUpdate>()
+    const secondResult = deferred<typeof secondUpdate>()
+    check
+      .mockReturnValueOnce(firstResult.promise)
+      .mockReturnValueOnce(secondResult.promise)
+
+    const firstCheck = api.checkUpdate()
+    await Promise.resolve()
+    expect(check).toHaveBeenCalledOnce()
+
+    const secondCheck = api.checkUpdate()
+    await Promise.resolve()
+    expect(check).toHaveBeenCalledTimes(2)
+
+    secondResult.resolve(secondUpdate)
+    await expect(secondCheck).resolves.toMatchObject({ available: true, version: '2.2.0' })
+
+    firstResult.resolve(firstUpdate)
+    await expect(firstCheck).resolves.toEqual({
+      available: false,
+      currentVersion: '2.0.0'
+    })
+
+    await api.downloadAndInstallUpdate(() => {})
+
+    expect(firstUpdate.downloadAndInstall).not.toHaveBeenCalled()
+    expect(firstUpdate.close).toHaveBeenCalledOnce()
+    expect(secondUpdate.downloadAndInstall).toHaveBeenCalledOnce()
   })
 
   it('forwards updater download events', async () => {
