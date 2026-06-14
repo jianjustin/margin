@@ -5,13 +5,35 @@ import {
   projectConfigOf,
   sanitizeProjectConfig
 } from '@/stores/settingsStore'
+import { normalizeHiddenFolderRules } from '@/lib/folderRules'
 
 describe('project config helpers', () => {
+  describe('hidden folder rules', () => {
+    it('normalizes names and relative paths', () => {
+      expect(normalizeHiddenFolderRules([' .claude ', '/Projects/archive/', 'A\\B', '', '.claude'])).toEqual([
+        '.claude',
+        'Projects/archive',
+        'A/B'
+      ])
+    })
+
+    it('drops built-in hidden folders from user rules', () => {
+      expect(normalizeHiddenFolderRules(['.margin', '.obsidian', '.git', '.trash', '.claude'])).toEqual([
+        '.claude'
+      ])
+    })
+  })
+
   describe('sanitizeProjectConfig', () => {
     it('keeps valid fields', () => {
-      expect(sanitizeProjectConfig({ scheduleEnabled: false, scheduleDir: 'Daily' })).toEqual({
+      expect(sanitizeProjectConfig({
         scheduleEnabled: false,
-        scheduleDir: 'Daily'
+        scheduleDir: 'Daily',
+        hiddenFolders: [' .claude ', 'Projects/archive']
+      })).toEqual({
+        scheduleEnabled: false,
+        scheduleDir: 'Daily',
+        hiddenFolders: ['.claude', 'Projects/archive']
       })
     })
 
@@ -30,24 +52,34 @@ describe('project config helpers', () => {
 
   describe('projectConfigOf', () => {
     it('extracts only the project-persisted settings', () => {
-      expect(projectConfigOf({ scheduleEnabled: true, scheduleDir: '日程' })).toEqual({
+      expect(projectConfigOf({
         scheduleEnabled: true,
-        scheduleDir: '日程'
+        scheduleDir: '日程',
+        hiddenFolders: ['.claude']
+      })).toEqual({
+        scheduleEnabled: true,
+        scheduleDir: '日程',
+        hiddenFolders: ['.claude']
       })
     })
   })
 
   describe('applyProjectConfig', () => {
     beforeEach(() => {
-      useSettingsStore.setState({ scheduleEnabled: true, scheduleDir: '日程' })
+      useSettingsStore.setState({ scheduleEnabled: true, scheduleDir: '日程', hiddenFolders: [] })
     })
 
     it('overrides in-memory settings without persisting to localStorage', () => {
       const before = localStorage.getItem('margin.settings')
-      useSettingsStore.getState().applyProjectConfig({ scheduleEnabled: false, scheduleDir: 'X' })
+      useSettingsStore.getState().applyProjectConfig({
+        scheduleEnabled: false,
+        scheduleDir: 'X',
+        hiddenFolders: ['.claude']
+      })
       const s = useSettingsStore.getState()
       expect(s.scheduleEnabled).toBe(false)
       expect(s.scheduleDir).toBe('X')
+      expect(s.hiddenFolders).toEqual(['.claude'])
       // applyProjectConfig must NOT write the machine-wide default.
       expect(localStorage.getItem('margin.settings')).toBe(before)
     })

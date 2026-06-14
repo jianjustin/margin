@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { normalizeFolderPathInput, normalizeHiddenFolderRules } from '@/lib/folderRules'
 
 const SETTINGS_KEY = 'margin.settings'
 
@@ -7,11 +8,17 @@ export interface Settings {
   scheduleEnabled: boolean
   /** Vault-relative folder name where daily schedule notes live. */
   scheduleDir: string
+  /** Folder names or vault-relative folder paths hidden from the file library. */
+  hiddenFolders: string[]
 }
 
 /** The settings persisted per-project in `<vault>/.margin/config.json`. */
 export function projectConfigOf(s: Settings): Settings {
-  return { scheduleEnabled: s.scheduleEnabled, scheduleDir: s.scheduleDir }
+  return {
+    scheduleEnabled: s.scheduleEnabled,
+    scheduleDir: s.scheduleDir,
+    hiddenFolders: normalizeHiddenFolderRules(s.hiddenFolders)
+  }
 }
 
 /** Validate and coerce an untrusted parsed project config into a partial. */
@@ -23,12 +30,17 @@ export function sanitizeProjectConfig(raw: unknown): Partial<Settings> {
   if (typeof obj.scheduleDir === 'string' && obj.scheduleDir.trim()) {
     out.scheduleDir = obj.scheduleDir.trim()
   }
+  const hiddenFolders = normalizeHiddenFolderRules(obj.hiddenFolders)
+  if (Array.isArray(obj.hiddenFolders) || hiddenFolders.length > 0) {
+    out.hiddenFolders = hiddenFolders
+  }
   return out
 }
 
 const DEFAULTS: Settings = {
   scheduleEnabled: true,
-  scheduleDir: '日程'
+  scheduleDir: '日程',
+  hiddenFolders: []
 }
 
 function load(): Settings {
@@ -52,6 +64,9 @@ function persist(s: Settings): void {
 interface SettingsState extends Settings {
   setScheduleEnabled(v: boolean): void
   setScheduleDir(dir: string): void
+  setHiddenFolders(rules: string[]): void
+  addHiddenFolder(rule: string): void
+  removeHiddenFolder(rule: string): void
   /**
    * Apply a (validated) project config loaded from a vault's `.margin/config.json`.
    * Updates the in-memory store only — does NOT touch global localStorage, which
@@ -70,6 +85,24 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     const clean = dir.trim() || DEFAULTS.scheduleDir
     set({ scheduleDir: clean })
     persist({ ...get(), scheduleDir: clean })
+  },
+  setHiddenFolders: (rules) => {
+    const hiddenFolders = normalizeHiddenFolderRules(rules)
+    set({ hiddenFolders })
+    persist({ ...get(), hiddenFolders })
+  },
+  addHiddenFolder: (rule) => {
+    const normalized = normalizeFolderPathInput(rule)
+    if (!normalized) return
+    const hiddenFolders = normalizeHiddenFolderRules([...get().hiddenFolders, normalized])
+    set({ hiddenFolders })
+    persist({ ...get(), hiddenFolders })
+  },
+  removeHiddenFolder: (rule) => {
+    const normalized = normalizeFolderPathInput(rule)
+    const hiddenFolders = get().hiddenFolders.filter((value) => value !== normalized)
+    set({ hiddenFolders })
+    persist({ ...get(), hiddenFolders })
   },
   applyProjectConfig: (partial) => set(partial)
 }))
