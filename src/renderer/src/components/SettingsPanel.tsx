@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { X, Search, Folder, Plus, Trash2 } from 'lucide-react'
+import { UpdateSection } from '@/components/UpdateSection'
+import { useUpdater } from '@/hooks/useUpdater'
 import { useSettingsStore } from '@/stores/settingsStore'
 import type { TreeNode } from '../../../shared/ipc'
 
@@ -126,6 +128,7 @@ export function SettingsPanel({ tree, onClose }: SettingsPanelProps): JSX.Elemen
   const addHiddenFolder = useSettingsStore((s) => s.addHiddenFolder)
   const removeHiddenFolder = useSettingsStore((s) => s.removeHiddenFolder)
   const [hiddenInput, setHiddenInput] = useState('')
+  const updater = useUpdater()
 
   const folders = useMemo(() => topFolders(tree), [tree])
 
@@ -261,13 +264,16 @@ export function SettingsPanel({ tree, onClose }: SettingsPanelProps): JSX.Elemen
             </div>
           </div>
 
-          {/* ── 未来扩展占位 ────────── */}
+          {/* ── 关于 ───────────────── */}
           <div className="mt-6 border-t border-[color:var(--border-soft)] pt-4">
             <div className={sectionTitle}>关于</div>
-            <div className={`${descClass}`}>
-              版本 2.0 · 更多功能设置即将到来
-            </div>
-            <div className={`${descClass} mt-1.5`}>
+            <UpdateSection
+              status={updater.status}
+              busy={updater.busy}
+              onCheck={updater.check}
+              onInstall={updater.install}
+            />
+            <div className={`${descClass} mt-2`}>
               本文件库的设置保存在 <code className="font-[family-name:var(--mono)]">.margin/config.json</code>，随文件库一起迁移。
             </div>
           </div>
