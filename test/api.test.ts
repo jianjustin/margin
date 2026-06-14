@@ -131,6 +131,47 @@ describe('api command arguments', () => {
     )
   })
 
+  it('clears the pending update before a failed install', async () => {
+    const update = {
+      currentVersion: '2.0.0',
+      version: '2.1.0',
+      downloadAndInstall: vi
+        .fn()
+        .mockRejectedValueOnce(new Error('install failed'))
+        .mockResolvedValueOnce(undefined)
+    }
+    check.mockResolvedValue(update)
+    await api.checkUpdate()
+
+    await expect(api.downloadAndInstallUpdate(() => {})).rejects.toThrow('install failed')
+    await expect(api.downloadAndInstallUpdate(() => {})).rejects.toThrow(
+      'No update available to install'
+    )
+    expect(update.downloadAndInstall).toHaveBeenCalledOnce()
+  })
+
+  it('allows only one install attempt for a checked update', async () => {
+    let finishInstall!: () => void
+    const installPromise = new Promise<void>((resolve) => {
+      finishInstall = resolve
+    })
+    const update = {
+      currentVersion: '2.0.0',
+      version: '2.1.0',
+      downloadAndInstall: vi.fn(() => installPromise)
+    }
+    check.mockResolvedValue(update)
+    await api.checkUpdate()
+
+    const firstInstall = api.downloadAndInstallUpdate(() => {})
+    const secondInstall = api.downloadAndInstallUpdate(() => {})
+    finishInstall()
+
+    await expect(firstInstall).resolves.toBeUndefined()
+    await expect(secondInstall).rejects.toThrow('No update available to install')
+    expect(update.downloadAndInstall).toHaveBeenCalledOnce()
+  })
+
   it('relaunches through the process plugin', async () => {
     await api.relaunch()
     expect(relaunch).toHaveBeenCalledOnce()

@@ -55,10 +55,10 @@ export const api: MarginApi = {
     }
   },
   downloadAndInstallUpdate: async (onProgress): Promise<void> => {
-    if (!pendingUpdate) throw new Error('No update available to install')
     const update = pendingUpdate
-    await update.downloadAndInstall((event) => onProgress(normalizeDownloadEvent(event)))
     pendingUpdate = null
+    if (!update) throw new Error('No update available to install')
+    await update.downloadAndInstall((event) => onProgress(normalizeDownloadEvent(event)))
   },
   relaunch: () => relaunch(),
   onVaultChanged: (callback) => {
