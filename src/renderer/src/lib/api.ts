@@ -12,6 +12,11 @@ import type {
 
 let pendingUpdate: Update | null = null
 
+function closeUpdate(update: Update | null): void {
+  if (!update) return
+  void update.close().catch(() => {})
+}
+
 function normalizeDownloadEvent(event: DownloadEvent): UpdateDownloadProgress {
   if (event.event === 'Started') {
     return { event: 'Started', contentLength: event.data.contentLength }
@@ -42,6 +47,7 @@ export const api: MarginApi = {
   deleteDraft: (root, path) => invoke<void>('delete_draft', { root, path }),
   getCurrentVersion: () => getVersion(),
   checkUpdate: async (): Promise<UpdateCheckResult> => {
+    closeUpdate(pendingUpdate)
     pendingUpdate = null
     const currentVersion = await getVersion()
     const update = await check()
@@ -59,7 +65,11 @@ export const api: MarginApi = {
     const update = pendingUpdate
     pendingUpdate = null
     if (!update) throw new Error('No update available to install')
-    await update.downloadAndInstall((event) => onProgress(normalizeDownloadEvent(event)))
+    try {
+      await update.downloadAndInstall((event) => onProgress(normalizeDownloadEvent(event)))
+    } finally {
+      closeUpdate(update)
+    }
   },
   relaunch: () => relaunch(),
   onVaultChanged: (callback) => {

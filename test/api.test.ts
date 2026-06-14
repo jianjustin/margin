@@ -83,7 +83,8 @@ describe('api command arguments', () => {
       version: '2.1.0',
       date: '2026-06-14T00:00:00Z',
       body: 'Release notes',
-      downloadAndInstall: vi.fn(async () => {})
+      downloadAndInstall: vi.fn(async () => {}),
+      close: vi.fn(() => Promise.resolve())
     }
     check.mockResolvedValue(update)
 
@@ -99,11 +100,46 @@ describe('api command arguments', () => {
     expect(update.downloadAndInstall).toHaveBeenCalledOnce()
   })
 
+  it('closes the consumed update after a successful install', async () => {
+    const update = {
+      currentVersion: '2.0.0',
+      version: '2.1.0',
+      downloadAndInstall: vi.fn(async () => {}),
+      close: vi.fn(() => Promise.resolve())
+    }
+    check.mockResolvedValue(update)
+    await api.checkUpdate()
+
+    await api.downloadAndInstallUpdate(() => {})
+
+    expect(update.downloadAndInstall).toHaveBeenCalledOnce()
+    expect(update.close).toHaveBeenCalledOnce()
+  })
+
+  it('closes the consumed update after a failed install', async () => {
+    const update = {
+      currentVersion: '2.0.0',
+      version: '2.1.0',
+      downloadAndInstall: vi.fn(async () => {
+        throw new Error('install failed')
+      }),
+      close: vi.fn(() => Promise.resolve())
+    }
+    check.mockResolvedValue(update)
+    await api.checkUpdate()
+
+    await expect(api.downloadAndInstallUpdate(() => {})).rejects.toThrow('install failed')
+
+    expect(update.downloadAndInstall).toHaveBeenCalledOnce()
+    expect(update.close).toHaveBeenCalledOnce()
+  })
+
   it('clears a previous pending update before checking again', async () => {
     const update = {
       currentVersion: '2.0.0',
       version: '2.1.0',
-      downloadAndInstall: vi.fn(async () => {})
+      downloadAndInstall: vi.fn(async () => {}),
+      close: vi.fn(() => Promise.resolve())
     }
     check.mockResolvedValueOnce(update).mockRejectedValueOnce(new Error('check failed'))
 
@@ -113,6 +149,31 @@ describe('api command arguments', () => {
       'No update available to install'
     )
     expect(update.downloadAndInstall).not.toHaveBeenCalled()
+    expect(update.close).toHaveBeenCalledOnce()
+  })
+
+  it('closes the previous pending update before replacing it', async () => {
+    const firstUpdate = {
+      currentVersion: '2.0.0',
+      version: '2.1.0',
+      downloadAndInstall: vi.fn(async () => {}),
+      close: vi.fn(() => Promise.resolve())
+    }
+    const secondUpdate = {
+      currentVersion: '2.0.0',
+      version: '2.2.0',
+      downloadAndInstall: vi.fn(async () => {}),
+      close: vi.fn(() => Promise.resolve())
+    }
+    check.mockResolvedValueOnce(firstUpdate).mockResolvedValueOnce(secondUpdate)
+
+    await api.checkUpdate()
+    await api.checkUpdate()
+
+    expect(firstUpdate.close).toHaveBeenCalledOnce()
+    expect(secondUpdate.close).not.toHaveBeenCalled()
+
+    await api.downloadAndInstallUpdate(() => {})
   })
 
   it('forwards updater download events', async () => {
@@ -123,7 +184,8 @@ describe('api command arguments', () => {
         onEvent({ event: 'Started', data: { contentLength: 100 } })
         onEvent({ event: 'Progress', data: { chunkLength: 40 } })
         onEvent({ event: 'Finished' })
-      })
+      }),
+      close: vi.fn(() => Promise.resolve())
     }
     check.mockResolvedValue(update)
     await api.checkUpdate()
@@ -154,7 +216,8 @@ describe('api command arguments', () => {
       downloadAndInstall: vi
         .fn()
         .mockRejectedValueOnce(new Error('install failed'))
-        .mockResolvedValueOnce(undefined)
+        .mockResolvedValueOnce(undefined),
+      close: vi.fn(() => Promise.resolve())
     }
     check.mockResolvedValue(update)
     await api.checkUpdate()
@@ -174,7 +237,8 @@ describe('api command arguments', () => {
     const update = {
       currentVersion: '2.0.0',
       version: '2.1.0',
-      downloadAndInstall: vi.fn(() => installPromise)
+      downloadAndInstall: vi.fn(() => installPromise),
+      close: vi.fn(() => Promise.resolve())
     }
     check.mockResolvedValue(update)
     await api.checkUpdate()
