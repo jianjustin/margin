@@ -1,6 +1,26 @@
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
-import type { MarginApi, TreeNode } from '../../../shared/ipc'
+import { getVersion } from '@tauri-apps/api/app'
+import { check, type DownloadEvent, type Update } from '@tauri-apps/plugin-updater'
+import { relaunch } from '@tauri-apps/plugin-process'
+import type {
+  MarginApi,
+  TreeNode,
+  UpdateCheckResult,
+  UpdateDownloadProgress
+} from '../../../shared/ipc'
+
+let pendingUpdate: Update | null = null
+
+function normalizeDownloadEvent(event: DownloadEvent): UpdateDownloadProgress {
+  if (event.event === 'Started') {
+    return { event: 'Started', contentLength: event.data.contentLength }
+  }
+  if (event.event === 'Progress') {
+    return { event: 'Progress', chunkLength: event.data.chunkLength }
+  }
+  return { event: 'Finished' }
+}
 
 export const api: MarginApi = {
   openFile: () => invoke<string | null>('open_file_dialog'),
@@ -20,6 +40,27 @@ export const api: MarginApi = {
   writeDraft: (root, path, content) => invoke<void>('write_draft', { root, path, content }),
   readDraft: (root, path) => invoke<string | null>('read_draft', { root, path }),
   deleteDraft: (root, path) => invoke<void>('delete_draft', { root, path }),
+  getCurrentVersion: () => getVersion(),
+  checkUpdate: async (): Promise<UpdateCheckResult> => {
+    const currentVersion = await getVersion()
+    const update = await check()
+    pendingUpdate = update
+    if (!update) return { available: false, currentVersion }
+    return {
+      available: true,
+      currentVersion: update.currentVersion || currentVersion,
+      version: update.version,
+      date: update.date,
+      body: update.body
+    }
+  },
+  downloadAndInstallUpdate: async (onProgress): Promise<void> => {
+    if (!pendingUpdate) throw new Error('No update available to install')
+    const update = pendingUpdate
+    await update.downloadAndInstall((event) => onProgress(normalizeDownloadEvent(event)))
+    pendingUpdate = null
+  },
+  relaunch: () => relaunch(),
   onVaultChanged: (callback) => {
     let unlisten: (() => void) | null = null
     listen<string>('vault-changed', (event) => callback(event.payload))
