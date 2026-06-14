@@ -48,6 +48,7 @@ export async function matchByContent(
   files: TreeNode[],
   query: string,
   readFile: (path: string) => Promise<string>,
+  signal?: AbortSignal,
   limit = 500
 ): Promise<SearchResult[]> {
   if (!query.trim()) return []
@@ -55,7 +56,9 @@ export async function matchByContent(
   const results = await Promise.all(
     files.slice(0, limit).map(async (f) => {
       try {
+        if (signal?.aborted) return null
         const text = await readFile(f.path)
+        if (signal?.aborted) return null
         const idx = text.toLowerCase().indexOf(lq)
         if (idx === -1) return null
         const start = Math.max(0, idx - 40)

@@ -418,9 +418,10 @@ export default function App(): JSX.Element {
             </button>
             <button
               onClick={() => setSearchOpen(true)}
+              disabled={!vaultRoot}
               title="搜索文件 (⌘K)"
               aria-label="搜索文件"
-              className="grid h-[24px] w-[28px] place-items-center rounded-md text-[color:var(--text-dim)] transition-colors hover:bg-[color:var(--bg-hover)] hover:text-foreground"
+              className="grid h-[24px] w-[28px] place-items-center rounded-md text-[color:var(--text-dim)] transition-colors hover:bg-[color:var(--bg-hover)] hover:text-foreground disabled:opacity-40 disabled:pointer-events-none"
             >
               <Search size={16} />
             </button>

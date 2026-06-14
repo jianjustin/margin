@@ -50,7 +50,7 @@ export function SearchOverlay({ tree, onOpen, onClose }: SearchOverlayProps): JS
     const ctrl = new AbortController()
     abortRef.current = ctrl
     setSearching(true)
-    matchByContent(files, query, api.readFile)
+    matchByContent(files, query, api.readFile, ctrl.signal)
       .then((res) => {
         if (ctrl.signal.aborted) return
         setResults(res.slice(0, 50))
@@ -89,7 +89,7 @@ export function SearchOverlay({ tree, onOpen, onClose }: SearchOverlayProps): JS
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [onClose, openSelected, results.length])
+  }, [onClose, openSelected])
 
   const tabBase = 'px-3 py-1 text-[12px] rounded-md transition-colors'
   const tabActive = 'bg-[color:var(--accent-soft)] text-[color:var(--accent)] font-medium'
