@@ -153,6 +153,7 @@ pub fn delete_draft(root: String, path: String) -> Result<(), String> {
 #[tauri::command]
 pub fn scan_vault(
     root: String,
+    hidden_folders: Vec<String>,
     app: tauri::AppHandle,
     watcher_manager: State<'_, WatcherManager>,
 ) -> Result<Vec<TreeNode>, String> {
@@ -166,7 +167,7 @@ pub fn scan_vault(
         .map_err(|e| format!("Watcher lock poisoned: {}", e))?;
     *guard = Some(new_watcher);
 
-    Ok(vault_scanner::scan_vault(&root))
+    Ok(vault_scanner::scan_vault(&root, &hidden_folders))
 }
 
 // ---------------------------------------------------------------------------

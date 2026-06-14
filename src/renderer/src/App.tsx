@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
+import { useEffect, useMemo, useRef, useState, useCallback, type PointerEvent as ReactPointerEvent } from 'react'
 import { PanelLeft, AlignLeft, CalendarDays, CalendarPlus, FolderOpen, Settings } from 'lucide-react'
 import { Editor, type EditorHandle } from '@/components/Editor'
 import { saveDocument } from '@/lib/saveDocument'
 import { useDocumentStore } from '@/stores/documentStore'
 import { useVaultStore, loadPersistedRoot } from '@/stores/vaultStore'
 import { useSettingsStore } from '@/stores/settingsStore'
-import { collectScheduleDates, scheduleFileName, scheduleTemplate } from '@/lib/schedule'
+import { collectScheduleDates, normalizeScheduleDir, scheduleFileName, scheduleTemplate } from '@/lib/schedule'
+import { scanVaultWithSettings } from '@/lib/scanVault'
 import { Sidebar } from '@/components/FileTree/Sidebar'
 import { RowContextMenu, type ContextMenuState } from '@/components/FileTree/RowContextMenu'
 import { MoveDialog } from '@/components/FileTree/MoveDialog'
@@ -25,6 +26,14 @@ import { ConflictBar } from '@/components/ConflictBar'
 import { StatusBar } from '@/components/StatusBar'
 import { open as shellOpen } from '@tauri-apps/plugin-shell'
 import { isExternal, resolveRelative } from '@/lib/resolvePath'
+import {
+  LEFT_PANE,
+  RIGHT_PANE,
+  clampPaneWidth,
+  loadPaneWidth,
+  persistPaneWidth,
+  type PaneSpec
+} from '@/lib/layout'
 import { api } from '@/lib/api'
 import type { TreeNode } from '../../shared/ipc'
 
@@ -72,6 +81,8 @@ export default function App(): JSX.Element {
   const [calendarOpen, setCalendarOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [dialog, setDialog] = useState<DialogState>(null)
+  const [leftPaneWidth, setLeftPaneWidth] = useState(() => loadPaneWidth(LEFT_PANE))
+  const [rightPaneWidth, setRightPaneWidth] = useState(() => loadPaneWidth(RIGHT_PANE))
 
   const themeMode = useThemeStore((s) => s.mode)
   const systemDark = useSystemTheme()
@@ -80,6 +91,7 @@ export default function App(): JSX.Element {
   const vaultTree = useVaultStore((s) => s.tree)
   const scheduleEnabled = useSettingsStore((s) => s.scheduleEnabled)
   const scheduleDir = useSettingsStore((s) => s.scheduleDir)
+  const hiddenFolders = useSettingsStore((s) => s.hiddenFolders)
   const scheduleDates = useMemo(
     () => (scheduleEnabled ? collectScheduleDates(vaultTree, scheduleDir) : new Set<string>()),
     [vaultTree, scheduleDir, scheduleEnabled]
@@ -88,6 +100,13 @@ export default function App(): JSX.Element {
   useVaultWatch()
   useProjectConfig()
   useDraft()
+
+  useEffect(() => {
+    if (!vaultRoot) return
+    void scanVaultWithSettings(vaultRoot)
+      .then((tree) => useVaultStore.getState().setTree(tree))
+      .catch(() => {})
+  }, [vaultRoot, hiddenFolders])
 
   /* ── Theme ─────────────────────────────────────────────────── */
 
@@ -103,8 +122,7 @@ export default function App(): JSX.Element {
   useEffect(() => {
     const saved = loadPersistedRoot()
     if (!saved) return
-    void api
-      .scanVault(saved)
+    void scanVaultWithSettings(saved)
       .then((tree) => useVaultStore.getState().openRoot(saved, tree))
       .catch(() => useVaultStore.getState().closeVault())
   }, [])
@@ -137,7 +155,7 @@ export default function App(): JSX.Element {
   const openFolder = useCallback(async (): Promise<void> => {
     const chosen = await api.openFolder()
     if (!chosen) return
-    const tree = await api.scanVault(chosen)
+    const tree = await scanVaultWithSettings(chosen)
     useVaultStore.getState().openRoot(chosen, tree)
   }, [])
 
@@ -200,7 +218,7 @@ export default function App(): JSX.Element {
   async function refreshTree(): Promise<void> {
     const root = useVaultStore.getState().root
     if (!root) return
-    const tree = await api.scanVault(root)
+    const tree = await scanVaultWithSettings(root)
     useVaultStore.getState().setTree(tree)
   }
 
@@ -259,7 +277,7 @@ export default function App(): JSX.Element {
     if (existing) return existing
     const chosen = await api.openFolder()
     if (!chosen) return null
-    const tree = await api.scanVault(chosen)
+    const tree = await scanVaultWithSettings(chosen)
     useVaultStore.getState().openRoot(chosen, tree)
     return chosen
   }
@@ -267,7 +285,8 @@ export default function App(): JSX.Element {
   async function openSchedule(date: Date): Promise<void> {
     const root = await ensureRoot()
     if (!root) return
-    const dirPath = `${root}/${scheduleDir}`
+    const cleanScheduleDir = normalizeScheduleDir(scheduleDir) || '日程'
+    const dirPath = `${root}/${cleanScheduleDir}`
     const created = await api.ensureNote(
       dirPath,
       scheduleFileName(date),
@@ -287,15 +306,53 @@ export default function App(): JSX.Element {
     editorRef.current?.jumpToLine(line)
   }
 
+  function startPaneResize(
+    e: ReactPointerEvent,
+    spec: PaneSpec,
+    initialWidth: number,
+    setWidth: (width: number) => void,
+    direction: 1 | -1
+  ): void {
+    e.preventDefault()
+    const startX = e.clientX
+    const previousUserSelect = document.body.style.userSelect
+    document.body.style.userSelect = 'none'
+
+    function move(ev: PointerEvent): void {
+      const next = clampPaneWidth(spec, initialWidth + (ev.clientX - startX) * direction)
+      setWidth(next)
+    }
+
+    function up(ev: PointerEvent): void {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      document.body.style.userSelect = previousUserSelect
+      const next = clampPaneWidth(spec, initialWidth + (ev.clientX - startX) * direction)
+      setWidth(persistPaneWidth(spec, next))
+    }
+
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+  }
+
   /* ── Render ────────────────────────────────────────────────── */
 
   return (
     <div className="flex h-screen bg-background text-foreground">
       {sidebarOpen && (
-        <Sidebar
-          onOpenFile={handleOpenFile}
-          onContextMenu={handleContextMenu}
-        />
+        <>
+          <Sidebar
+            width={leftPaneWidth}
+            onOpenFile={handleOpenFile}
+            onContextMenu={handleContextMenu}
+          />
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            onPointerDown={(e) => startPaneResize(e, LEFT_PANE, leftPaneWidth, setLeftPaneWidth, 1)}
+            className="relative z-20 w-[5px] flex-none cursor-col-resize bg-transparent after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-transparent hover:after:bg-[color:var(--accent-line)] [-webkit-app-region:no-drag]"
+          />
+        </>
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -432,7 +489,15 @@ export default function App(): JSX.Element {
             )}
           </main>
           {drawerOpen && path && (
-            <OutlineDrawer onJumpToLine={handleJumpToLine} />
+            <>
+              <div
+                role="separator"
+                aria-orientation="vertical"
+                onPointerDown={(e) => startPaneResize(e, RIGHT_PANE, rightPaneWidth, setRightPaneWidth, -1)}
+                className="relative z-20 w-[5px] flex-none cursor-col-resize bg-transparent after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-transparent hover:after:bg-[color:var(--accent-line)] [-webkit-app-region:no-drag]"
+              />
+              <OutlineDrawer width={rightPaneWidth} onJumpToLine={handleJumpToLine} />
+            </>
           )}
         </div>
 

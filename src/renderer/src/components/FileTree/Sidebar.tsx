@@ -5,6 +5,7 @@ import { useVaultStore } from '@/stores/vaultStore'
 import { FileTree } from './FileTree'
 
 interface SidebarProps {
+  width: number
   onOpenFile: (node: TreeNode) => void
   onContextMenu: (node: TreeNode, x: number, y: number) => void
 }
@@ -26,7 +27,7 @@ function filterTree(nodes: TreeNode[], query: string): TreeNode[] {
   return result
 }
 
-function SidebarInner({ onOpenFile, onContextMenu }: SidebarProps): JSX.Element {
+function SidebarInner({ width, onOpenFile, onContextMenu }: SidebarProps): JSX.Element {
   const root = useVaultStore((s) => s.root)
   const tree = useVaultStore((s) => s.tree)
   const [searchQuery, setSearchQuery] = useState('')
@@ -37,7 +38,10 @@ function SidebarInner({ onOpenFile, onContextMenu }: SidebarProps): JSX.Element 
   )
 
   return (
-    <aside className="flex h-full w-[var(--sidebar-w)] flex-none flex-col border-r border-[color:var(--border-soft)] bg-[color:var(--sidebar-bg)] pt-[42px]">
+    <aside
+      style={{ width }}
+      className="flex h-full flex-none flex-col border-r border-[color:var(--border-soft)] bg-[color:var(--sidebar-bg)] pt-[42px]"
+    >
       <div className="mx-3 mb-2 mt-3 flex items-center gap-[7px] rounded-md border border-[color:var(--border-soft)] bg-[color:var(--sidebar-search-bg)] px-[9px] py-[5px]">
         <Search size={12} className="flex-none text-[color:var(--text-faint)] opacity-80" />
         <input

@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { api } from '@/lib/api'
+import { scanVaultWithSettings } from '@/lib/scanVault'
 import { useVaultStore } from '@/stores/vaultStore'
 import { useDocumentStore } from '@/stores/documentStore'
 
@@ -19,7 +20,7 @@ function pathExists(nodes: import('../../../shared/ipc').TreeNode[], target: str
 export function useVaultWatch(): void {
   useEffect(() => {
     const unsubscribe = api.onVaultChanged(async (root) => {
-      const tree = await api.scanVault(root)
+      const tree = await scanVaultWithSettings(root)
       useVaultStore.getState().setTree(tree)
 
       const doc = useDocumentStore.getState()

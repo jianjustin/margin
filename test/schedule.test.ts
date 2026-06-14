@@ -43,6 +43,29 @@ describe('collectScheduleDates', () => {
         { name: 'readme.md', path: '/v/日程/readme.md', type: 'file' }
       ]
     },
+    {
+      name: 'Plans',
+      path: '/v/Plans',
+      type: 'folder',
+      children: [
+        {
+          name: '日程',
+          path: '/v/Plans/日程',
+          type: 'folder',
+          children: [
+            { name: '2026-06-14.md', path: '/v/Plans/日程/2026-06-14.md', type: 'file' },
+            {
+              name: 'archive',
+              path: '/v/Plans/日程/archive',
+              type: 'folder',
+              children: [
+                { name: '2026-06-15.md', path: '/v/Plans/日程/archive/2026-06-15.md', type: 'file' }
+              ]
+            }
+          ]
+        }
+      ]
+    },
     { name: 'other.md', path: '/v/other.md', type: 'file' }
   ]
 
@@ -55,5 +78,17 @@ describe('collectScheduleDates', () => {
 
   it('returns an empty set when the folder is absent', () => {
     expect(collectScheduleDates(tree, 'Schedule').size).toBe(0)
+  })
+
+  it('collects date keys from a nested schedule folder path', () => {
+    const dates = collectScheduleDates(tree, 'Plans/日程')
+    expect(dates.has('2026-06-14')).toBe(true)
+    expect(dates.has('2026-06-15')).toBe(false)
+    expect(dates.size).toBe(1)
+  })
+
+  it('normalizes whitespace and slashes in schedule folder paths', () => {
+    const dates = collectScheduleDates(tree, ' /Plans\\日程/ ')
+    expect(dates.has('2026-06-14')).toBe(true)
   })
 })

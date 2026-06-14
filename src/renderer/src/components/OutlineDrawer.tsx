@@ -36,10 +36,11 @@ function parseHeadings(content: string): HeadingItem[] {
 }
 
 interface OutlineDrawerProps {
+  width: number
   onJumpToLine?: (line: number) => void
 }
 
-export function OutlineDrawer({ onJumpToLine }: OutlineDrawerProps): JSX.Element {
+export function OutlineDrawer({ width, onJumpToLine }: OutlineDrawerProps): JSX.Element {
   const content = useDocumentStore((s) => s.content)
   const headings = useMemo(() => parseHeadings(content), [content])
   const [activeIdx, setActiveIdx] = useState(-1)
@@ -65,7 +66,10 @@ export function OutlineDrawer({ onJumpToLine }: OutlineDrawerProps): JSX.Element
   }
 
   return (
-    <aside className="flex h-full w-[var(--drawer-w)] flex-none flex-col border-l border-[color:var(--border-soft)] bg-[color:var(--bg-panel)]">
+    <aside
+      style={{ width }}
+      className="flex h-full flex-none flex-col border-l border-[color:var(--border-soft)] bg-[color:var(--bg-panel)]"
+    >
       <div className="flex items-center justify-between px-4 pb-2.5 pt-3.5">
         <span className="text-[13px] font-semibold tracking-wide">大纲</span>
         <span className="text-[11px] text-[color:var(--text-faint)]">点击跳转</span>

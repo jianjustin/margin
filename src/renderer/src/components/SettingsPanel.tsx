@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { X, Search, Folder } from 'lucide-react'
+import { X, Search, Folder, Plus, Trash2 } from 'lucide-react'
 import { useSettingsStore } from '@/stores/settingsStore'
 import type { TreeNode } from '../../../shared/ipc'
 
@@ -120,8 +120,12 @@ function topFolders(tree: TreeNode[]): string[] {
 export function SettingsPanel({ tree, onClose }: SettingsPanelProps): JSX.Element {
   const scheduleEnabled = useSettingsStore((s) => s.scheduleEnabled)
   const scheduleDir = useSettingsStore((s) => s.scheduleDir)
+  const hiddenFolders = useSettingsStore((s) => s.hiddenFolders)
   const setScheduleEnabled = useSettingsStore((s) => s.setScheduleEnabled)
   const setScheduleDir = useSettingsStore((s) => s.setScheduleDir)
+  const addHiddenFolder = useSettingsStore((s) => s.addHiddenFolder)
+  const removeHiddenFolder = useSettingsStore((s) => s.removeHiddenFolder)
+  const [hiddenInput, setHiddenInput] = useState('')
 
   const folders = useMemo(() => topFolders(tree), [tree])
 
@@ -137,6 +141,13 @@ export function SettingsPanel({ tree, onClose }: SettingsPanelProps): JSX.Elemen
   const rowClass = 'flex items-center justify-between gap-3 py-2'
   const labelClass = 'text-[13px] text-foreground'
   const descClass = 'text-[11.5px] text-[color:var(--text-faint)]'
+
+  function submitHiddenFolder(): void {
+    const value = hiddenInput.trim()
+    if (!value) return
+    addHiddenFolder(value)
+    setHiddenInput('')
+  }
 
   return (
     <div
@@ -199,6 +210,56 @@ export function SettingsPanel({ tree, onClose }: SettingsPanelProps): JSX.Elemen
               </div>
             </div>
           )}
+
+          {/* ── 文件库 ───────────────── */}
+          <div className="mt-6 border-t border-[color:var(--border-soft)] pt-4">
+            <div className={sectionTitle}>文件库</div>
+            <div className={`${labelClass} mb-1.5`}>隐藏文件夹</div>
+            <div className="flex items-center gap-2">
+              <input
+                value={hiddenInput}
+                onChange={(e) => setHiddenInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') submitHiddenFolder()
+                }}
+                placeholder=".claude 或 Projects/archive"
+                className="min-w-0 flex-1 rounded-md border border-[color:var(--border-soft)] bg-[color:var(--bg)] px-2 py-1.5 text-[12px] text-foreground outline-none placeholder:text-[color:var(--text-faint)] focus:border-[color:var(--accent-line)]"
+              />
+              <button
+                onClick={submitHiddenFolder}
+                className="grid h-[30px] w-[30px] place-items-center rounded-md border border-[color:var(--border-soft)] text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)] hover:text-foreground"
+                aria-label="添加隐藏文件夹"
+              >
+                <Plus size={14} />
+              </button>
+            </div>
+            <div className={`${descClass} mt-1.5`}>
+              不含斜杠按文件夹名隐藏；含斜杠按文件库相对路径隐藏。
+            </div>
+            <div className="mt-2 flex flex-col gap-1">
+              {hiddenFolders.length === 0 ? (
+                <div className={descClass}>未配置隐藏文件夹</div>
+              ) : (
+                hiddenFolders.map((rule) => (
+                  <div
+                    key={rule}
+                    className="flex items-center gap-2 rounded-md border border-[color:var(--border-soft)] bg-[color:var(--bg)] px-2 py-1.5"
+                  >
+                    <span className="min-w-0 flex-1 truncate font-[family-name:var(--mono)] text-[12px] text-[color:var(--text-dim)]">
+                      {rule}
+                    </span>
+                    <button
+                      onClick={() => removeHiddenFolder(rule)}
+                      className="grid h-5 w-5 flex-none place-items-center rounded text-[color:var(--text-faint)] hover:bg-[color:var(--bg-hover)] hover:text-[color:var(--red)]"
+                      aria-label={`移除隐藏规则 ${rule}`}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
 
           {/* ── 未来扩展占位 ────────── */}
           <div className="mt-6 border-t border-[color:var(--border-soft)] pt-4">
