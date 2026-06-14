@@ -382,8 +382,9 @@ export default function App(): JSX.Element {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header
+          data-tauri-drag-region
           className={[
-            'flex h-[34px] shrink-0 items-center gap-3 bg-[color:var(--bg)] px-3 text-sm text-[color:var(--text-faint)] [-webkit-app-region:drag]',
+            'flex h-[34px] shrink-0 items-center gap-3 bg-[color:var(--bg)] px-3 text-sm text-[color:var(--text-faint)]',
             sidebarOpen ? '' : 'pl-20'
           ].join(' ')}
         >
@@ -421,7 +422,10 @@ export default function App(): JSX.Element {
             )}
           </div>
 
-          <div className="flex min-w-0 flex-1 items-center justify-center gap-2 text-[12px] font-medium text-[color:var(--text-faint)]">
+          <div
+            data-tauri-drag-region
+            className="pointer-events-none flex min-w-0 flex-1 items-center justify-center gap-2 text-[12px] font-medium text-[color:var(--text-faint)]"
+          >
             {path ? (
               <>
                 {parentName && <span className="text-[color:var(--text-faint)]">{parentName}</span>}

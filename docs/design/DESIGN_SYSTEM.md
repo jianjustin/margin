@@ -153,7 +153,7 @@ Margin 的统一 UI 样式与交互语言规范。所有组件、颜色、字体
 - 中间：面包屑路径（`父目录 / 文件名 ●`），居中对齐
   - 父目录色 `--text-faint`，文件名色 `--text-dim`，脏标记 `--accent`
 - 右侧：工具按钮组（sidebar/theme/settings/outline），间距 `2px`
-- 整区域 `-webkit-app-region: drag`，按钮除外
+- macOS 窗口使用 Tauri `titleBarStyle: Overlay` 避免原生标题栏占位；非交互标题区使用 `data-tauri-drag-region` 作为窗口拖拽区域，按钮、弹窗和其他控件不标记为拖拽区
 
 ### 4.2 侧栏 (Sidebar)
 
