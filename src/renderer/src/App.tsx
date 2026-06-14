@@ -28,6 +28,8 @@ import { StatusBar } from '@/components/StatusBar'
 import { open as shellOpen } from '@tauri-apps/plugin-shell'
 import { isExternal, resolveRelative } from '@/lib/resolvePath'
 import { resolveWikiLinkTarget } from '@/lib/wikiLinks'
+import { projectRelativePath } from '@/lib/copyPath'
+import { isMarkdownFile } from '@/lib/fileKinds'
 import {
   LEFT_PANE,
   RIGHT_PANE,
@@ -203,7 +205,10 @@ export default function App(): JSX.Element {
 
   const handleOpenFolder = useCallback(() => void openFolder(), [openFolder])
   const handleOpenFile = useCallback(
-    (node: TreeNode) => void openFileByPath(node.path),
+    (node: TreeNode) => {
+      if (node.type !== 'file' || !isMarkdownFile(node.name)) return
+      void openFileByPath(node.path)
+    },
     [openFileByPath]
   )
 
@@ -236,6 +241,14 @@ export default function App(): JSX.Element {
 
   function targetDir(node: TreeNode): string {
     return node.type === 'folder' ? node.path : node.path.replace(/\/[^/]+$/, '')
+  }
+
+  async function copyText(text: string): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(text)
+    } catch {
+      window.alert('复制失败')
+    }
   }
 
   /* ── Context-menu actions (driven by the dialog state machine) ── */
@@ -553,6 +566,14 @@ export default function App(): JSX.Element {
           onMove={(n) => {
             setMenu(null)
             setMoveTarget(n)
+          }}
+          onCopyFullPath={(n) => {
+            setMenu(null)
+            void copyText(n.path)
+          }}
+          onCopyRelativePath={(n) => {
+            setMenu(null)
+            void copyText(projectRelativePath(vaultRoot, n.path))
           }}
           onTrash={(n) => {
             setMenu(null)

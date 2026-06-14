@@ -13,13 +13,8 @@ pub struct TreeNode {
     pub children: Option<Vec<TreeNode>>,
 }
 
-/// Markdown file extension check (case-insensitive).
-fn is_markdown(name: &str) -> bool {
-    let lower = name.to_lowercase();
-    lower.ends_with(".md") || lower.ends_with(".markdown")
-}
-
 const BUILT_IN_HIDDEN_DIRS: &[&str] = &[".margin", ".obsidian", ".git", ".trash"];
+const BUILT_IN_HIDDEN_FILES: &[&str] = &[".DS_Store"];
 
 #[derive(Default)]
 struct HiddenFolderRules {
@@ -60,8 +55,12 @@ fn should_hide_dir(name: &str, relative_path: &str, rules: &HiddenFolderRules) -
         || rules.paths.iter().any(|rule| rule == relative_path)
 }
 
+fn should_hide_file(name: &str) -> bool {
+    BUILT_IN_HIDDEN_FILES.contains(&name)
+}
+
 /// Recursively scan `root` into a `Vec<TreeNode>`: folders (including empty
-/// ones) and markdown files. Built-in protected folders and configured hidden
+/// ones) and ordinary files. Built-in protected folders and configured hidden
 /// folders are skipped. Each level is sorted folders-first, then files, each
 /// group alphabetical (locale-aware). Unreadable entries are silently skipped.
 pub fn scan_vault(root: &str, hidden_folders: &[String]) -> Vec<TreeNode> {
@@ -108,7 +107,7 @@ fn scan_dir(root_path: &Path, current_path: &Path, rules: &HiddenFolderRules) ->
                 node_type: "folder".to_string(),
                 children: Some(scan_dir(root_path, &path, rules)),
             });
-        } else if file_type.is_file() && is_markdown(&name) {
+        } else if file_type.is_file() && !should_hide_file(&name) {
             files.push(TreeNode {
                 name,
                 path: path_str,
@@ -144,6 +143,41 @@ mod tests {
     fn scan_nonexistent_returns_empty() {
         let result = scan_vault("/tmp/__margin_test_nonexistent_dir__", &[]);
         assert!(result.is_empty());
+    }
+
+    #[test]
+    fn scan_includes_non_markdown_files() {
+        let root = test_root("__margin_scan_non_markdown_files__");
+        std::fs::write(root.join("note.md"), "x").unwrap();
+        std::fs::write(root.join("asset.pdf"), "x").unwrap();
+
+        let result = scan_vault(root.to_str().unwrap(), &[]);
+        let names: Vec<_> = result.iter().map(|n| n.name.as_str()).collect();
+        assert!(names.contains(&"note.md"));
+        assert!(names.contains(&"asset.pdf"));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn scan_hides_ds_store_files() {
+        let root = test_root("__margin_scan_hides_ds_store__");
+        std::fs::create_dir_all(root.join("Folder")).unwrap();
+        std::fs::write(root.join(".DS_Store"), "x").unwrap();
+        std::fs::write(root.join("Folder").join(".DS_Store"), "x").unwrap();
+        std::fs::write(root.join("Folder").join("asset.pdf"), "x").unwrap();
+
+        let result = scan_vault(root.to_str().unwrap(), &[]);
+        assert!(result.iter().all(|n| n.name != ".DS_Store"));
+        let folder = result
+            .iter()
+            .find(|n| n.node_type == "folder" && n.name == "Folder")
+            .unwrap();
+        let children = folder.children.as_ref().unwrap();
+        assert!(children.iter().all(|n| n.name != ".DS_Store"));
+        assert!(children.iter().any(|n| n.name == "asset.pdf"));
+
+        let _ = std::fs::remove_dir_all(root);
     }
 
     #[test]

@@ -12,7 +12,9 @@ const tree: TreeNode[] = [
     type: 'folder',
     children: [{ name: 'inner.md', path: '/v/folderA/inner.md', type: 'file' }]
   },
-  { name: 'root.md', path: '/v/root.md', type: 'file' }
+  { name: 'root.md', path: '/v/root.md', type: 'file' },
+  { name: 'component.mdx', path: '/v/component.mdx', type: 'file' },
+  { name: 'asset.pdf', path: '/v/asset.pdf', type: 'file' }
 ]
 
 beforeEach(() => {
@@ -33,6 +35,20 @@ describe('FileTree', () => {
     render(<FileTree onOpenFile={onOpenFile} onContextMenu={() => {}} />)
     fireEvent.click(screen.getByText('root.md'))
     expect(onOpenFile).toHaveBeenCalledOnce()
+  })
+
+  it('opens mdx files as markdown documents', () => {
+    const onOpenFile = vi.fn()
+    render(<FileTree onOpenFile={onOpenFile} onContextMenu={() => {}} />)
+    fireEvent.click(screen.getByText('component.mdx'))
+    expect(onOpenFile).toHaveBeenCalledOnce()
+  })
+
+  it('renders non-markdown files without opening them on click', () => {
+    const onOpenFile = vi.fn()
+    render(<FileTree onOpenFile={onOpenFile} onContextMenu={() => {}} />)
+    fireEvent.click(screen.getByText('asset.pdf'))
+    expect(onOpenFile).not.toHaveBeenCalled()
   })
 
   it('expands a folder on click to reveal children', () => {

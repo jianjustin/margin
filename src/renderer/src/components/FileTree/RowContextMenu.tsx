@@ -15,6 +15,8 @@ interface RowContextMenuProps {
   onRename: (node: TreeNode) => void
   onMove: (node: TreeNode) => void
   onTrash: (node: TreeNode) => void
+  onCopyFullPath: (node: TreeNode) => void
+  onCopyRelativePath: (node: TreeNode) => void
 }
 
 export function RowContextMenu({
@@ -24,7 +26,9 @@ export function RowContextMenu({
   onNewFolder,
   onRename,
   onMove,
-  onTrash
+  onTrash,
+  onCopyFullPath,
+  onCopyRelativePath
 }: RowContextMenuProps): JSX.Element {
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -86,6 +90,13 @@ export function RowContextMenu({
       </button>
       <button className={item} onClick={() => onMove(menu.node)}>
         移动到…
+      </button>
+      <div className="my-1 border-t border-[color:var(--border-soft)]" />
+      <button className={item} onClick={() => onCopyFullPath(menu.node)}>
+        复制完整路径
+      </button>
+      <button className={item} onClick={() => onCopyRelativePath(menu.node)}>
+        复制项目相对路径
       </button>
       <div className="my-1 border-t border-[color:var(--border-soft)]" />
       <button className={item} onClick={() => onTrash(menu.node)}>
