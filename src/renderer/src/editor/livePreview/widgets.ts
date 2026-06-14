@@ -1,7 +1,7 @@
 import { WidgetType, type EditorView } from '@codemirror/view'
 import { convertFileSrc } from '@tauri-apps/api/core'
 import { findLanguage, highlightInto } from './codeHighlight'
-import { parseTable, serializeTable, type Align } from './tableModel'
+import { parseTable, serializeTable, deleteTableRow, type Align } from './tableModel'
 import { parseFrontmatter, serializeFrontmatter, type FmField } from './frontmatterModel'
 import { renderInlineMarkdown } from './inlineMarkdown'
 
@@ -245,7 +245,7 @@ export class TableWidget extends WidgetType {
       td.addEventListener('keydown', (e) => {
         if (e.key !== 'Tab') return
         e.preventDefault()
-        const cells = Array.from(table.querySelectorAll('th, td')) as HTMLElement[]
+        const cells = Array.from(table.querySelectorAll('th, td:not(.cm-table-row-del-cell)')) as HTMLElement[]
         const idx = cells.indexOf(td)
         const next = e.shiftKey ? idx - 1 : idx + 1
         if (next >= 0 && next < cells.length) {
@@ -265,7 +265,7 @@ export class TableWidget extends WidgetType {
             view.dispatch({ changes: { from: this.from, to: this.to, insert } })
           }
           requestAnimationFrame(() => {
-            const newCells = Array.from(table.querySelectorAll('td'))
+            const newCells = Array.from(table.querySelectorAll('td:not(.cm-table-row-del-cell)'))
             const target = newCells[newCells.length - header.length]
             if (target) target.focus()
           })
@@ -284,13 +284,31 @@ export class TableWidget extends WidgetType {
     table.appendChild(thead)
 
     const tbody = document.createElement('tbody')
-    model.rows.forEach((row) => {
+    model.rows.forEach((row, rowIdx) => {
       const tr = document.createElement('tr')
       model.header.forEach((_, i) => {
         const td = document.createElement('td')
         wireCell(td, row[i] ?? '', model.align[i] ?? null)
         tr.appendChild(td)
       })
+
+      // Per-row delete button — hidden by default, visible on tr:hover via CSS
+      const delTd = document.createElement('td')
+      delTd.className = 'cm-table-row-del-cell'
+      const delBtn = document.createElement('button')
+      delBtn.className = 'cm-table-row-del'
+      delBtn.textContent = '×'
+      delBtn.title = '删除此行'
+      delBtn.addEventListener('mousedown', (e) => {
+        e.preventDefault()
+        const insert = deleteTableRow(this.source, rowIdx)
+        if (insert !== this.source) {
+          view.dispatch({ changes: { from: this.from, to: this.to, insert } })
+        }
+      })
+      delTd.appendChild(delBtn)
+      tr.appendChild(delTd)
+
       tbody.appendChild(tr)
     })
     table.appendChild(tbody)

@@ -41,7 +41,7 @@ describe('TableWidget interaction', () => {
     const w = new TableWidget(TABLE_SRC, 0, TABLE_SRC.length)
     const el = w.toDOM(view)
     document.body.appendChild(el)
-    const cells = Array.from(el.querySelectorAll('th, td')) as HTMLElement[]
+    const cells = Array.from(el.querySelectorAll('th, td:not(.cm-table-row-del-cell)')) as HTMLElement[]
     const last = cells[cells.length - 1]
     last.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }))
     expect(view.dispatch).toHaveBeenCalled()

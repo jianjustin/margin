@@ -186,6 +186,38 @@ export const marginEditorTheme = EditorView.theme({
     color: 'var(--text)'
   },
 
+  '.cm-table-row-del-cell': {
+    padding: '0 2px',
+    width: '24px',
+    textAlign: 'center',
+    verticalAlign: 'middle',
+    border: 'none'
+  },
+  '.cm-table-row-del': {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '18px',
+    height: '18px',
+    fontSize: '14px',
+    lineHeight: '1',
+    color: 'var(--text-faint)',
+    background: 'transparent',
+    border: 'none',
+    borderRadius: '3px',
+    cursor: 'pointer',
+    opacity: '0',
+    transition: 'opacity 0.12s, background 0.1s',
+    padding: '0'
+  },
+  'tr:hover .cm-table-row-del': {
+    opacity: '1'
+  },
+  '.cm-table-row-del:hover': {
+    background: 'var(--bg-hover)',
+    color: 'var(--text)'
+  },
+
   '.cm-properties': {
     border: '1px solid var(--border-soft)',
     borderRadius: 'var(--r)',

@@ -71,3 +71,14 @@ export function serializeTable(m: TableModel): string {
     '| ' + Array.from({ length: cols }, (_, i) => delimCell(m.align[i] ?? null)).join(' | ') + ' |'
   return [row(m.header), delim, ...m.rows.map(row)].join('\n')
 }
+
+/**
+ * Returns new GFM table markdown with the data row at `rowIndex` removed.
+ * Deleting the last data row yields a header-only table (still valid GFM).
+ */
+export function deleteTableRow(source: string, rowIndex: number): string {
+  const model = parseTable(source)
+  const rows = [...model.rows]
+  rows.splice(rowIndex, 1)
+  return serializeTable({ header: model.header, align: model.align, rows })
+}
