@@ -10,7 +10,7 @@ interface UpdateSectionProps {
 
 function actionClass(primary = false): string {
   return [
-    'inline-flex h-[30px] items-center gap-1.5 rounded-md px-2.5 text-[12px] font-medium transition-colors',
+    'inline-flex h-[30px] flex-none items-center gap-1.5 rounded-md px-2.5 text-[12px] font-medium transition-colors',
     primary
       ? 'bg-[color:var(--accent)] text-[color:var(--accent-ink)]'
       : 'border border-[color:var(--border-soft)] text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)] hover:text-foreground'
@@ -48,12 +48,12 @@ export function UpdateSection({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-3">
-        <div>
+        <div className="min-w-0 flex-1">
           <div className="text-[13px] text-foreground">版本 {version}</div>
           {text && (
             <div
               className={[
-                'mt-1 text-[11.5px]',
+                'mt-1 break-words text-[11.5px]',
                 status.state === 'error'
                   ? 'text-[color:var(--red)]'
                   : 'text-[color:var(--text-faint)]'
@@ -97,7 +97,7 @@ export function UpdateSection({
       </div>
 
       {status.state === 'available' && status.body && (
-        <div className="max-h-20 overflow-y-auto whitespace-pre-wrap rounded-md border border-[color:var(--border-soft)] bg-[color:var(--bg)] px-2 py-1.5 text-[11.5px] text-[color:var(--text-dim)]">
+        <div className="max-h-20 overflow-y-auto overflow-x-hidden whitespace-pre-wrap break-words rounded-md border border-[color:var(--border-soft)] bg-[color:var(--bg)] px-2 py-1.5 text-[11.5px] text-[color:var(--text-dim)]">
           {status.body}
         </div>
       )}

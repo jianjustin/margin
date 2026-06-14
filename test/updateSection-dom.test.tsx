@@ -73,6 +73,16 @@ describe('UpdateSection', () => {
     expect(screen.getByText('正在下载 50%')).toBeTruthy()
   })
 
+  it('shows installing state', () => {
+    renderSection({
+      state: 'installing',
+      currentVersion: '2.0.0',
+      version: '2.1.0'
+    })
+
+    expect(screen.getByText('正在安装更新…')).toBeTruthy()
+  })
+
   it('shows errors and retry action', () => {
     const onCheck = vi.fn()
     renderSection(
