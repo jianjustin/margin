@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "tauri dev",
     "build": "tauri build",
+    "build:adhoc": "tauri build --bundles dmg --config src-tauri/tauri.adhoc.conf.json",
     "demo": "vite --config vite.demo.config.ts",
     "vite:dev": "vite",
     "vite:build": "vite build",
@@ -27,6 +28,7 @@
     "@fontsource/ibm-plex-mono": "^5.2.7",
     "@fontsource/ibm-plex-sans": "^5.2.8",
     "@fontsource/ibm-plex-serif": "^5.2.7",
+    "@lezer/highlight": "^1.2.3",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2",
     "@tauri-apps/plugin-process": "^2.3.1",
