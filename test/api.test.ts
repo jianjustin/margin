@@ -99,6 +99,22 @@ describe('api command arguments', () => {
     expect(update.downloadAndInstall).toHaveBeenCalledOnce()
   })
 
+  it('clears a previous pending update before checking again', async () => {
+    const update = {
+      currentVersion: '2.0.0',
+      version: '2.1.0',
+      downloadAndInstall: vi.fn(async () => {})
+    }
+    check.mockResolvedValueOnce(update).mockRejectedValueOnce(new Error('check failed'))
+
+    await api.checkUpdate()
+    await expect(api.checkUpdate()).rejects.toThrow('check failed')
+    await expect(api.downloadAndInstallUpdate(() => {})).rejects.toThrow(
+      'No update available to install'
+    )
+    expect(update.downloadAndInstall).not.toHaveBeenCalled()
+  })
+
   it('forwards updater download events', async () => {
     const update = {
       currentVersion: '2.0.0',

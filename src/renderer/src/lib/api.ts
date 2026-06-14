@@ -42,6 +42,7 @@ export const api: MarginApi = {
   deleteDraft: (root, path) => invoke<void>('delete_draft', { root, path }),
   getCurrentVersion: () => getVersion(),
   checkUpdate: async (): Promise<UpdateCheckResult> => {
+    pendingUpdate = null
     const currentVersion = await getVersion()
     const update = await check()
     pendingUpdate = update
