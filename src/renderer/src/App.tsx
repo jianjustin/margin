@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback, type PointerEvent as ReactPointerEvent } from 'react'
-import { PanelLeft, AlignLeft, CalendarDays, CalendarPlus, FolderOpen, Link2, Settings } from 'lucide-react'
+import { PanelLeft, AlignLeft, CalendarDays, CalendarPlus, FolderOpen, Link2, Settings, Search } from 'lucide-react'
+import { SearchOverlay } from '@/components/SearchOverlay'
 import { Editor, type EditorHandle } from '@/components/Editor'
 import { saveDocument } from '@/lib/saveDocument'
 import { useDocumentStore } from '@/stores/documentStore'
@@ -85,6 +86,7 @@ export default function App(): JSX.Element {
   const [moveTarget, setMoveTarget] = useState<TreeNode | null>(null)
   const [calendarOpen, setCalendarOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
   const [dialog, setDialog] = useState<DialogState>(null)
   const [leftPaneWidth, setLeftPaneWidth] = useState(() => loadPaneWidth(LEFT_PANE))
   const [rightPaneWidth, setRightPaneWidth] = useState(() => loadPaneWidth(RIGHT_PANE))
@@ -147,6 +149,10 @@ export default function App(): JSX.Element {
       if ((e.metaKey || e.ctrlKey) && e.key === ',') {
         e.preventDefault()
         setSettingsOpen((v) => !v)
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setSearchOpen((v) => !v)
       }
     }
     window.addEventListener('keydown', handleKeyDown)
@@ -410,6 +416,14 @@ export default function App(): JSX.Element {
             >
               <FolderOpen size={16} />
             </button>
+            <button
+              onClick={() => setSearchOpen(true)}
+              title="搜索文件 (⌘K)"
+              aria-label="搜索文件"
+              className="grid h-[24px] w-[28px] place-items-center rounded-md text-[color:var(--text-dim)] transition-colors hover:bg-[color:var(--bg-hover)] hover:text-foreground"
+            >
+              <Search size={16} />
+            </button>
             {scheduleEnabled && (
               <button
                 onClick={() => void openSchedule(new Date())}
@@ -669,6 +683,16 @@ export default function App(): JSX.Element {
         <SettingsPanel
           tree={vaultTree}
           onClose={() => setSettingsOpen(false)}
+        />
+      )}
+
+      {/* ── Search overlay (⌘K) ───────────────────────────────── */}
+
+      {searchOpen && vaultRoot && (
+        <SearchOverlay
+          tree={vaultTree}
+          onOpen={(path) => void openFileByPath(path)}
+          onClose={() => setSearchOpen(false)}
         />
       )}
     </div>
