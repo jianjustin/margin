@@ -3,6 +3,7 @@ import { convertFileSrc } from '@tauri-apps/api/core'
 import { findLanguage, highlightInto } from './codeHighlight'
 import { parseTable, serializeTable, type Align } from './tableModel'
 import { parseFrontmatter, serializeFrontmatter, type FmField } from './frontmatterModel'
+import { renderInlineMarkdown } from './inlineMarkdown'
 
 /** Renders a task-list checkbox replacing the raw `[ ]` / `[x]` token. */
 export class CheckboxWidget extends WidgetType {
@@ -191,29 +192,50 @@ export class TableWidget extends WidgetType {
     let composing = false
 
     const commit = (): void => {
+      const rawOf = (c: HTMLTableCellElement): string =>
+        c === document.activeElement
+          ? (c.textContent ?? '')
+          : (c.dataset.raw ?? c.textContent ?? '')
       const headCells = Array.from(table.tHead?.rows[0]?.cells ?? [])
-      const header = headCells.map((c) => c.textContent ?? '')
+      const header = headCells.map((c) => rawOf(c))
+      const colCount = header.length
       const rows = Array.from(table.tBodies[0]?.rows ?? []).map((r) =>
-        Array.from(r.cells).map((c) => c.textContent ?? '')
+        Array.from(r.cells).slice(0, colCount).map((c) => rawOf(c))
       )
       const next = serializeTable({ header, align: model.align, rows })
       if (next === this.source) return
       view.dispatch({ changes: { from: this.from, to: this.to, insert: next } })
     }
 
-    const wireCell = (td: HTMLTableCellElement, align: Align): void => {
+    const wireCell = (td: HTMLTableCellElement, rawText: string, align: Align): void => {
       td.contentEditable = 'true'
       td.spellcheck = false
+      td.dataset.raw = rawText
       if (align) td.style.textAlign = ALIGN_CSS[align]
-      td.addEventListener('compositionstart', () => {
-        composing = true
+
+      // Initial render: show inline Markdown HTML
+      td.innerHTML = ''
+      td.appendChild(renderInlineMarkdown(rawText))
+
+      td.addEventListener('focus', () => {
+        // Switch to raw text for editing (Typora-style reveal)
+        td.textContent = td.dataset.raw ?? ''
       })
+      td.addEventListener('compositionstart', () => { composing = true })
       td.addEventListener('compositionend', () => {
         composing = false
+        td.dataset.raw = td.textContent ?? ''
         commit()
       })
       td.addEventListener('blur', () => {
-        if (!composing) commit()
+        if (!composing) {
+          td.dataset.raw = td.textContent ?? ''
+          commit()
+        }
+        // Re-render markdown after committing
+        const raw = td.dataset.raw ?? ''
+        td.innerHTML = ''
+        td.appendChild(renderInlineMarkdown(raw))
       })
       td.addEventListener('keydown', (e) => {
         if (e.key !== 'Tab') return
@@ -224,18 +246,17 @@ export class TableWidget extends WidgetType {
         if (next >= 0 && next < cells.length) {
           cells[next].focus()
         } else if (!e.shiftKey && next >= cells.length) {
-          // Tab from last cell → append row via DOM read + serialize
           const headCells = Array.from(table.tHead?.rows[0]?.cells ?? [])
-          const header = headCells.map((c) => c.textContent ?? '')
+          const header = headCells.map((c) => c.dataset.raw ?? c.textContent ?? '')
+          const colCount = header.length
           const rows = Array.from(table.tBodies[0]?.rows ?? []).map((r) =>
-            Array.from(r.cells).map((c) => c.textContent ?? '')
+            Array.from(r.cells).slice(0, colCount).map((c) => c.dataset.raw ?? c.textContent ?? '')
           )
           rows.push(header.map(() => ''))
           const insert = serializeTable({ header, align: model.align, rows })
           if (insert !== this.source) {
             view.dispatch({ changes: { from: this.from, to: this.to, insert } })
           }
-          // After dispatch the widget rebuilds; focus the first cell of the new row
           requestAnimationFrame(() => {
             const newCells = Array.from(table.querySelectorAll('td'))
             const target = newCells[newCells.length - header.length]
@@ -249,8 +270,7 @@ export class TableWidget extends WidgetType {
     const htr = document.createElement('tr')
     model.header.forEach((cell, i) => {
       const th = document.createElement('th')
-      th.textContent = cell
-      wireCell(th, model.align[i] ?? null)
+      wireCell(th, cell, model.align[i] ?? null)
       htr.appendChild(th)
     })
     thead.appendChild(htr)
@@ -261,8 +281,7 @@ export class TableWidget extends WidgetType {
       const tr = document.createElement('tr')
       model.header.forEach((_, i) => {
         const td = document.createElement('td')
-        td.textContent = row[i] ?? ''
-        wireCell(td, model.align[i] ?? null)
+        wireCell(td, row[i] ?? '', model.align[i] ?? null)
         tr.appendChild(td)
       })
       tbody.appendChild(tr)
@@ -280,9 +299,10 @@ export class TableWidget extends WidgetType {
     addRowBtn.title = '添加行'
     addRowBtn.addEventListener('click', () => {
       const headCells = Array.from(table.tHead?.rows[0]?.cells ?? [])
-      const header = headCells.map((c) => c.textContent ?? '')
+      const header = headCells.map((c) => c.dataset.raw ?? c.textContent ?? '')
+      const colCount = header.length
       const rows = Array.from(table.tBodies[0]?.rows ?? []).map((r) =>
-        Array.from(r.cells).map((c) => c.textContent ?? '')
+        Array.from(r.cells).slice(0, colCount).map((c) => c.dataset.raw ?? c.textContent ?? '')
       )
       rows.push(header.map(() => ''))
       const insert = serializeTable({ header, align: model.align, rows })
@@ -294,9 +314,10 @@ export class TableWidget extends WidgetType {
     removeRowBtn.title = '删除最后一行'
     removeRowBtn.addEventListener('click', () => {
       const headCells = Array.from(table.tHead?.rows[0]?.cells ?? [])
-      const header = headCells.map((c) => c.textContent ?? '')
+      const header = headCells.map((c) => c.dataset.raw ?? c.textContent ?? '')
+      const colCount = header.length
       const rows = Array.from(table.tBodies[0]?.rows ?? []).map((r) =>
-        Array.from(r.cells).map((c) => c.textContent ?? '')
+        Array.from(r.cells).slice(0, colCount).map((c) => c.dataset.raw ?? c.textContent ?? '')
       )
       if (rows.length > 1) {
         rows.pop()
@@ -310,9 +331,10 @@ export class TableWidget extends WidgetType {
     addColBtn.title = '添加列'
     addColBtn.addEventListener('click', () => {
       const headCells = Array.from(table.tHead?.rows[0]?.cells ?? [])
-      const header = headCells.map((c) => c.textContent ?? '')
+      const header = headCells.map((c) => c.dataset.raw ?? c.textContent ?? '')
+      const colCount = header.length
       const rows = Array.from(table.tBodies[0]?.rows ?? []).map((r) =>
-        Array.from(r.cells).map((c) => c.textContent ?? '')
+        Array.from(r.cells).slice(0, colCount).map((c) => c.dataset.raw ?? c.textContent ?? '')
       )
       header.push('')
       const newAlign = [...model.align, null as Align]
@@ -326,9 +348,10 @@ export class TableWidget extends WidgetType {
     removeColBtn.title = '删除最后一列'
     removeColBtn.addEventListener('click', () => {
       const headCells = Array.from(table.tHead?.rows[0]?.cells ?? [])
-      const header = headCells.map((c) => c.textContent ?? '')
+      const header = headCells.map((c) => c.dataset.raw ?? c.textContent ?? '')
+      const colCount = header.length
       const rows = Array.from(table.tBodies[0]?.rows ?? []).map((r) =>
-        Array.from(r.cells).map((c) => c.textContent ?? '')
+        Array.from(r.cells).slice(0, colCount).map((c) => c.dataset.raw ?? c.textContent ?? '')
       )
       if (header.length > 1) {
         header.pop()
