@@ -21,7 +21,7 @@ function fileIconLabel(ext: string): { label: string; color: string } {
     case 'md':
     case 'mdx':
     case 'markdown':
-      return { label: 'M', color: 'var(--accent)' }
+      return { label: 'M', color: 'var(--sidebar-icon)' }
     case 'json':
       return { label: '{ }', color: 'var(--text-faint)' }
     case 'canvas':
@@ -85,10 +85,10 @@ export function FileTreeRow({
       title={node.name}
       style={{ paddingLeft: `${8 + depth * 14}px` }}
       className={[
-        'group flex h-[26px] cursor-pointer select-none items-center gap-1.5 rounded-md pr-2 text-[13px]',
+        'group flex h-[25px] cursor-pointer select-none items-center gap-1.5 rounded-md pr-2 text-[12.5px]',
         selected
-          ? 'border border-[color:var(--accent-line)] bg-[color:var(--accent-soft)]'
-          : 'border border-transparent hover:bg-[color:var(--bg-hover)]'
+          ? 'border border-[color:var(--sidebar-selected-line)] bg-[color:var(--sidebar-selected)]'
+          : 'border border-transparent hover:bg-[color:var(--sidebar-hover)]'
       ].join(' ')}
     >
       <span className="grid w-3 flex-none place-items-center text-[color:var(--text-faint)]">
@@ -101,17 +101,24 @@ export function FileTreeRow({
       </span>
 
       {isFolder ? (
-        <Folder size={15} className="flex-none text-[color:var(--accent)]" />
+        <Folder size={14} className="flex-none text-[color:var(--sidebar-icon)]" />
       ) : (
         <span
-          className="grid h-[17px] w-[17px] flex-none place-items-center rounded font-[family-name:var(--mono)] text-[9.5px] font-semibold"
+          className="grid h-[16px] w-[16px] flex-none place-items-center rounded font-[family-name:var(--mono)] text-[9px] font-semibold opacity-80"
           style={{ color: icon?.color }}
         >
           {icon?.label}
         </span>
       )}
 
-      <span className="flex-1 truncate text-[color:var(--text-dim)]">{node.name}</span>
+      <span
+        className={[
+          'flex-1 truncate',
+          selected ? 'text-[color:var(--text-dim)]' : 'text-[color:var(--text-faint)]'
+        ].join(' ')}
+      >
+        {node.name}
+      </span>
 
       {isFolder && childCount > 0 && (
         <span className="flex-none pr-0.5 text-[10px] tabular-nums text-[color:var(--text-faint)] opacity-0 transition-opacity group-hover:opacity-80">

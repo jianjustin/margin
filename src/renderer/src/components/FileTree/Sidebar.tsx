@@ -37,20 +37,20 @@ function SidebarInner({ onOpenFile, onContextMenu }: SidebarProps): JSX.Element 
   )
 
   return (
-    <aside className="flex h-full w-[var(--sidebar-w)] flex-none flex-col border-r border-[color:var(--border-soft)] bg-[color:var(--bg-panel)] pt-[42px]">
-      <div className="mx-3 mb-2 mt-3 flex items-center gap-[7px] rounded-md border border-[color:var(--border-soft)] bg-[color:var(--bg)] px-[9px] py-[5px]">
-        <Search size={12} className="flex-none text-[color:var(--text-faint)]" />
+    <aside className="flex h-full w-[var(--sidebar-w)] flex-none flex-col border-r border-[color:var(--border-soft)] bg-[color:var(--sidebar-bg)] pt-[42px]">
+      <div className="mx-3 mb-2 mt-3 flex items-center gap-[7px] rounded-md border border-[color:var(--border-soft)] bg-[color:var(--sidebar-search-bg)] px-[9px] py-[5px]">
+        <Search size={12} className="flex-none text-[color:var(--text-faint)] opacity-80" />
         <input
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="搜索文件…"
-          className="min-w-0 flex-1 border-none bg-transparent font-[family-name:var(--ui)] text-[12.5px] text-[color:var(--text)] outline-none placeholder:text-[color:var(--text-faint)]"
+          className="min-w-0 flex-1 border-none bg-transparent font-[family-name:var(--ui)] text-[12.5px] text-[color:var(--text-dim)] outline-none placeholder:text-[color:var(--text-faint)]"
         />
       </div>
 
       {root ? (
         <>
-          <div className="px-4 pb-1 pt-2.5 text-[10.5px] font-semibold uppercase tracking-[.08em] text-[color:var(--text-faint)]">
+          <div className="px-4 pb-1 pt-2 text-[10px] font-medium uppercase tracking-[.08em] text-[color:var(--text-faint)] opacity-75">
             文件库
           </div>
           <FileTree

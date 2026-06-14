@@ -27,6 +27,12 @@ Margin 的统一 UI 样式与交互语言规范。所有组件、颜色、字体
 | `--accent-line`| `oklch(0.82 0.11 90 / 0.32)`   | 强调色边框         |
 | `--sel`        | `oklch(0.82 0.11 90 / 0.20)`   | 文本选区           |
 | `--red`        | `oklch(0.62 0.18 25)`          | 错误/删除          |
+| `--sidebar-bg` | `oklch(0.185 0.005 70)`        | 侧栏弱化背景       |
+| `--sidebar-search-bg` | `oklch(0.215 0.006 70)` | 侧栏搜索框背景     |
+| `--sidebar-hover` | `oklch(0.245 0.006 70)`     | 侧栏行悬停背景     |
+| `--sidebar-selected` | `oklch(0.82 0.09 90 / 0.10)` | 侧栏选中弱底    |
+| `--sidebar-selected-line` | `oklch(0.82 0.09 90 / 0.18)` | 侧栏选中弱边框 |
+| `--sidebar-icon` | `oklch(0.76 0.07 86 / 0.72)` | 侧栏图标色         |
 
 ### 亮色主题 `[data-theme="light"]`
 
@@ -46,6 +52,12 @@ Margin 的统一 UI 样式与交互语言规范。所有组件、颜色、字体
 | `--accent-soft`| `oklch(0.72 0.12 70 / 0.16)`   |
 | `--accent-line`| `oklch(0.58 0.13 68 / 0.36)`   |
 | `--sel`        | `oklch(0.60 0.12 70 / 0.18)`   |
+| `--sidebar-bg` | `oklch(0.962 0.005 82)`        |
+| `--sidebar-search-bg` | `oklch(0.990 0.003 86)` |
+| `--sidebar-hover` | `oklch(0.935 0.008 82)`     |
+| `--sidebar-selected` | `oklch(0.68 0.10 70 / 0.10)` |
+| `--sidebar-selected-line` | `oklch(0.58 0.12 68 / 0.18)` |
+| `--sidebar-icon` | `oklch(0.55 0.10 68 / 0.72)` |
 
 ### 语法高亮色 (代码块)
 
@@ -81,9 +93,9 @@ Margin 的统一 UI 样式与交互语言规范。所有组件、颜色、字体
 | H3              | `1.07em`   | 620   | `line-height: 1.38`，`padding-top: 2px`，不使用 margin |
 | 标题栏文件名    | `12.5px`   | 500   | `letter-spacing: .01em`|
 | 侧栏品牌名      | `14px`     | 600   | `letter-spacing: .02em`|
-| 侧栏文件树      | `13px`     | 400     | 文件夹与文件统一字重  |
+| 侧栏文件树      | `12.5px`   | 400     | 文件夹与文件统一字重，低于编辑器正文层级 |
 | 侧栏搜索框      | `12.5px`   | 400   |                         |
-| 侧栏分区标题    | `10.5px`   | 600   | `letter-spacing: .08em`, 大写 |
+| 侧栏分区标题    | `10px`     | 500   | `letter-spacing: .08em`, 大写，低对比 |
 | 状态栏          | `11.5px`   | 400   | `font-variant-numeric: tabular-nums` |
 | 大纲行          | `12.5px`   | 400/600 | H1 加粗               |
 | Slash 菜单项名  | `13px`     | 550   |                         |
@@ -145,18 +157,19 @@ Margin 的统一 UI 样式与交互语言规范。所有组件、颜色、字体
 
 ### 4.2 侧栏 (Sidebar)
 
-- 宽度 `244px`，高度贯穿窗口，背景 `--bg-panel`，右边框 `1px solid --border-soft`
+- 宽度 `244px`，高度贯穿窗口，背景 `--sidebar-bg`，右边框 `1px solid --border-soft`
+- 侧栏是导航辅助层：文字、图标、选中态都应低于编辑器正文和标题栏的视觉权重
 - 不在应用内显示产品名或品牌头，侧栏直接从文件搜索开始
 - 顶部预留 `42px` 给 macOS 窗口控制区，避免搜索框与交通灯冲突
-- **搜索栏**：`margin: 12px 12px 8px`，背景 `--bg`，边框 `--border-soft`，圆角 `6px`，内边距 `5px 9px`
-- **分区标题**：`10.5px`，大写，`letter-spacing: .08em`，`--text-faint`
+- **搜索栏**：`margin: 12px 12px 8px`，背景 `--sidebar-search-bg`，边框 `--border-soft`，圆角 `6px`，内边距 `5px 9px`
+- **分区标题**：`10px`，大写，`letter-spacing: .08em`，`--text-faint`，`opacity: .75`
 - **文件树**：
-  - 行高 `4px 8px` 内边距，圆角 `6px`，间距 `6px`
+  - 行高 `25px`，圆角 `6px`，文件名 `12.5px`
   - 左侧缩进基础 `8px`，每级 `14px`（与当前一致）
   - 展开箭头 `12px`，旋转 `90deg`，`transition: .16s ease`
-  - 文件图标：按类型着色（md → accent，json → text-faint，canvas → 蓝色）
-  - 文件夹图标：`--accent` 色
-  - 选中态：`background: --accent-soft`，`border: 1px solid --accent-line`
+  - 文件图标：按类型着色但整体低饱和（md / 文件夹 → `--sidebar-icon`，json/txt/yaml → `--text-faint`，canvas/css/js/ts 保留低亮度类型色）
+  - 文件夹图标：`--sidebar-icon` 色
+  - 选中态：`background: --sidebar-selected`，`border: 1px solid --sidebar-selected-line`，避免形成高对比卡片
   - 文件夹悬停时显示子项计数（`opacity: 0` → `0.8`）
   - 忽略文件：`opacity: 0.42`
 

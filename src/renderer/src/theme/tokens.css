@@ -15,6 +15,12 @@
   --accent-line: oklch(0.82 0.11 90 / 0.32);
   --sel: oklch(0.82 0.11 90 / 0.2);
   --red: oklch(0.62 0.18 25);
+  --sidebar-bg: oklch(0.185 0.005 70);
+  --sidebar-search-bg: oklch(0.215 0.006 70);
+  --sidebar-hover: oklch(0.245 0.006 70);
+  --sidebar-selected: oklch(0.82 0.09 90 / 0.1);
+  --sidebar-selected-line: oklch(0.82 0.09 90 / 0.18);
+  --sidebar-icon: oklch(0.76 0.07 86 / 0.72);
 
   --tl-red: #ff5f57;
   --tl-yellow: #febc2e;
@@ -81,6 +87,12 @@
   --accent-soft: oklch(0.72 0.12 70 / 0.16);
   --accent-line: oklch(0.58 0.13 68 / 0.36);
   --sel: oklch(0.68 0.12 70 / 0.2);
+  --sidebar-bg: oklch(0.962 0.005 82);
+  --sidebar-search-bg: oklch(0.99 0.003 86);
+  --sidebar-hover: oklch(0.935 0.008 82);
+  --sidebar-selected: oklch(0.68 0.1 70 / 0.1);
+  --sidebar-selected-line: oklch(0.58 0.12 68 / 0.18);
+  --sidebar-icon: oklch(0.55 0.1 68 / 0.72);
 
   /* Code syntax token colors (light). */
   --code-keyword: #9c27b0;

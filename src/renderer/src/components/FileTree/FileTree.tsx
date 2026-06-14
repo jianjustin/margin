@@ -28,7 +28,7 @@ export function FileTree({ onOpenFile, onContextMenu, filteredTree }: FileTreePr
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-2 pb-3">
+    <div className="flex-1 overflow-y-auto px-2 pb-3 pt-0.5">
       {rows.map(({ node, depth }) => (
         <FileTreeRow
           key={node.path}
