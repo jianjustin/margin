@@ -1,6 +1,6 @@
 {
   "name": "margin",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "A Typora-style WYSIWYG Markdown editor for Obsidian vaults",
   "type": "module",
   "author": "jianjustin",
