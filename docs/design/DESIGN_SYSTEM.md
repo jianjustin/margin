@@ -116,7 +116,7 @@ Margin 的统一 UI 样式与交互语言规范。所有组件、颜色、字体
 | `--drawer-w`    | `296px`  | 右侧抽屉宽度      |
 | 右侧标题栏高度  | `34px`   | 只属于编辑工作区，保持安静，不横切侧栏 |
 | 状态栏高度      | `28px`   |                    |
-| 编辑器最大宽度  | `680px`  | 写作正文宽度  |
+| 编辑器最大宽度  | `960px`  | 写作正文宽度，大屏幕减少两侧空白  |
 | 编辑器内边距    | `clamp(30px, 6vh, 42px) clamp(22px, 5vw, 36px) 168px` | 上 左右 下  |
 
 ### 圆角规范
@@ -175,7 +175,7 @@ Margin 的统一 UI 样式与交互语言规范。所有组件、颜色、字体
 
 ### 4.3 编辑器 (Editor)
 
-- 背景 `--bg`，内容区 `max-width: 680px`，`margin: 0 auto`
+- 背景 `--bg`，内容区 `max-width: 960px`，`margin: 0 auto`
 - **正文**：`font-size: 15.5px`，`line-height: 1.62`，`font-family: var(--editor)`
 - **标题**：
   - H1: `1.44em`，`font-weight: 650`，`padding-top: 6px`

@@ -167,7 +167,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
         EditorView.theme({
           '&': { height: '100%', fontSize: '15.5px' },
           '.cm-content': {
-            maxWidth: '680px',
+            maxWidth: '960px',
             margin: '0 auto',
             padding: 'clamp(30px, 6vh, 42px) clamp(22px, 5vw, 36px) 168px',
             fontFamily: 'var(--editor)',
