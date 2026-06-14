@@ -17,11 +17,24 @@ function currentVersionOf(status: UpdateStatus): string {
   return status.currentVersion
 }
 
+function isBusyState(status: UpdateStatus): boolean {
+  return status.state === 'checking' || status.state === 'downloading' || status.state === 'installing'
+}
+
 export function useUpdater(): UseUpdaterResult {
   const [status, setStatus] = useState<UpdateStatus>({ state: 'idle', currentVersion: '' })
   const statusRef = useRef(status)
+  const checkInFlightRef = useRef(false)
 
-  const updateStatus = useCallback((nextStatus: UpdateStatus): void => {
+  const updateStatus = useCallback((nextStatus: UpdateStatus | ((current: UpdateStatus) => UpdateStatus)): void => {
+    if (typeof nextStatus === 'function') {
+      setStatus((current) => {
+        const resolvedStatus = nextStatus(current)
+        statusRef.current = resolvedStatus
+        return resolvedStatus
+      })
+      return
+    }
     statusRef.current = nextStatus
     setStatus(nextStatus)
   }, [])
@@ -34,14 +47,27 @@ export function useUpdater(): UseUpdaterResult {
     let cancelled = false
     void api.getCurrentVersion()
       .then((version) => {
-        if (!cancelled) updateStatus({ state: 'idle', currentVersion: version })
+        if (!cancelled) {
+          updateStatus((current) => {
+            if (current.state === 'idle' && current.currentVersion === '') {
+              return { state: 'idle', currentVersion: version }
+            }
+            if (current.currentVersion === '') {
+              return { ...current, currentVersion: version }
+            }
+            return current
+          })
+        }
       })
       .catch((error) => {
         if (!cancelled) {
-          updateStatus({
-            state: 'error',
-            currentVersion: '',
-            message: errorMessage(error)
+          updateStatus((current) => {
+            if (current.state !== 'idle' || current.currentVersion !== '') return current
+            return {
+              state: 'error',
+              currentVersion: '',
+              message: errorMessage(error)
+            }
           })
         }
       })
@@ -51,19 +77,21 @@ export function useUpdater(): UseUpdaterResult {
   }, [updateStatus])
 
   const check = useCallback(async (): Promise<void> => {
-    if (statusRef.current.state === 'checking' || statusRef.current.state === 'downloading') {
+    if (checkInFlightRef.current || isBusyState(statusRef.current)) {
       return
     }
+    checkInFlightRef.current = true
     let current = currentVersionOf(statusRef.current)
-    if (!current) {
-      try {
-        current = await api.getCurrentVersion()
-      } catch {
-        current = ''
-      }
-    }
     updateStatus({ state: 'checking', currentVersion: current })
     try {
+      if (!current) {
+        try {
+          current = await api.getCurrentVersion()
+          updateStatus({ state: 'checking', currentVersion: current })
+        } catch {
+          current = ''
+        }
+      }
       const result = await api.checkUpdate()
       if (!result.available) {
         updateStatus({ state: 'not-available', currentVersion: result.currentVersion })
@@ -82,6 +110,8 @@ export function useUpdater(): UseUpdaterResult {
         currentVersion: current,
         message: errorMessage(error)
       })
+    } finally {
+      checkInFlightRef.current = false
     }
   }, [updateStatus])
 
@@ -152,7 +182,7 @@ export function useUpdater(): UseUpdaterResult {
     }
   }, [updateStatus])
 
-  const busy = status.state === 'checking' || status.state === 'downloading' || status.state === 'installing'
+  const busy = isBusyState(status)
 
   return useMemo(() => ({ status, check, install, busy }), [status, check, install, busy])
 }

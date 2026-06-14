@@ -15,6 +15,20 @@ vi.mock('@/lib/api', () => ({
 
 const mockedApi = vi.mocked(api)
 
+function deferred<T>(): {
+  promise: Promise<T>
+  resolve: (value: T) => void
+  reject: (reason?: unknown) => void
+} {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+  return { promise, resolve, reject }
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   mockedApi.getCurrentVersion.mockResolvedValue('2.0.0')
@@ -68,6 +82,67 @@ describe('useUpdater', () => {
     })
   })
 
+  it('does not let late initial version load clobber a completed check result', async () => {
+    const initialVersion = deferred<string>()
+    mockedApi.getCurrentVersion
+      .mockReturnValueOnce(initialVersion.promise)
+      .mockResolvedValue('2.0.0')
+    mockedApi.checkUpdate.mockResolvedValue({
+      available: true,
+      currentVersion: '2.0.0',
+      version: '2.1.0'
+    })
+    const { result } = renderHook(() => useUpdater())
+
+    await act(async () => {
+      await result.current.check()
+    })
+
+    expect(result.current.status).toEqual({
+      state: 'available',
+      currentVersion: '2.0.0',
+      version: '2.1.0',
+      date: undefined,
+      body: undefined
+    })
+
+    await act(async () => {
+      initialVersion.resolve('2.0.0')
+      await initialVersion.promise
+    })
+
+    expect(result.current.status).toEqual({
+      state: 'available',
+      currentVersion: '2.0.0',
+      version: '2.1.0',
+      date: undefined,
+      body: undefined
+    })
+  })
+
+  it('deduplicates concurrent checks before the current version has loaded', async () => {
+    const version = deferred<string>()
+    mockedApi.getCurrentVersion.mockReturnValue(version.promise)
+    mockedApi.checkUpdate.mockResolvedValue({
+      available: false,
+      currentVersion: '2.0.0'
+    })
+    const { result } = renderHook(() => useUpdater())
+
+    await act(async () => {
+      const firstCheck = result.current.check()
+      const secondCheck = result.current.check()
+      version.resolve('2.0.0')
+      await Promise.all([firstCheck, secondCheck])
+    })
+
+    expect(mockedApi.checkUpdate).toHaveBeenCalledOnce()
+    expect(result.current.status).toEqual({
+      state: 'not-available',
+      currentVersion: '2.0.0'
+    })
+  })
+
   it('downloads, installs, and relaunches an available update', async () => {
     mockedApi.checkUpdate.mockResolvedValue({
       available: true,
@@ -93,6 +168,48 @@ describe('useUpdater', () => {
       state: 'installing',
       currentVersion: '2.0.0',
       version: '2.1.0'
+    })
+  })
+
+  it('does not start a new check while installing', async () => {
+    const relaunch = deferred<void>()
+    mockedApi.checkUpdate.mockResolvedValue({
+      available: true,
+      currentVersion: '2.0.0',
+      version: '2.1.0'
+    })
+    mockedApi.downloadAndInstallUpdate.mockImplementation(async (onProgress) => {
+      onProgress({ event: 'Finished' })
+    })
+    mockedApi.relaunch.mockReturnValue(relaunch.promise)
+    const { result } = renderHook(() => useUpdater())
+
+    await act(async () => {
+      await result.current.check()
+    })
+
+    let installPromise!: Promise<void>
+    await act(async () => {
+      installPromise = result.current.install()
+    })
+
+    await waitFor(() => {
+      expect(result.current.status).toEqual({
+        state: 'installing',
+        currentVersion: '2.0.0',
+        version: '2.1.0'
+      })
+    })
+
+    await act(async () => {
+      await result.current.check()
+    })
+
+    expect(mockedApi.checkUpdate).toHaveBeenCalledOnce()
+
+    await act(async () => {
+      relaunch.resolve()
+      await installPromise
     })
   })
 
