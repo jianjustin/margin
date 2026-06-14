@@ -30,6 +30,7 @@
   "bundle": {
     "active": true,
     "targets": ["dmg", "app"],
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/icon.png"
     ]
@@ -37,6 +38,12 @@
   "plugins": {
     "shell": {
       "open": true
+    },
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEVCOURCNzNBN0VCNUQ4QTgKUldTbzJMVitPcmVkNjArcDdCdndUN3FCRWNBQ054TVcyb1EzeGc3QWl5TklXa09kMmluM2toNUcK",
+      "endpoints": [
+        "https://github.com/jianjustin/margin/releases/latest/download/latest.json"
+      ]
     }
   }
 }
