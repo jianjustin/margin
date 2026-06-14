@@ -21,5 +21,8 @@ npm-debug.log*
 .vscode/
 .idea/
 
+# Local implementation worktrees
+.worktrees/
+
 # Brainstorming companion (HTML mockups, server state)
 .superpowers/
