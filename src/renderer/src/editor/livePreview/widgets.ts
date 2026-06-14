@@ -3,7 +3,7 @@ import { convertFileSrc } from '@tauri-apps/api/core'
 import { findLanguage, highlightInto } from './codeHighlight'
 import { parseTable, serializeTable, deleteTableRow, type Align } from './tableModel'
 import { parseFrontmatter, serializeFrontmatter, type FmField } from './frontmatterModel'
-import { renderInlineMarkdown } from './inlineMarkdown'
+import { createWikiLinkElement, renderInlineMarkdown } from './inlineMarkdown'
 
 /** Renders a task-list checkbox replacing the raw `[ ]` / `[x]` token. */
 export class CheckboxWidget extends WidgetType {
@@ -108,6 +108,16 @@ function linkSvg(): SVGSVGElement {
   return svg
 }
 
+function trashSvg(): SVGSVGElement {
+  const svg = baseSvg()
+  svg.appendChild(path('M3 6h18'))
+  svg.appendChild(path('M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2'))
+  svg.appendChild(path('M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6'))
+  svg.appendChild(path('M10 11v6'))
+  svg.appendChild(path('M14 11v6'))
+  return svg
+}
+
 /**
  * Renders a fenced code block as a horizontally-scrollable, syntax-highlighted
  * <pre>. Read-only render view; the live-preview plugin reveals raw editable
@@ -191,6 +201,40 @@ export class TableWidget extends WidgetType {
 
     let composing = false
 
+    const openWikiLink = (target: string): void => {
+      wrap.dispatchEvent(
+        new CustomEvent('margin-open-link', {
+          detail: `wiki:${target}`,
+          bubbles: true,
+          composed: true
+        })
+      )
+    }
+
+    const renderCellDisplay = (
+      td: HTMLTableCellElement,
+      rawText: string,
+      onDelete?: () => void
+    ): void => {
+      td.innerHTML = ''
+      td.appendChild(renderInlineMarkdown(rawText, { onWikiLinkClick: openWikiLink }))
+
+      if (!onDelete) return
+      const delBtn = document.createElement('button')
+      delBtn.type = 'button'
+      delBtn.className = 'cm-table-row-del'
+      delBtn.title = '删除此行'
+      delBtn.setAttribute('aria-label', '删除此行')
+      delBtn.contentEditable = 'false'
+      delBtn.appendChild(trashSvg())
+      delBtn.addEventListener('mousedown', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        onDelete()
+      })
+      td.appendChild(delBtn)
+    }
+
     const commit = (): void => {
       const rawOf = (c: HTMLTableCellElement): string =>
         c === document.activeElement
@@ -207,15 +251,20 @@ export class TableWidget extends WidgetType {
       view.dispatch({ changes: { from: this.from, to: this.to, insert: next } })
     }
 
-    const wireCell = (td: HTMLTableCellElement, rawText: string, align: Align): void => {
+    const wireCell = (
+      td: HTMLTableCellElement,
+      rawText: string,
+      align: Align,
+      onDelete?: () => void
+    ): void => {
       td.contentEditable = 'true'
       td.spellcheck = false
       td.dataset.raw = rawText
       if (align) td.style.textAlign = ALIGN_CSS[align]
+      if (onDelete) td.classList.add('cm-table-last-cell')
 
       // Initial render: show inline Markdown HTML
-      td.innerHTML = ''
-      td.appendChild(renderInlineMarkdown(rawText))
+      renderCellDisplay(td, rawText, onDelete)
 
       td.addEventListener('focus', () => {
         // Switch to raw text for editing (Typora-style reveal)
@@ -229,8 +278,7 @@ export class TableWidget extends WidgetType {
         td.dataset.raw = td.textContent ?? ''
         commit()
         const raw = td.dataset.raw ?? ''
-        td.innerHTML = ''
-        td.appendChild(renderInlineMarkdown(raw))
+        renderCellDisplay(td, raw, onDelete)
       })
       td.addEventListener('blur', () => {
         if (justComposed) { justComposed = false; return }
@@ -239,8 +287,7 @@ export class TableWidget extends WidgetType {
           commit()
         }
         const raw = td.dataset.raw ?? ''
-        td.innerHTML = ''
-        td.appendChild(renderInlineMarkdown(raw))
+        renderCellDisplay(td, raw, onDelete)
       })
       td.addEventListener('keydown', (e) => {
         if (e.key !== 'Tab') return
@@ -265,7 +312,7 @@ export class TableWidget extends WidgetType {
             view.dispatch({ changes: { from: this.from, to: this.to, insert } })
           }
           requestAnimationFrame(() => {
-            const newCells = Array.from(table.querySelectorAll('td:not(.cm-table-row-del-cell)'))
+            const newCells = Array.from(table.querySelectorAll<HTMLElement>('td:not(.cm-table-row-del-cell)'))
             const target = newCells[newCells.length - header.length]
             if (target) target.focus()
           })
@@ -288,26 +335,17 @@ export class TableWidget extends WidgetType {
       const tr = document.createElement('tr')
       model.header.forEach((_, i) => {
         const td = document.createElement('td')
-        wireCell(td, row[i] ?? '', model.align[i] ?? null)
+        const onDelete = i === model.header.length - 1
+          ? (): void => {
+              const insert = deleteTableRow(this.source, rowIdx)
+              if (insert !== this.source) {
+                view.dispatch({ changes: { from: this.from, to: this.to, insert } })
+              }
+            }
+          : undefined
+        wireCell(td, row[i] ?? '', model.align[i] ?? null, onDelete)
         tr.appendChild(td)
       })
-
-      // Per-row delete button — hidden by default, visible on tr:hover via CSS
-      const delTd = document.createElement('td')
-      delTd.className = 'cm-table-row-del-cell'
-      const delBtn = document.createElement('button')
-      delBtn.className = 'cm-table-row-del'
-      delBtn.textContent = '×'
-      delBtn.title = '删除此行'
-      delBtn.addEventListener('mousedown', (e) => {
-        e.preventDefault()
-        const insert = deleteTableRow(this.source, rowIdx)
-        if (insert !== this.source) {
-          view.dispatch({ changes: { from: this.from, to: this.to, insert } })
-        }
-      })
-      delTd.appendChild(delBtn)
-      tr.appendChild(delTd)
 
       tbody.appendChild(tr)
     })
@@ -604,13 +642,7 @@ export class ImageWidget extends WidgetType {
   }
 }
 
-/**
- * Renders [[target]] or [[target|display]] as an inline `📝 display` badge.
- * Cmd+click navigation reuses the existing mousedown handler in Editor.tsx —
- * it calls linkUrlAt() on the raw document text, which still sees [[...]] even
- * though the widget replaces the visual. ignoreEvent() returns false so the
- * editor's mousedown fires when the user clicks the badge.
- */
+/** Renders [[target]] or [[target|display]] as the shared internal-link widget. */
 export class WikiLinkWidget extends WidgetType {
   constructor(
     readonly target: string,
@@ -624,11 +656,17 @@ export class WikiLinkWidget extends WidgetType {
   }
 
   toDOM(): HTMLElement {
-    const span = document.createElement('span')
-    span.className = 'cm-wiki-link'
-    span.dataset.wikiTarget = this.target
-    span.textContent = `📝 ${this.display}`
-    return span
+    return createWikiLinkElement(this.target, this.display, (target, event) => {
+      const source = event.currentTarget
+      if (!(source instanceof HTMLElement)) return
+      source.dispatchEvent(
+        new CustomEvent('margin-open-link', {
+          detail: `wiki:${target}`,
+          bubbles: true,
+          composed: true
+        })
+      )
+    })
   }
 
   ignoreEvent(): boolean {

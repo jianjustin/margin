@@ -70,6 +70,7 @@ export function MoveDialog({ node, root, rootName, tree, onMove, onClose }: Move
 
   const rowBase =
     'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] transition-colors'
+  const folderIconClass = 'move-folder-icon flex-none'
 
   const renderFolder = (folderNode: TreeNode, depth: number, parentPath: string): JSX.Element[] => {
     if (folderNode.path === node.path) return []
@@ -83,35 +84,35 @@ export function MoveDialog({ node, root, rootName, tree, onMove, onClose }: Move
     const hasChildren = childFolders.length > 0
     const open = isExpanded(folderNode.path)
 
+    const indent = 14 + depth * 14
     const rows: JSX.Element[] = [
-      <div key={folderNode.path} className="flex items-center">
+      <div key={folderNode.path} className="relative flex items-center">
         {hasChildren ? (
           <button
             title={open ? `折叠 ${folderNode.name}` : `展开 ${folderNode.name}`}
             onClick={() => toggleExpand(folderNode.path)}
-            style={{ paddingLeft: 4 + depth * 14 }}
-            className="grid h-6 w-6 flex-none place-items-center text-[color:var(--text-faint)] hover:text-foreground"
+            style={{ left: 4 + (depth - 1) * 14 }}
+            className="absolute z-10 grid h-6 w-6 place-items-center text-[color:var(--text-faint)] hover:text-foreground"
           >
             {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
           </button>
-        ) : (
-          <span style={{ display: 'inline-block', width: 4 + depth * 14 + 24 }} />
-        )}
+        ) : null}
         <button
+          data-testid={`move-folder-row-${folderNode.path}`}
           onClick={() => setSelected(folderNode.path)}
           onDoubleClick={() => onMove(folderNode.path)}
+          style={{ paddingLeft: indent }}
           className={[
             rowBase,
-            'flex-1',
             isSel
               ? 'bg-[color:var(--accent-soft)] text-[color:var(--accent)]'
               : 'text-foreground hover:bg-[color:var(--bg-hover)]'
           ].join(' ')}
         >
           {isSel ? (
-            <FolderOpen size={14} className="flex-none" />
+            <FolderOpen size={14} className={folderIconClass} />
           ) : (
-            <Folder size={14} className="flex-none" />
+            <Folder size={14} className={folderIconClass} />
           )}
           <span className="truncate">{folderNode.name}</span>
           {isCurrent && (

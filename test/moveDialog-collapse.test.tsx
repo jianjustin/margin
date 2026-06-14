@@ -68,4 +68,17 @@ describe('MoveDialog collapsible tree', () => {
     expect(screen.queryByText('Projects')).toBeNull()
     expect(screen.getByText('Archive')).toBeDefined()
   })
+
+  it('uses a single padded folder row so the folder icon is not clipped by indentation chrome', () => {
+    render(
+      <MoveDialog
+        node={NODE} root={ROOT} rootName="Vault" tree={TREE}
+        onMove={() => {}} onClose={() => {}}
+      />
+    )
+    const row = screen.getByTestId('move-folder-row-/vault/Projects')
+    expect(row.tagName).toBe('BUTTON')
+    expect(row.getAttribute('style')).toContain('padding-left: 28px')
+    expect(row.querySelector('.move-folder-icon')).not.toBeNull()
+  })
 })

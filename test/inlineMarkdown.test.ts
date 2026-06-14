@@ -55,4 +55,28 @@ describe('renderInlineMarkdown', () => {
   it('preserves surrounding text', () => {
     expect(toText('a *b* c')).toBe('a b c')
   })
+
+  it('renders wiki links with the shared internal-link treatment', () => {
+    const div = document.createElement('div')
+    div.appendChild(renderInlineMarkdown('See [[Target Note|display name]] now'))
+    const link = div.querySelector('.cm-wiki-link') as HTMLElement
+    expect(link).not.toBeNull()
+    expect(link.dataset.wikiTarget).toBe('Target Note')
+    expect(link.textContent).toContain('display name')
+    expect(link.textContent).not.toContain('📝')
+    expect(link.querySelector('.cm-wiki-link-glyph')).not.toBeNull()
+  })
+
+  it('notifies when a rendered wiki link is clicked', () => {
+    const opened: string[] = []
+    const div = document.createElement('div')
+    div.appendChild(
+      renderInlineMarkdown('See [[Target Note]]', {
+        onWikiLinkClick: (target) => opened.push(target)
+      })
+    )
+    const link = div.querySelector('.cm-wiki-link') as HTMLElement
+    link.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
+    expect(opened).toEqual(['Target Note'])
+  })
 })

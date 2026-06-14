@@ -77,4 +77,47 @@ describe('TableWidget interaction', () => {
     expect(change.insert).toContain('|  |  |') // new empty row appended
     document.body.removeChild(el)
   })
+
+  it('renders row delete as an overlaid trash button in the last data cell', () => {
+    const view = mockView()
+    const w = new TableWidget(TABLE_SRC, 0, TABLE_SRC.length)
+    const el = w.toDOM(view)
+    document.body.appendChild(el)
+
+    expect(el.querySelector('.cm-table-row-del-cell')).toBeNull()
+    const dataRow = el.querySelector('tbody tr') as HTMLTableRowElement
+    const cells = Array.from(dataRow.cells)
+    expect(cells).toHaveLength(2)
+    const lastCell = cells[1]
+    expect(lastCell.classList.contains('cm-table-last-cell')).toBe(true)
+    const del = lastCell.querySelector('.cm-table-row-del') as HTMLButtonElement
+    expect(del).not.toBeNull()
+    expect(del.textContent).not.toBe('×')
+    expect(del.querySelector('svg')).not.toBeNull()
+
+    del.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
+    expect(view.dispatch).toHaveBeenCalled()
+    expect(view.dispatch.mock.calls[0][0].changes.insert).not.toContain('| c | d |')
+
+    document.body.removeChild(el)
+  })
+
+  it('dispatches a wiki-link event from table cell rendered markdown', () => {
+    const view = mockView()
+    const src = '| A | B |\n| --- | --- |\n| [[Target Note]] | d |'
+    const w = new TableWidget(src, 0, src.length)
+    const el = w.toDOM(view)
+    document.body.appendChild(el)
+
+    const opened: string[] = []
+    el.addEventListener('margin-open-link', (event) => {
+      opened.push((event as CustomEvent<string>).detail)
+    })
+    const link = el.querySelector('.cm-wiki-link') as HTMLElement
+    expect(link).not.toBeNull()
+    link.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
+    expect(opened).toEqual(['wiki:Target Note'])
+
+    document.body.removeChild(el)
+  })
 })

@@ -23,6 +23,8 @@ const ALL_FEATURES = [
   '',
   'A [link](https://example.com) in a sentence.',
   '',
+  'A [[Target Note]] wiki link in a sentence.',
+  '',
   '---',
   '',
   '```js',
@@ -79,6 +81,18 @@ describe('livePreview StateField — DOM smoke', () => {
     view = mount(ALL_FEATURES, bodyPos) // cursor away from hr/tasks
     expect(view.dom.querySelector('hr.cm-hr')).not.toBeNull()
     expect(view.dom.querySelector('input.cm-task-checkbox')).not.toBeNull()
+  })
+
+  it('dispatches a wiki-link event from a paragraph wiki widget', () => {
+    view = mount(ALL_FEATURES, bodyPos)
+    const opened: string[] = []
+    view.dom.addEventListener('margin-open-link', (event) => {
+      opened.push((event as CustomEvent<string>).detail)
+    })
+    const link = view.dom.querySelector('.cm-wiki-link') as HTMLElement
+    expect(link).not.toBeNull()
+    link.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
+    expect(opened).toEqual(['wiki:Target Note'])
   })
 
   it('renders frontmatter as an editable properties panel when cursor is away', () => {

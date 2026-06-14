@@ -179,9 +179,16 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
 
     const view = new EditorView({ state, parent: hostRef.current })
     viewRef.current = view
+    const host = hostRef.current
+    const handleWidgetOpenLink = (event: Event): void => {
+      const url = (event as CustomEvent<string>).detail
+      if (url) onOpenLinkRef.current?.(url)
+    }
+    host.addEventListener('margin-open-link', handleWidgetOpenLink as EventListener)
 
     return () => {
       if (retryRafRef.current != null) cancelAnimationFrame(retryRafRef.current)
+      host.removeEventListener('margin-open-link', handleWidgetOpenLink as EventListener)
       view.destroy()
       viewRef.current = null
     }

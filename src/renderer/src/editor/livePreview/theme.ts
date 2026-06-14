@@ -186,36 +186,41 @@ export const marginEditorTheme = EditorView.theme({
     color: 'var(--text)'
   },
 
-  '.cm-table-row-del-cell': {
-    padding: '0 2px',
-    width: '24px',
-    textAlign: 'center',
-    verticalAlign: 'middle',
-    border: 'none'
+  '.cm-table-render td.cm-table-last-cell': {
+    position: 'relative',
+    paddingRight: '34px'
   },
   '.cm-table-row-del': {
+    position: 'absolute',
+    top: '50%',
+    right: '6px',
+    transform: 'translateY(-50%)',
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    width: '18px',
-    height: '18px',
-    fontSize: '14px',
+    width: '22px',
+    height: '22px',
     lineHeight: '1',
     color: 'var(--text-faint)',
-    background: 'transparent',
-    border: 'none',
-    borderRadius: '3px',
+    background: 'var(--bg-elev)',
+    border: '1px solid var(--border-soft)',
+    borderRadius: '5px',
     cursor: 'pointer',
     opacity: '0',
-    transition: 'opacity 0.12s, background 0.1s',
+    transition: 'opacity 0.12s, background 0.1s, color 0.1s, border-color 0.1s',
     padding: '0'
   },
-  'tr:hover .cm-table-row-del': {
+  '.cm-table-row-del svg': {
+    width: '13px',
+    height: '13px'
+  },
+  '.cm-table-render tbody tr:hover .cm-table-row-del': {
     opacity: '1'
   },
   '.cm-table-row-del:hover': {
     background: 'var(--bg-hover)',
-    color: 'var(--text)'
+    borderColor: 'var(--accent-line)',
+    color: 'var(--accent)'
   },
 
   '.cm-properties': {
@@ -295,16 +300,31 @@ export const marginEditorTheme = EditorView.theme({
   },
 
   '.cm-wiki-link': {
-    display: 'inline',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.22em',
     color: 'var(--accent)',
     cursor: 'pointer',
+    textDecoration: 'none',
     borderBottom: '1px solid var(--accent-line)',
-    paddingBottom: '1px',
     fontSize: '0.96em',
-    transition: 'opacity 0.1s'
+    lineHeight: '1.1',
+    verticalAlign: '-0.08em',
+    transition: 'opacity 0.1s, border-color 0.1s'
+  },
+  '.cm-wiki-link-glyph': {
+    display: 'inline-flex',
+    width: '0.92em',
+    height: '0.92em',
+    color: 'var(--text-faint)'
+  },
+  '.cm-wiki-link-glyph svg': {
+    width: '100%',
+    height: '100%'
   },
   '.cm-wiki-link:hover': {
-    opacity: '0.75'
+    opacity: '0.82',
+    borderColor: 'var(--accent)'
   },
 
   '.cm-activeLine': {
