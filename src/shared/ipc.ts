@@ -10,7 +10,7 @@ export interface MarginApi {
   openFolder(): Promise<string | null>
   readFile(path: string): Promise<string>
   writeFile(path: string, content: string): Promise<void>
-  scanVault(root: string): Promise<TreeNode[]>
+  scanVault(root: string, hiddenFolders: string[]): Promise<TreeNode[]>
   createNote(dir: string, name: string): Promise<string>
   createFolder(dir: string, name: string): Promise<string>
   renamePath(oldPath: string, newName: string): Promise<string>

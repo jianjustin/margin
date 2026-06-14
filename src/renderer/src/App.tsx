@@ -5,7 +5,8 @@ import { saveDocument } from '@/lib/saveDocument'
 import { useDocumentStore } from '@/stores/documentStore'
 import { useVaultStore, loadPersistedRoot } from '@/stores/vaultStore'
 import { useSettingsStore } from '@/stores/settingsStore'
-import { collectScheduleDates, scheduleFileName, scheduleTemplate } from '@/lib/schedule'
+import { collectScheduleDates, normalizeScheduleDir, scheduleFileName, scheduleTemplate } from '@/lib/schedule'
+import { scanVaultWithSettings } from '@/lib/scanVault'
 import { Sidebar } from '@/components/FileTree/Sidebar'
 import { RowContextMenu, type ContextMenuState } from '@/components/FileTree/RowContextMenu'
 import { MoveDialog } from '@/components/FileTree/MoveDialog'
@@ -80,6 +81,7 @@ export default function App(): JSX.Element {
   const vaultTree = useVaultStore((s) => s.tree)
   const scheduleEnabled = useSettingsStore((s) => s.scheduleEnabled)
   const scheduleDir = useSettingsStore((s) => s.scheduleDir)
+  const hiddenFolders = useSettingsStore((s) => s.hiddenFolders)
   const scheduleDates = useMemo(
     () => (scheduleEnabled ? collectScheduleDates(vaultTree, scheduleDir) : new Set<string>()),
     [vaultTree, scheduleDir, scheduleEnabled]
@@ -88,6 +90,13 @@ export default function App(): JSX.Element {
   useVaultWatch()
   useProjectConfig()
   useDraft()
+
+  useEffect(() => {
+    if (!vaultRoot) return
+    void scanVaultWithSettings(vaultRoot)
+      .then((tree) => useVaultStore.getState().setTree(tree))
+      .catch(() => {})
+  }, [vaultRoot, hiddenFolders])
 
   /* ── Theme ─────────────────────────────────────────────────── */
 
@@ -103,8 +112,7 @@ export default function App(): JSX.Element {
   useEffect(() => {
     const saved = loadPersistedRoot()
     if (!saved) return
-    void api
-      .scanVault(saved)
+    void scanVaultWithSettings(saved)
       .then((tree) => useVaultStore.getState().openRoot(saved, tree))
       .catch(() => useVaultStore.getState().closeVault())
   }, [])
@@ -137,7 +145,7 @@ export default function App(): JSX.Element {
   const openFolder = useCallback(async (): Promise<void> => {
     const chosen = await api.openFolder()
     if (!chosen) return
-    const tree = await api.scanVault(chosen)
+    const tree = await scanVaultWithSettings(chosen)
     useVaultStore.getState().openRoot(chosen, tree)
   }, [])
 
@@ -200,7 +208,7 @@ export default function App(): JSX.Element {
   async function refreshTree(): Promise<void> {
     const root = useVaultStore.getState().root
     if (!root) return
-    const tree = await api.scanVault(root)
+    const tree = await scanVaultWithSettings(root)
     useVaultStore.getState().setTree(tree)
   }
 
@@ -259,7 +267,7 @@ export default function App(): JSX.Element {
     if (existing) return existing
     const chosen = await api.openFolder()
     if (!chosen) return null
-    const tree = await api.scanVault(chosen)
+    const tree = await scanVaultWithSettings(chosen)
     useVaultStore.getState().openRoot(chosen, tree)
     return chosen
   }
@@ -267,7 +275,8 @@ export default function App(): JSX.Element {
   async function openSchedule(date: Date): Promise<void> {
     const root = await ensureRoot()
     if (!root) return
-    const dirPath = `${root}/${scheduleDir}`
+    const cleanScheduleDir = normalizeScheduleDir(scheduleDir) || '日程'
+    const dirPath = `${root}/${cleanScheduleDir}`
     const created = await api.ensureNote(
       dirPath,
       scheduleFileName(date),
