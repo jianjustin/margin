@@ -24,6 +24,7 @@ export type DecoKind =
   | 'properties'
   | 'image'
   | 'footnoteRef'
+  | 'wikiLink'
 
 export interface DecoSpec {
   kind: DecoKind
@@ -386,6 +387,29 @@ export function collectDecorations(state: EditorState): DecoSpec[] {
         info: findFootnoteDef(fullText, ref.label) ?? ''
       })
     }
+  }
+
+  // Wiki links: [[target]] or [[target|display]].
+  // Re-uses skipAt() to exclude code blocks, inline code, and tables.
+  // Reveal is line-based (consistent with all other live-preview nodes).
+  const wikiRe = /\[\[([^\]\n]+)\]\]/g
+  for (const m of fullText.matchAll(wikiRe)) {
+    const from = m.index ?? 0
+    const to = from + m[0].length
+    if (skipAt(from)) continue
+    const inner = m[1]
+    const pipeIdx = inner.indexOf('|')
+    const target = (pipeIdx >= 0 ? inner.slice(0, pipeIdx) : inner).split('#')[0].trim()
+    const display = pipeIdx >= 0 ? inner.slice(pipeIdx + 1).trim() : target
+    const revealed = rangeRevealed(state, from, to)
+    specs.push({
+      kind: 'wikiLink',
+      from,
+      to,
+      revealed,
+      info: target,    // navigation target
+      source: display  // display label shown in the widget
+    })
   }
 
   return specs

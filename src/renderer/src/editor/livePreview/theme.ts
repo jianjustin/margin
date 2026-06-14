@@ -262,6 +262,19 @@ export const marginEditorTheme = EditorView.theme({
     padding: '0 1px'
   },
 
+  '.cm-wiki-link': {
+    display: 'inline',
+    color: 'var(--accent)',
+    cursor: 'pointer',
+    borderBottom: '1px solid var(--accent-line)',
+    paddingBottom: '1px',
+    fontSize: '0.96em',
+    transition: 'opacity 0.1s'
+  },
+  '.cm-wiki-link:hover': {
+    opacity: '0.75'
+  },
+
   '.cm-activeLine': {
     backgroundColor: 'transparent'
   },

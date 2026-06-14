@@ -556,6 +556,38 @@ export class ImageWidget extends WidgetType {
   }
 }
 
+/**
+ * Renders [[target]] or [[target|display]] as an inline `📝 display` badge.
+ * Cmd+click navigation reuses the existing mousedown handler in Editor.tsx —
+ * it calls linkUrlAt() on the raw document text, which still sees [[...]] even
+ * though the widget replaces the visual. ignoreEvent() returns false so the
+ * editor's mousedown fires when the user clicks the badge.
+ */
+export class WikiLinkWidget extends WidgetType {
+  constructor(
+    readonly target: string,
+    readonly display: string
+  ) {
+    super()
+  }
+
+  eq(other: WikiLinkWidget): boolean {
+    return other.target === this.target && other.display === this.display
+  }
+
+  toDOM(): HTMLElement {
+    const span = document.createElement('span')
+    span.className = 'cm-wiki-link'
+    span.dataset.wikiTarget = this.target
+    span.textContent = `📝 ${this.display}`
+    return span
+  }
+
+  ignoreEvent(): boolean {
+    return false
+  }
+}
+
 /** Superscript badge for a `[^label]` footnote reference with hover preview. */
 export class FootnoteWidget extends WidgetType {
   constructor(

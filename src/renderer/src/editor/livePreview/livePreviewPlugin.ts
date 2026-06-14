@@ -9,7 +9,8 @@ import {
   PropertiesWidget,
   ImageWidget,
   FootnoteWidget,
-  LinkIconWidget
+  LinkIconWidget,
+  WikiLinkWidget
 } from './widgets'
 import { docPathFacet } from '../docPathFacet'
 import { isExternal, resolveRelative } from '@/lib/resolvePath'
@@ -119,6 +120,15 @@ function buildDecorations(state: EditorState): DecorationSet {
             widget: new FootnoteWidget(s.source ?? '', s.info ?? '')
           }).range(s.from, s.to)
         )
+        break
+      case 'wikiLink':
+        if (!s.revealed) {
+          ranges.push(
+            Decoration.replace({
+              widget: new WikiLinkWidget(s.info ?? '', s.source ?? s.info ?? '')
+            }).range(s.from, s.to)
+          )
+        }
         break
     }
   }
