@@ -195,7 +195,7 @@ export class TableWidget extends WidgetType {
       const rawOf = (c: HTMLTableCellElement): string =>
         c === document.activeElement
           ? (c.textContent ?? '')
-          : (c.dataset.raw ?? c.textContent ?? '')
+          : (c.dataset.raw ?? '')
       const headCells = Array.from(table.tHead?.rows[0]?.cells ?? [])
       const header = headCells.map((c) => rawOf(c))
       const colCount = header.length
@@ -221,18 +221,23 @@ export class TableWidget extends WidgetType {
         // Switch to raw text for editing (Typora-style reveal)
         td.textContent = td.dataset.raw ?? ''
       })
+      let justComposed = false
       td.addEventListener('compositionstart', () => { composing = true })
       td.addEventListener('compositionend', () => {
         composing = false
+        justComposed = true
         td.dataset.raw = td.textContent ?? ''
         commit()
+        const raw = td.dataset.raw ?? ''
+        td.innerHTML = ''
+        td.appendChild(renderInlineMarkdown(raw))
       })
       td.addEventListener('blur', () => {
+        if (justComposed) { justComposed = false; return }
         if (!composing) {
           td.dataset.raw = td.textContent ?? ''
           commit()
         }
-        // Re-render markdown after committing
         const raw = td.dataset.raw ?? ''
         td.innerHTML = ''
         td.appendChild(renderInlineMarkdown(raw))
@@ -247,10 +252,12 @@ export class TableWidget extends WidgetType {
           cells[next].focus()
         } else if (!e.shiftKey && next >= cells.length) {
           const headCells = Array.from(table.tHead?.rows[0]?.cells ?? [])
-          const header = headCells.map((c) => c.dataset.raw ?? c.textContent ?? '')
+          const rawOrLive = (c: HTMLTableCellElement): string =>
+            c === td ? (c.textContent ?? '') : (c.dataset.raw ?? '')
+          const header = headCells.map((c) => rawOrLive(c))
           const colCount = header.length
           const rows = Array.from(table.tBodies[0]?.rows ?? []).map((r) =>
-            Array.from(r.cells).slice(0, colCount).map((c) => c.dataset.raw ?? c.textContent ?? '')
+            Array.from(r.cells).slice(0, colCount).map((c) => rawOrLive(c))
           )
           rows.push(header.map(() => ''))
           const insert = serializeTable({ header, align: model.align, rows })
