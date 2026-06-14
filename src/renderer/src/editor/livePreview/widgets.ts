@@ -54,6 +54,59 @@ export class HrWidget extends WidgetType {
   }
 }
 
+export class LinkIconWidget extends WidgetType {
+  constructor(readonly kind: 'file' | 'external') {
+    super()
+  }
+
+  eq(other: LinkIconWidget): boolean {
+    return other.kind === this.kind
+  }
+
+  toDOM(): HTMLElement {
+    const wrap = document.createElement('span')
+    wrap.className = `cm-link-icon cm-link-icon-${this.kind}`
+    wrap.setAttribute('aria-hidden', 'true')
+    wrap.appendChild(this.kind === 'external' ? linkSvg() : fileSvg())
+    return wrap
+  }
+
+  ignoreEvent(): boolean {
+    return true
+  }
+}
+
+function baseSvg(): SVGSVGElement {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+  svg.setAttribute('viewBox', '0 0 24 24')
+  svg.setAttribute('fill', 'none')
+  svg.setAttribute('stroke', 'currentColor')
+  svg.setAttribute('stroke-width', '2')
+  svg.setAttribute('stroke-linecap', 'round')
+  svg.setAttribute('stroke-linejoin', 'round')
+  return svg
+}
+
+function path(d: string): SVGPathElement {
+  const p = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+  p.setAttribute('d', d)
+  return p
+}
+
+function fileSvg(): SVGSVGElement {
+  const svg = baseSvg()
+  svg.appendChild(path('M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z'))
+  svg.appendChild(path('M14 2v4a2 2 0 0 0 2 2h4'))
+  return svg
+}
+
+function linkSvg(): SVGSVGElement {
+  const svg = baseSvg()
+  svg.appendChild(path('M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71'))
+  svg.appendChild(path('M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71'))
+  return svg
+}
+
 /**
  * Renders a fenced code block as a horizontally-scrollable, syntax-highlighted
  * <pre>. Read-only render view; the live-preview plugin reveals raw editable

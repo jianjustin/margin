@@ -19,6 +19,10 @@ describe('linkUrlAt', () => {
     const s = state('see [note](../notes/other.md)')
     expect(linkUrlAt(s, 6)).toBe('../notes/other.md')
   })
+  it('returns a wiki target when pos is inside a wiki link', () => {
+    const s = state('see [[target]] here')
+    expect(linkUrlAt(s, 7)).toBe('wiki:target')
+  })
   it('returns null outside links', () => {
     const s = state('plain text')
     expect(linkUrlAt(s, 2)).toBeNull()

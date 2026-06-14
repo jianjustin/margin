@@ -86,6 +86,16 @@ export const marginEditorTheme = EditorView.theme({
   },
 
   '.cm-link': { color: 'var(--accent)', textDecoration: 'none', borderBottom: '1px solid var(--accent-line)', cursor: 'pointer' },
+  '.cm-link-icon': {
+    display: 'inline-flex',
+    width: '0.92em',
+    height: '0.92em',
+    marginRight: '0.22em',
+    verticalAlign: '-0.1em',
+    color: 'var(--text-faint)'
+  },
+  '.cm-link-icon-external': { color: 'var(--accent)' },
+  '.cm-link-icon svg': { width: '100%', height: '100%' },
 
   '.cm-hr': {
     border: 'none',

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback, type PointerEvent as ReactPointerEvent } from 'react'
-import { PanelLeft, AlignLeft, CalendarDays, CalendarPlus, FolderOpen, Settings } from 'lucide-react'
+import { PanelLeft, AlignLeft, CalendarDays, CalendarPlus, FolderOpen, Link2, Settings } from 'lucide-react'
 import { Editor, type EditorHandle } from '@/components/Editor'
 import { saveDocument } from '@/lib/saveDocument'
 import { useDocumentStore } from '@/stores/documentStore'
@@ -16,6 +16,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { SettingsPanel } from '@/components/SettingsPanel'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { OutlineDrawer } from '@/components/OutlineDrawer'
+import { BacklinksPanel } from '@/components/BacklinksPanel'
 import { useThemeStore, resolveTheme } from '@/stores/themeStore'
 import { useSystemTheme } from '@/hooks/useSystemTheme'
 import { useVaultWatch } from '@/hooks/useVaultWatch'
@@ -26,6 +27,7 @@ import { ConflictBar } from '@/components/ConflictBar'
 import { StatusBar } from '@/components/StatusBar'
 import { open as shellOpen } from '@tauri-apps/plugin-shell'
 import { isExternal, resolveRelative } from '@/lib/resolvePath'
+import { resolveWikiLinkTarget } from '@/lib/wikiLinks'
 import {
   LEFT_PANE,
   RIGHT_PANE,
@@ -76,6 +78,7 @@ export default function App(): JSX.Element {
   const editorRef = useRef<EditorHandle>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [backlinksOpen, setBacklinksOpen] = useState(false)
   const [menu, setMenu] = useState<ContextMenuState | null>(null)
   const [moveTarget, setMoveTarget] = useState<TreeNode | null>(null)
   const [calendarOpen, setCalendarOpen] = useState(false)
@@ -174,6 +177,15 @@ export default function App(): JSX.Element {
 
   const handleOpenLink = useCallback(
     (url: string): void => {
+      if (url.startsWith('wiki:')) {
+        const target = resolveWikiLinkTarget(url.slice(5), useVaultStore.getState().tree)
+        if (target) {
+          void openFileByPath(target).catch(() => {
+            window.alert(`无法打开链接目标: ${url.slice(5)}`)
+          })
+        }
+        return
+      }
       if (isExternal(url)) {
         void shellOpen(url).catch(() => {})
         return
@@ -440,6 +452,19 @@ export default function App(): JSX.Element {
               <AlignLeft size={16} />
             </button>
             <button
+              onClick={() => setBacklinksOpen((v) => !v)}
+              title="双链面板"
+              aria-label="双链面板"
+              className={[
+                'grid h-[24px] w-[28px] place-items-center rounded-md transition-colors',
+                backlinksOpen
+                  ? 'bg-[color:var(--accent-soft)] text-[color:var(--accent)] opacity-90'
+                  : 'text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)] hover:text-foreground'
+              ].join(' ')}
+            >
+              <Link2 size={16} />
+            </button>
+            <button
               onClick={() => setSettingsOpen(true)}
               title="设置 (⌘,)"
               aria-label="设置"
@@ -498,6 +523,9 @@ export default function App(): JSX.Element {
               />
               <OutlineDrawer width={rightPaneWidth} onJumpToLine={handleJumpToLine} />
             </>
+          )}
+          {backlinksOpen && path && (
+            <BacklinksPanel width={rightPaneWidth} onOpenFile={handleOpenFile} />
           )}
         </div>
 

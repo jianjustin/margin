@@ -8,7 +8,8 @@ import {
   TableWidget,
   PropertiesWidget,
   ImageWidget,
-  FootnoteWidget
+  FootnoteWidget,
+  LinkIconWidget
 } from './widgets'
 import { docPathFacet } from '../docPathFacet'
 import { isExternal, resolveRelative } from '@/lib/resolvePath'
@@ -49,6 +50,14 @@ function buildDecorations(state: EditorState): DecorationSet {
         break
       case 'link':
         ranges.push(linkMark.range(s.from, s.to))
+        break
+      case 'linkIcon':
+        ranges.push(
+          Decoration.widget({
+            widget: new LinkIconWidget(s.info === 'external' ? 'external' : 'file'),
+            side: -1
+          }).range(s.from)
+        )
         break
       case 'quoteLine':
         ranges.push(quoteLine.range(s.from))

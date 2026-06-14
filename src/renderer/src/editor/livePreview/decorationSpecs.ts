@@ -3,6 +3,7 @@ import { ensureSyntaxTree, syntaxTree } from '@codemirror/language'
 import type { SyntaxNode } from '@lezer/common'
 import { rangeRevealed } from './reveal'
 import { collectFootnoteRefs, findFootnoteDef } from './footnotes'
+import { isExternal } from '@/lib/resolvePath'
 
 export type DecoKind =
   | 'hide'
@@ -14,6 +15,7 @@ export type DecoKind =
   | 'quoteLine'
   | 'codeLine'
   | 'link'
+  | 'linkIcon'
   | 'hr'
   | 'task'
   | 'frontmatter'
@@ -329,6 +331,17 @@ export function collectDecorations(state: EditorState): DecoSpec[] {
       if (name === 'Link') {
         specs.push({ kind: 'link', from: node.from, to: node.to, revealed: false })
         const linkRevealed = rangeRevealed(state, node.from, node.to)
+        const url = node.node.getChild('URL')
+        if (!linkRevealed && url) {
+          const href = doc.sliceString(url.from, url.to)
+          specs.push({
+            kind: 'linkIcon',
+            from: node.from,
+            to: node.from,
+            revealed: false,
+            info: isExternal(href) ? 'external' : 'file'
+          })
+        }
         let child = node.node.firstChild
         while (child) {
           if (child.name === 'LinkMark' || child.name === 'URL') {

@@ -57,4 +57,11 @@ describe('collectDecorations — inline', () => {
     expect(specs.some((s) => s.kind === 'inlineCode')).toBe(true)
     expect(specs.filter((s) => s.kind === 'hide' && text(doc, s) === '`').length).toBe(2)
   })
+
+  it('emits distinct icons for external and file links when rendered', () => {
+    const doc = 'visit [site](https://example.com) and [note](./note.md)\n\nbody'
+    const specs = collectDecorations(stateWith(doc, doc.length))
+    expect(specs.some((s) => s.kind === 'linkIcon' && s.info === 'external')).toBe(true)
+    expect(specs.some((s) => s.kind === 'linkIcon' && s.info === 'file')).toBe(true)
+  })
 })
