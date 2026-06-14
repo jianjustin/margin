@@ -32,19 +32,19 @@ Margin 的统一 UI 样式与交互语言规范。所有组件、颜色、字体
 
 | Token          | 值                              |
 | -------------- | ------------------------------- |
-| `--bg`         | `oklch(0.975 0.005 85)`        |
-| `--bg-panel`   | `oklch(0.945 0.007 85)`        |
-| `--bg-elev`    | `oklch(0.995 0.003 85)`        |
-| `--bg-hover`   | `oklch(0.915 0.009 85)`        |
-| `--border`     | `oklch(0.875 0.008 85)`        |
-| `--border-soft`| `oklch(0.915 0.007 85)`        |
-| `--text`       | `oklch(0.265 0.012 75)`        |
-| `--text-dim`   | `oklch(0.46 0.012 75)`         |
-| `--text-faint` | `oklch(0.64 0.012 75)`         |
-| `--accent`     | `oklch(0.60 0.12 70)`          |
+| `--bg`         | `oklch(0.987 0.004 86)`        |
+| `--bg-panel`   | `oklch(0.956 0.006 82)`        |
+| `--bg-elev`    | `oklch(0.998 0.002 86)`        |
+| `--bg-hover`   | `oklch(0.925 0.009 82)`        |
+| `--border`     | `oklch(0.845 0.010 82)`        |
+| `--border-soft`| `oklch(0.895 0.008 82)`        |
+| `--text`       | `oklch(0.310 0.012 72)`        |
+| `--text-dim`   | `oklch(0.480 0.012 72)`        |
+| `--text-faint` | `oklch(0.640 0.010 72)`        |
+| `--accent`     | `oklch(0.550 0.13 68)`         |
 | `--accent-ink` | `oklch(0.99 0.02 90)`          |
-| `--accent-soft`| `oklch(0.60 0.12 70 / 0.12)`   |
-| `--accent-line`| `oklch(0.60 0.12 70 / 0.30)`   |
+| `--accent-soft`| `oklch(0.72 0.12 70 / 0.16)`   |
+| `--accent-line`| `oklch(0.58 0.13 68 / 0.36)`   |
 | `--sel`        | `oklch(0.60 0.12 70 / 0.18)`   |
 
 ### 语法高亮色 (代码块)
@@ -67,6 +67,7 @@ Margin 的统一 UI 样式与交互语言规范。所有组件、颜色、字体
 | Token     | 字体栈                                                      | 用途        |
 | --------- | ----------------------------------------------------------- | ----------- |
 | `--ui`    | `"IBM Plex Sans", "PingFang SC", system-ui, sans-serif`     | UI 界面     |
+| `--editor`| `-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "IBM Plex Sans", system-ui, sans-serif` | 编辑器正文 |
 | `--mono`  | `"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace` | 等宽/代码   |
 | `--serif` | `"IBM Plex Serif", Georgia, serif`                          | 品牌标记    |
 
@@ -74,10 +75,10 @@ Margin 的统一 UI 样式与交互语言规范。所有组件、颜色、字体
 
 | 场景            | 字号       | 字重  | 备注                    |
 | --------------- | ---------- | ----- | ----------------------- |
-| 编辑器正文      | `16px`     | 400   | `line-height: 1.72`    |
-| H1              | `1.62em`   | 680   | `line-height: 1.3`    |
-| H2              | `1.32em`   | 650   | `line-height: 1.35`   |
-| H3              | `1.1em`    | 640   | `line-height: 1.4`    |
+| 编辑器正文      | `15.5px`   | 400   | `line-height: 1.62`    |
+| H1              | `1.44em`   | 650   | `line-height: 1.28`，`padding-top: 6px`，不使用 margin |
+| H2              | `1.22em`   | 635   | `line-height: 1.32`，`padding-top: 4px`，不使用 margin |
+| H3              | `1.07em`   | 620   | `line-height: 1.38`，`padding-top: 2px`，不使用 margin |
 | 标题栏文件名    | `12.5px`   | 500   | `letter-spacing: .01em`|
 | 侧栏品牌名      | `14px`     | 600   | `letter-spacing: .02em`|
 | 侧栏文件树      | `13px`     | 400     | 文件夹与文件统一字重  |
@@ -101,10 +102,10 @@ Margin 的统一 UI 样式与交互语言规范。所有组件、颜色、字体
 | `--r`           | `7px`    | 默认圆角          |
 | `--sidebar-w`   | `244px`  | 侧栏宽度          |
 | `--drawer-w`    | `296px`  | 右侧抽屉宽度      |
-| 标题栏高度      | `38px`   |                    |
+| 右侧标题栏高度  | `34px`   | 只属于编辑工作区，保持安静，不横切侧栏 |
 | 状态栏高度      | `28px`   |                    |
-| 编辑器最大宽度  | `720px`  | `--editor-width`  |
-| 编辑器内边距    | `56px 40px 240px` | 上 左右 下  |
+| 编辑器最大宽度  | `680px`  | 写作正文宽度  |
+| 编辑器内边距    | `clamp(30px, 6vh, 42px) clamp(22px, 5vw, 36px) 168px` | 上 左右 下  |
 
 ### 圆角规范
 
@@ -122,8 +123,8 @@ Margin 的统一 UI 样式与交互语言规范。所有组件、颜色、字体
 
 | 属性   | 值          |
 | ------ | ----------- |
-| 宽度   | `30px`      |
-| 高度   | `26px`      |
+| 宽度   | `28px`      |
+| 高度   | `24px`      |
 | 圆角   | `6px`       |
 | 图标   | `17×17px`   |
 
@@ -133,8 +134,10 @@ Margin 的统一 UI 样式与交互语言规范。所有组件、颜色、字体
 
 ### 4.1 标题栏 (Titlebar)
 
-- 高度 `38px`，背景 `--bg-panel`，底部 `1px solid --border-soft`
-- 左侧：macOS 交通灯（12px 圆形，`--tl-red/yellow/green`）
+- 布局先左右分栏，再在右侧编辑工作区内放置标题栏；不要使用横跨全窗口的标题栏分割线
+- 高度 `34px`，背景 `--bg`，无底部分割线
+- macOS 交通灯位于窗口左上方，侧栏顶部预留安全空间
+- 左侧工具组：侧栏开关、打开文件夹、今日日程（启用时）；打开文件夹入口放在标题栏，不放在侧栏头部
 - 中间：面包屑路径（`父目录 / 文件名 ●`），居中对齐
   - 父目录色 `--text-faint`，文件名色 `--text-dim`，脏标记 `--accent`
 - 右侧：工具按钮组（sidebar/theme/settings/outline），间距 `2px`
@@ -142,9 +145,10 @@ Margin 的统一 UI 样式与交互语言规范。所有组件、颜色、字体
 
 ### 4.2 侧栏 (Sidebar)
 
-- 宽度 `244px`，背景 `--bg-panel`，右边框 `1px solid --border-soft`
-- **头部**：品牌标记（22px 圆角方块，`--accent` 底，衬线斜体 "M"）+ 粗体 "Margin" + 新建按钮（24px，"+"）
-- **搜索栏**：`margin: 4px 12px 8px`，背景 `--bg`，边框 `--border-soft`，圆角 `6px`，内边距 `5px 9px`
+- 宽度 `244px`，高度贯穿窗口，背景 `--bg-panel`，右边框 `1px solid --border-soft`
+- 不在应用内显示产品名或品牌头，侧栏直接从文件搜索开始
+- 顶部预留 `42px` 给 macOS 窗口控制区，避免搜索框与交通灯冲突
+- **搜索栏**：`margin: 12px 12px 8px`，背景 `--bg`，边框 `--border-soft`，圆角 `6px`，内边距 `5px 9px`
 - **分区标题**：`10.5px`，大写，`letter-spacing: .08em`，`--text-faint`
 - **文件树**：
   - 行高 `4px 8px` 内边距，圆角 `6px`，间距 `6px`
@@ -158,19 +162,20 @@ Margin 的统一 UI 样式与交互语言规范。所有组件、颜色、字体
 
 ### 4.3 编辑器 (Editor)
 
-- 背景 `--bg`，内容区 `max-width: 720px`，`margin: 0 auto`
-- **正文**：`font-size: 16px`，`line-height: 1.72`，`font-family: var(--ui)`
+- 背景 `--bg`，内容区 `max-width: 680px`，`margin: 0 auto`
+- **正文**：`font-size: 15.5px`，`line-height: 1.62`，`font-family: var(--editor)`
 - **标题**：
-  - H1: `1.62em`，`font-weight: 680`，`margin-top: 18px`
-  - H2: `1.32em`，`font-weight: 650`，`margin-top: 14px`
-  - H3: `1.1em`，`font-weight: 640`，`margin-top: 10px`
-- **粗体**：`font-weight: 680`
-- **行内代码**：`--mono` 字体，`0.88em`，背景 `--bg-elev`，边框 `1px solid --border-soft`，色 `--accent`，圆角 `4px`，内边距 `1px 5px`
-- **引用块**：左侧 `3px` 圆角竖线 `--accent-line`，文字 `--text-dim`，斜体
+  - H1: `1.44em`，`font-weight: 650`，`padding-top: 6px`
+  - H2: `1.22em`，`font-weight: 635`，`padding-top: 4px`
+  - H3: `1.07em`，`font-weight: 620`，`padding-top: 2px`
+  - 标题行不得使用 `margin-top` / `margin-bottom`，避免破坏 CodeMirror 垂直光标测量
+- **粗体**：`font-weight: 650`
+- **行内代码**：`--mono` 字体，`0.86em`，背景 `--bg-elev`，边框 `1px solid --border-soft`，色 `--accent`，圆角 `4px`，内边距 `0 4px`
+- **引用块**：左侧 `2px` 圆角竖线 `--accent-line`，文字 `--text-dim`，斜体，无渐变底色
 - **代码块**：
-  - 外框：背景 `--bg-elev`，边框 `1px solid --border-soft`，圆角 `var(--r)`
-  - 语言栏：底部分隔线，背景稍深（`calc(l - 0.02)`），显示语言名 + 复制按钮
-  - 正文：`font-family: --mono`，`13.5px`，`line-height: 1.65`，`padding: 12px 14px`
+  - 外框：背景 `--bg-panel`，边框 `1px solid --border-soft`，圆角 `var(--r)`
+  - 语言标签：右上角胶囊标签，避免遮挡代码正文
+  - 正文：`font-family: --mono`，`13px`，`line-height: 1.56`，`padding: 10px 12px`
 - **列表**：
   - 缩进 `28px`
   - 无序：`•` 符号，`--accent` 色，`18px`
@@ -183,7 +188,7 @@ Margin 的统一 UI 样式与交互语言规范。所有组件、颜色、字体
 
 ### 4.4 状态栏 (StatusBar)
 
-- 高度 `28px`，背景 `--bg-panel`，顶部 `1px solid --border-soft`
+- 高度 `28px`，背景 `--bg-panel`，顶部 `1px solid --border-soft`，只属于右侧编辑工作区
 - 左侧：上下文标记（`◆` + "正文"），`--text-dim`，`font-weight: 500`
 - 右侧：字符数 · 词数 · 阅读时间 · 保存状态
 - 保存状态色 `--accent`

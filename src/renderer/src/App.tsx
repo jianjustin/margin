@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
-import { PanelLeft, AlignLeft, CalendarDays, CalendarPlus, Settings } from 'lucide-react'
+import { PanelLeft, AlignLeft, CalendarDays, CalendarPlus, FolderOpen, Settings } from 'lucide-react'
 import { Editor, type EditorHandle } from '@/components/Editor'
 import { saveDocument } from '@/lib/saveDocument'
 import { useDocumentStore } from '@/stores/documentStore'
@@ -290,139 +290,154 @@ export default function App(): JSX.Element {
   /* ── Render ────────────────────────────────────────────────── */
 
   return (
-    <div className="flex h-screen flex-col bg-background text-foreground">
-      <header className="flex h-[38px] shrink-0 items-center gap-3.5 border-b border-[color:var(--border-soft)] bg-[color:var(--bg-panel)] px-3.5 pl-20 text-sm [-webkit-app-region:drag]">
-        <div className="flex gap-0.5 [-webkit-app-region:no-drag]">
-          <button
-            onClick={() => setSidebarOpen((v) => !v)}
-            title="切换笔记列表 (⌘B)"
-            aria-label="Toggle sidebar"
-            className={[
-              'grid h-[26px] w-[30px] place-items-center rounded-md transition-colors',
-              sidebarOpen
-                ? 'bg-[color:var(--accent-soft)] text-[color:var(--accent)]'
-                : 'text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)] hover:text-foreground'
-            ].join(' ')}
-          >
-            <PanelLeft size={17} />
-          </button>
-          {scheduleEnabled && (
-            <button
-              onClick={() => void openSchedule(new Date())}
-              title="今日日程"
-              aria-label="今日日程"
-              className="grid h-[26px] w-[30px] place-items-center rounded-md text-[color:var(--text-dim)] transition-colors hover:bg-[color:var(--bg-hover)] hover:text-foreground"
-            >
-              <CalendarPlus size={17} />
-            </button>
-          )}
-        </div>
+    <div className="flex h-screen bg-background text-foreground">
+      {sidebarOpen && (
+        <Sidebar
+          onOpenFile={handleOpenFile}
+          onContextMenu={handleContextMenu}
+        />
+      )}
 
-        <div className="flex min-w-0 flex-1 items-center justify-center gap-2 text-[12.5px] font-medium tracking-[.01em] text-[color:var(--text-dim)]">
-          {path ? (
-            <>
-              {parentName && <span className="text-[color:var(--text-faint)]">{parentName}</span>}
-              {parentName && <span className="text-[color:var(--text-faint)]">/</span>}
-              <span id="title-name" className="truncate">{fileName}</span>
-              <DirtyDot />
-            </>
-          ) : (
-            <span className="text-[color:var(--text-faint)]">No file open</span>
-          )}
-        </div>
-
-        <div className="relative flex gap-0.5 [-webkit-app-region:no-drag]">
-          <ThemeToggle />
-          {scheduleEnabled && (
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header
+          className={[
+            'flex h-[34px] shrink-0 items-center gap-3 bg-[color:var(--bg)] px-3 text-sm text-[color:var(--text-faint)] [-webkit-app-region:drag]',
+            sidebarOpen ? '' : 'pl-20'
+          ].join(' ')}
+        >
+          <div className="flex gap-0.5 [-webkit-app-region:no-drag]">
             <button
-              onClick={() => setCalendarOpen((v) => !v)}
-              title="日历"
-              aria-label="日历"
+              onClick={() => setSidebarOpen((v) => !v)}
+              title="切换笔记列表 (⌘B)"
+              aria-label="Toggle sidebar"
               className={[
-                'grid h-[26px] w-[30px] place-items-center rounded-md transition-colors',
-                calendarOpen
-                  ? 'bg-[color:var(--accent-soft)] text-[color:var(--accent)]'
+                'grid h-[24px] w-[28px] place-items-center rounded-md transition-colors',
+                sidebarOpen
+                  ? 'bg-[color:var(--accent-soft)] text-[color:var(--accent)] opacity-90'
                   : 'text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)] hover:text-foreground'
               ].join(' ')}
             >
-              <CalendarDays size={17} />
+              <PanelLeft size={16} />
             </button>
-          )}
-          <button
-            onClick={() => setDrawerOpen((v) => !v)}
-            title="大纲 (⌘\)"
-            aria-label="Toggle outline"
-            className={[
-              'grid h-[26px] w-[30px] place-items-center rounded-md transition-colors',
-              drawerOpen
-                ? 'bg-[color:var(--accent-soft)] text-[color:var(--accent)]'
-                : 'text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)] hover:text-foreground'
-            ].join(' ')}
-          >
-            <AlignLeft size={17} />
-          </button>
-          <button
-            onClick={() => setSettingsOpen(true)}
-            title="设置 (⌘,)"
-            aria-label="设置"
-            className="grid h-[26px] w-[30px] place-items-center rounded-md text-[color:var(--text-dim)] transition-colors hover:bg-[color:var(--bg-hover)] hover:text-foreground"
-          >
-            <Settings size={17} />
-          </button>
-          {calendarOpen && scheduleEnabled && (
-            <CalendarPopover
-              scheduleDates={scheduleDates}
-              onPick={(date) => {
-                setCalendarOpen(false)
-                void openSchedule(date)
-              }}
-              onClose={() => setCalendarOpen(false)}
-            />
+            <button
+              onClick={handleOpenFolder}
+              title="打开文件夹"
+              aria-label="打开文件夹"
+              className="grid h-[24px] w-[28px] place-items-center rounded-md text-[color:var(--text-dim)] transition-colors hover:bg-[color:var(--bg-hover)] hover:text-foreground"
+            >
+              <FolderOpen size={16} />
+            </button>
+            {scheduleEnabled && (
+              <button
+                onClick={() => void openSchedule(new Date())}
+                title="今日日程"
+                aria-label="今日日程"
+                className="grid h-[24px] w-[28px] place-items-center rounded-md text-[color:var(--text-dim)] transition-colors hover:bg-[color:var(--bg-hover)] hover:text-foreground"
+              >
+                <CalendarPlus size={16} />
+              </button>
+            )}
+          </div>
+
+          <div className="flex min-w-0 flex-1 items-center justify-center gap-2 text-[12px] font-medium text-[color:var(--text-faint)]">
+            {path ? (
+              <>
+                {parentName && <span className="text-[color:var(--text-faint)]">{parentName}</span>}
+                {parentName && <span className="text-[color:var(--text-faint)]">/</span>}
+                <span id="title-name" className="truncate">{fileName}</span>
+                <DirtyDot />
+              </>
+            ) : (
+              <span className="text-[color:var(--text-faint)]">未打开文件</span>
+            )}
+          </div>
+
+          <div className="relative flex gap-0.5 [-webkit-app-region:no-drag]">
+            <ThemeToggle />
+            {scheduleEnabled && (
+              <button
+                onClick={() => setCalendarOpen((v) => !v)}
+                title="日历"
+                aria-label="日历"
+                className={[
+                  'grid h-[24px] w-[28px] place-items-center rounded-md transition-colors',
+                  calendarOpen
+                    ? 'bg-[color:var(--accent-soft)] text-[color:var(--accent)] opacity-90'
+                    : 'text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)] hover:text-foreground'
+                ].join(' ')}
+              >
+                <CalendarDays size={16} />
+              </button>
+            )}
+            <button
+              onClick={() => setDrawerOpen((v) => !v)}
+              title="大纲 (⌘\)"
+              aria-label="Toggle outline"
+              className={[
+                'grid h-[24px] w-[28px] place-items-center rounded-md transition-colors',
+                drawerOpen
+                  ? 'bg-[color:var(--accent-soft)] text-[color:var(--accent)] opacity-90'
+                  : 'text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)] hover:text-foreground'
+              ].join(' ')}
+            >
+              <AlignLeft size={16} />
+            </button>
+            <button
+              onClick={() => setSettingsOpen(true)}
+              title="设置 (⌘,)"
+              aria-label="设置"
+              className="grid h-[24px] w-[28px] place-items-center rounded-md text-[color:var(--text-dim)] transition-colors hover:bg-[color:var(--bg-hover)] hover:text-foreground"
+            >
+              <Settings size={16} />
+            </button>
+            {calendarOpen && scheduleEnabled && (
+              <CalendarPopover
+                scheduleDates={scheduleDates}
+                onPick={(date) => {
+                  setCalendarOpen(false)
+                  void openSchedule(date)
+                }}
+                onClose={() => setCalendarOpen(false)}
+              />
+            )}
+          </div>
+        </header>
+
+        <div className="flex min-h-0 flex-1">
+          <main className="min-h-0 min-w-0 flex-1">
+            {path ? (
+              <div className="flex h-full flex-col">
+                <DraftBanner />
+                <ConflictBar />
+                <div className="min-h-0 flex-1">
+                  <Editor
+                    ref={editorRef}
+                    docKey={`${path}:${epoch}`}
+                    // Read non-reactively: the editor is uncontrolled and keyed by
+                    // `${path}:${epoch}`, so it only consumes this on (re)mount when
+                    // a file opens or a draft is applied. `load()` sets
+                    // path+content together, so it's current here.
+                    initialValue={useDocumentStore.getState().content}
+                    onChange={handleChange}
+                    onSave={() => void save()}
+                    onOpenLink={handleOpenLink}
+                    filePath={path}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="flex h-full items-center justify-center text-muted-foreground">
+                打开文件夹或文件开始编辑
+              </div>
+            )}
+          </main>
+          {drawerOpen && path && (
+            <OutlineDrawer onJumpToLine={handleJumpToLine} />
           )}
         </div>
-      </header>
 
-      <div className="flex min-h-0 flex-1">
-        {sidebarOpen && (
-          <Sidebar
-            onOpenFolder={handleOpenFolder}
-            onOpenFile={handleOpenFile}
-            onContextMenu={handleContextMenu}
-          />
-        )}
-        <main className="min-h-0 min-w-0 flex-1">
-          {path ? (
-            <div className="flex h-full flex-col">
-              <DraftBanner />
-              <ConflictBar />
-              <div className="min-h-0 flex-1">
-                <Editor
-                  ref={editorRef}
-                  docKey={`${path}:${epoch}`}
-                  // Read non-reactively: the editor is uncontrolled and keyed by
-                  // `${path}:${epoch}`, so it only consumes this on (re)mount when
-                  // a file opens or a draft is applied. `load()` sets
-                  // path+content together, so it's current here.
-                  initialValue={useDocumentStore.getState().content}
-                  onChange={handleChange}
-                  onSave={() => void save()}
-                  onOpenLink={handleOpenLink}
-                  filePath={path}
-                />
-              </div>
-            </div>
-          ) : (
-            <div className="flex h-full items-center justify-center text-muted-foreground">
-              Open a folder or file to start editing
-            </div>
-          )}
-        </main>
-        {drawerOpen && path && (
-          <OutlineDrawer onJumpToLine={handleJumpToLine} />
-        )}
+        <StatusBar hasFile={path !== null} />
       </div>
-
-      <StatusBar hasFile={path !== null} />
 
       {/* ── Context menu ──────────────────────────────────────── */}
 

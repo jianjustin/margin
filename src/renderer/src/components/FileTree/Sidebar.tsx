@@ -5,7 +5,6 @@ import { useVaultStore } from '@/stores/vaultStore'
 import { FileTree } from './FileTree'
 
 interface SidebarProps {
-  onOpenFolder: () => void
   onOpenFile: (node: TreeNode) => void
   onContextMenu: (node: TreeNode, x: number, y: number) => void
 }
@@ -27,7 +26,7 @@ function filterTree(nodes: TreeNode[], query: string): TreeNode[] {
   return result
 }
 
-function SidebarInner({ onOpenFolder, onOpenFile, onContextMenu }: SidebarProps): JSX.Element {
+function SidebarInner({ onOpenFile, onContextMenu }: SidebarProps): JSX.Element {
   const root = useVaultStore((s) => s.root)
   const tree = useVaultStore((s) => s.tree)
   const [searchQuery, setSearchQuery] = useState('')
@@ -38,25 +37,8 @@ function SidebarInner({ onOpenFolder, onOpenFile, onContextMenu }: SidebarProps)
   )
 
   return (
-    <aside className="flex h-full w-[var(--sidebar-w)] flex-none flex-col border-r border-[color:var(--border-soft)] bg-[color:var(--bg-panel)]">
-      <div className="flex items-center justify-between px-4 pb-2 pt-3.5">
-        <div className="flex items-center gap-[9px]">
-          <div className="grid h-[22px] w-[22px] place-items-center rounded-md bg-[color:var(--accent)] font-[family-name:var(--serif)] text-[15px] font-semibold italic text-[color:var(--accent-ink)]">
-            M
-          </div>
-          <span className="text-sm font-semibold tracking-wide">Margin</span>
-        </div>
-        <button
-          onClick={onOpenFolder}
-          title="新建笔记"
-          aria-label="新建笔记"
-          className="grid h-6 w-6 place-items-center rounded-md text-lg leading-none text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)] hover:text-foreground"
-        >
-          +
-        </button>
-      </div>
-
-      <div className="mx-3 mb-2 mt-1 flex items-center gap-[7px] rounded-md border border-[color:var(--border-soft)] bg-[color:var(--bg)] px-[9px] py-[5px]">
+    <aside className="flex h-full w-[var(--sidebar-w)] flex-none flex-col border-r border-[color:var(--border-soft)] bg-[color:var(--bg-panel)] pt-[42px]">
+      <div className="mx-3 mb-2 mt-3 flex items-center gap-[7px] rounded-md border border-[color:var(--border-soft)] bg-[color:var(--bg)] px-[9px] py-[5px]">
         <Search size={12} className="flex-none text-[color:var(--text-faint)]" />
         <input
           value={searchQuery}
@@ -79,7 +61,7 @@ function SidebarInner({ onOpenFolder, onOpenFile, onContextMenu }: SidebarProps)
         </>
       ) : (
         <div className="px-4 py-6 text-center text-xs text-[color:var(--text-faint)]">
-          Open a folder to browse your notes
+          打开文件夹开始浏览笔记
         </div>
       )}
     </aside>

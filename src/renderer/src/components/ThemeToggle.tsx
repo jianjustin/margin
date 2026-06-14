@@ -18,9 +18,9 @@ export function ThemeToggle(): JSX.Element {
       onClick={cycleMode}
       title={LABEL[mode]}
       aria-label={LABEL[mode]}
-      className="grid h-[26px] w-[30px] place-items-center rounded-md text-[color:var(--text-dim)] transition-colors hover:bg-[color:var(--bg-hover)] hover:text-foreground"
+      className="grid h-[24px] w-[28px] place-items-center rounded-md text-[color:var(--text-dim)] transition-colors hover:bg-[color:var(--bg-hover)] hover:text-foreground"
     >
-      <Icon size={17} />
+      <Icon size={16} />
     </button>
   )
 }

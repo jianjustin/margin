@@ -56,7 +56,7 @@ export function InputDialog({
       onClick={onCancel}
     >
       <div
-        className="w-[340px] overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-elev)] shadow-[0_24px_64px_oklch(0_0_0/0.5)]"
+        className="w-[min(340px,calc(100vw-32px))] overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-elev)] shadow-[0_24px_64px_oklch(0_0_0/0.5)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="border-b border-[color:var(--border-soft)] px-4 py-3">

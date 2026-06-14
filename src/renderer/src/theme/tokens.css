@@ -35,6 +35,8 @@
 
   /* Font stacks: Latin from bundled IBM Plex; CJK from system PingFang SC. */
   --ui: 'IBM Plex Sans', 'PingFang SC', system-ui, sans-serif;
+  --editor: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', 'IBM Plex Sans', system-ui, sans-serif;
   --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   --serif: 'IBM Plex Serif', Georgia, serif;
 
@@ -65,20 +67,20 @@
 }
 
 [data-theme='light'] {
-  --bg: oklch(0.975 0.005 85);
-  --bg-panel: oklch(0.945 0.007 85);
-  --bg-elev: oklch(0.995 0.003 85);
-  --bg-hover: oklch(0.915 0.009 85);
-  --border: oklch(0.875 0.008 85);
-  --border-soft: oklch(0.915 0.007 85);
-  --text: oklch(0.265 0.012 75);
-  --text-dim: oklch(0.46 0.012 75);
-  --text-faint: oklch(0.64 0.012 75);
-  --accent: oklch(0.6 0.12 70);
+  --bg: oklch(0.987 0.004 86);
+  --bg-panel: oklch(0.956 0.006 82);
+  --bg-elev: oklch(0.998 0.002 86);
+  --bg-hover: oklch(0.925 0.009 82);
+  --border: oklch(0.845 0.01 82);
+  --border-soft: oklch(0.895 0.008 82);
+  --text: oklch(0.31 0.012 72);
+  --text-dim: oklch(0.48 0.012 72);
+  --text-faint: oklch(0.64 0.01 72);
+  --accent: oklch(0.55 0.13 68);
   --accent-ink: oklch(0.99 0.02 90);
-  --accent-soft: oklch(0.6 0.12 70 / 0.12);
-  --accent-line: oklch(0.6 0.12 70 / 0.3);
-  --sel: oklch(0.6 0.12 70 / 0.18);
+  --accent-soft: oklch(0.72 0.12 70 / 0.16);
+  --accent-line: oklch(0.58 0.13 68 / 0.36);
+  --sel: oklch(0.68 0.12 70 / 0.2);
 
   /* Code syntax token colors (light). */
   --code-keyword: #9c27b0;

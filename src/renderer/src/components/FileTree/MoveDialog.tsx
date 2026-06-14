@@ -94,7 +94,7 @@ export function MoveDialog({
       onClick={onClose}
     >
       <div
-        className="flex max-h-[70vh] w-[360px] flex-col overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-elev)] shadow-[0_24px_64px_oklch(0_0_0/0.5)]"
+        className="flex max-h-[70vh] w-[min(360px,calc(100vw-32px))] flex-col overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-elev)] shadow-[0_24px_64px_oklch(0_0_0/0.5)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="border-b border-[color:var(--border-soft)] px-4 py-3">

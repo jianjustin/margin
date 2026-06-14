@@ -28,7 +28,7 @@ export function useVaultWatch(): void {
 
       // Open file was deleted externally.
       if (!pathExists(tree, openPath)) {
-        window.alert('The open file was deleted outside Margin.')
+        window.alert('当前打开的文件已在外部被删除。')
         doc.reset()
         useVaultStore.getState().select(null)
         return

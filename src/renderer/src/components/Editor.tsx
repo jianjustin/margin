@@ -165,13 +165,13 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           }
         }),
         EditorView.theme({
-          '&': { height: '100%', fontSize: '16px' },
+          '&': { height: '100%', fontSize: '15.5px' },
           '.cm-content': {
-            maxWidth: '720px',
+            maxWidth: '680px',
             margin: '0 auto',
-            padding: '56px 40px 240px',
-            fontFamily: 'var(--ui)',
-            lineHeight: '1.72'
+            padding: 'clamp(30px, 6vh, 42px) clamp(22px, 5vw, 36px) 168px',
+            fontFamily: 'var(--editor)',
+            lineHeight: '1.62'
           }
         })
       ]

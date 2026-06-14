@@ -22,7 +22,7 @@ export function FileTree({ onOpenFile, onContextMenu, filteredTree }: FileTreePr
   if (rows.length === 0) {
     return (
       <div className="px-3 py-4 text-center text-xs text-[color:var(--text-faint)]">
-        Empty folder
+        文件夹为空
       </div>
     )
   }
