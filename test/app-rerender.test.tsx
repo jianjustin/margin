@@ -13,7 +13,7 @@ import { useVaultStore } from '@/stores/vaultStore'
 vi.mock('@/lib/api', () => ({
   api: {
     onVaultChanged: () => () => {},
-    scanVault: vi.fn(),
+    scanVault: vi.fn().mockResolvedValue([{ name: 'a.md', path: '/v/a.md', type: 'file' }]),
     readFile: vi.fn(),
     writeFile: vi.fn(),
     readProjectConfig: vi.fn().mockResolvedValue(null),
@@ -64,8 +64,8 @@ beforeEach(() => {
 afterEach(cleanup)
 
 describe('App re-render isolation', () => {
-  it('does not re-render the file tree when document content changes', () => {
-    act(() => {
+  it('does not re-render the file tree when document content changes', async () => {
+    await act(async () => {
       render(<App />)
     })
     const baseline = fileTreeRenders
