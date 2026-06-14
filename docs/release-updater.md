@@ -20,8 +20,12 @@ $HOME/.config/margin/margin-updater.key
 For release builds, set:
 
 ```bash
-export TAURI_SIGNING_PRIVATE_KEY="$HOME/.config/margin/margin-updater.key"
+export TAURI_SIGNING_PRIVATE_KEY="$(cat "$HOME/.config/margin/margin-updater.key")"
+export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
 ```
+
+`TAURI_SIGNING_PRIVATE_KEY` must contain the private key contents, not the
+path. Do not paste the key contents into committed files or shell history.
 
 If the private key is lost, existing installed builds cannot be updated with
 newly signed artifacts from a different keypair.
