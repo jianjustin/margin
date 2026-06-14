@@ -1,4 +1,5 @@
 import type { TreeNode } from '../../../shared/ipc'
+import { normalizeFolderPathInput } from '@/lib/folderRules'
 
 /** Zero-pad a number to two digits. */
 function pad2(n: number): string {
@@ -25,11 +26,11 @@ export function parseDateKeyFromName(name: string): string | null {
 
 /**
  * Collect the set of date keys (`YYYY-MM-DD`) that have a schedule note in the
- * configured schedule folder (a direct child of the vault root named `dir`).
+ * configured schedule folder. `dir` is a vault-relative folder path.
  */
 export function collectScheduleDates(tree: TreeNode[], dir: string): Set<string> {
   const dates = new Set<string>()
-  const folder = tree.find((n) => n.type === 'folder' && n.name === dir)
+  const folder = findFolderByRelativePath(tree, dir)
   if (!folder?.children) return dates
   for (const child of folder.children) {
     if (child.type !== 'file') continue
@@ -37,6 +38,24 @@ export function collectScheduleDates(tree: TreeNode[], dir: string): Set<string>
     if (key) dates.add(key)
   }
   return dates
+}
+
+export function normalizeScheduleDir(dir: string): string {
+  return normalizeFolderPathInput(dir)
+}
+
+function findFolderByRelativePath(tree: TreeNode[], dir: string): TreeNode | null {
+  const normalized = normalizeScheduleDir(dir)
+  if (!normalized) return null
+  const segments = normalized.split('/').filter(Boolean)
+  let current = tree
+  let found: TreeNode | null = null
+  for (const segment of segments) {
+    found = current.find((n) => n.type === 'folder' && n.name === segment) ?? null
+    if (!found) return null
+    current = found.children ?? []
+  }
+  return found
 }
 
 /** Seed content for a freshly-created daily schedule note. */
