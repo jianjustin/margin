@@ -12,6 +12,7 @@ describe('RowContextMenu', () => {
   it('offers full-path and project-relative copy actions', () => {
     const onCopyFullPath = vi.fn()
     const onCopyRelativePath = vi.fn()
+    const onOpenInFinder = vi.fn()
 
     render(
       <RowContextMenu
@@ -24,13 +25,16 @@ describe('RowContextMenu', () => {
         onTrash={() => {}}
         onCopyFullPath={onCopyFullPath}
         onCopyRelativePath={onCopyRelativePath}
+        onOpenInFinder={onOpenInFinder}
       />
     )
 
     fireEvent.click(screen.getByRole('button', { name: '复制完整路径' }))
     fireEvent.click(screen.getByRole('button', { name: '复制项目相对路径' }))
+    fireEvent.click(screen.getByRole('button', { name: '在 Finder 中显示' }))
 
     expect(onCopyFullPath).toHaveBeenCalledWith(node)
     expect(onCopyRelativePath).toHaveBeenCalledWith(node)
+    expect(onOpenInFinder).toHaveBeenCalledWith(node)
   })
 })

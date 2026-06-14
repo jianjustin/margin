@@ -16,6 +16,7 @@ export interface MarginApi {
   renamePath(oldPath: string, newName: string): Promise<string>
   trashPath(path: string): Promise<void>
   movePath(srcPath: string, destDir: string): Promise<string>
+  openPathInFinder(path: string): Promise<void>
   ensureNote(dir: string, name: string, template?: string): Promise<string>
   /** Read `<root>/.margin/config.json`; null when no config has been written. */
   readProjectConfig(root: string): Promise<string | null>

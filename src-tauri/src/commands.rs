@@ -4,6 +4,8 @@ use crate::path_policy::assert_safe_path;
 use crate::vault_scanner;
 use crate::vault_scanner::TreeNode;
 use std::path::Path;
+#[cfg(target_os = "macos")]
+use std::process::Command;
 use std::sync::Mutex;
 use tauri::State;
 use tauri_plugin_dialog::DialogExt;
@@ -199,6 +201,39 @@ pub fn move_path(src_path: String, dest_dir: String) -> Result<String, String> {
     fs_ops::move_path(&src_path, &dest_dir)
 }
 
+#[cfg(target_os = "macos")]
+fn finder_open_command(path: &str) -> (&'static str, Vec<String>) {
+    ("open", vec!["-R".to_string(), path.to_string()])
+}
+
+#[tauri::command]
+pub fn open_path_in_finder(path: String) -> Result<(), String> {
+    assert_safe_path(&path)?;
+    if !Path::new(&path).exists() {
+        return Err("Path does not exist".to_string());
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        return Err("Open in Finder is only supported on macOS".to_string());
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let (program, args) = finder_open_command(&path);
+        let status = Command::new(program)
+            .args(args)
+            .status()
+            .map_err(|e| format!("Could not open Finder: {}", e))?;
+
+        if status.success() {
+            Ok(())
+        } else {
+            Err(format!("Finder exited with status: {}", status))
+        }
+    }
+}
+
 #[tauri::command]
 pub fn ensure_note(dir: String, name: String, template: String) -> Result<String, String> {
     fs_ops::ensure_note(&dir, &name, &template)
@@ -261,5 +296,15 @@ mod tests {
         assert!(write_draft("".into(), note.clone(), "x".into()).is_err());
 
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn finder_open_command_reveals_target_on_macos() {
+        let path = "/vault/folder/note.md";
+        let (program, args) = finder_open_command(path);
+
+        assert_eq!(program, "open");
+        assert_eq!(args, vec!["-R".to_string(), path.to_string()]);
     }
 }

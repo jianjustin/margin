@@ -17,6 +17,7 @@ interface RowContextMenuProps {
   onTrash: (node: TreeNode) => void
   onCopyFullPath: (node: TreeNode) => void
   onCopyRelativePath: (node: TreeNode) => void
+  onOpenInFinder: (node: TreeNode) => void
 }
 
 export function RowContextMenu({
@@ -28,7 +29,8 @@ export function RowContextMenu({
   onMove,
   onTrash,
   onCopyFullPath,
-  onCopyRelativePath
+  onCopyRelativePath,
+  onOpenInFinder
 }: RowContextMenuProps): JSX.Element {
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -97,6 +99,9 @@ export function RowContextMenu({
       </button>
       <button className={item} onClick={() => onCopyRelativePath(menu.node)}>
         复制项目相对路径
+      </button>
+      <button className={item} onClick={() => onOpenInFinder(menu.node)}>
+        在 Finder 中显示
       </button>
       <div className="my-1 border-t border-[color:var(--border-soft)]" />
       <button className={item} onClick={() => onTrash(menu.node)}>

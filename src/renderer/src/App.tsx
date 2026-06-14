@@ -575,6 +575,12 @@ export default function App(): JSX.Element {
             setMenu(null)
             void copyText(projectRelativePath(vaultRoot, n.path))
           }}
+          onOpenInFinder={(n) => {
+            setMenu(null)
+            void api.openPathInFinder(n.path).catch(() => {
+              window.alert('无法在 Finder 中显示')
+            })
+          }}
           onTrash={(n) => {
             setMenu(null)
             setDialog({ type: 'trash', node: n })

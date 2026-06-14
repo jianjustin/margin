@@ -33,5 +33,10 @@ describe('api command arguments', () => {
       srcPath: '/vault/a.md',
       destDir: '/vault/Target'
     })
+
+    await api.openPathInFinder('/vault/a.md')
+    expect(invoke).toHaveBeenLastCalledWith('open_path_in_finder', {
+      path: '/vault/a.md'
+    })
   })
 })

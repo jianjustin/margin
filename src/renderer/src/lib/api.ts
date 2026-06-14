@@ -13,6 +13,7 @@ export const api: MarginApi = {
   renamePath: (oldPath, newName) => invoke<string>('rename_path', { oldPath, newName }),
   trashPath: (path) => invoke<void>('trash_path', { path }),
   movePath: (srcPath, destDir) => invoke<string>('move_path', { srcPath, destDir }),
+  openPathInFinder: (path) => invoke<void>('open_path_in_finder', { path }),
   ensureNote: (dir, name, template) => invoke<string>('ensure_note', { dir, name, template: template ?? '' }),
   readProjectConfig: (root) => invoke<string | null>('read_project_config', { root }),
   writeProjectConfig: (root, content) => invoke<void>('write_project_config', { root, content }),

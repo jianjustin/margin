@@ -26,6 +26,7 @@ fn main() {
             commands::rename_path,
             commands::trash_path,
             commands::move_path,
+            commands::open_path_in_finder,
             commands::ensure_note,
             commands::read_project_config,
             commands::write_project_config,
