@@ -233,6 +233,40 @@ describe('api command arguments', () => {
     expect(secondUpdate.downloadAndInstall).toHaveBeenCalledOnce()
   })
 
+  it('suppresses stale check errors after a newer check starts', async () => {
+    const secondUpdate = {
+      currentVersion: '2.0.0',
+      version: '2.2.0',
+      downloadAndInstall: vi.fn(async () => {}),
+      close: vi.fn(() => Promise.resolve())
+    }
+    const firstResult = deferred<typeof secondUpdate>()
+    const secondResult = deferred<typeof secondUpdate>()
+    check
+      .mockReturnValueOnce(firstResult.promise)
+      .mockReturnValueOnce(secondResult.promise)
+
+    const firstCheck = api.checkUpdate()
+    await Promise.resolve()
+    expect(check).toHaveBeenCalledOnce()
+
+    const secondCheck = api.checkUpdate()
+    await Promise.resolve()
+    expect(check).toHaveBeenCalledTimes(2)
+
+    secondResult.resolve(secondUpdate)
+    await expect(secondCheck).resolves.toMatchObject({ available: true, version: '2.2.0' })
+
+    firstResult.reject(new Error('stale network failure'))
+    await expect(firstCheck).resolves.toEqual({
+      available: false,
+      currentVersion: '2.0.0'
+    })
+
+    await api.downloadAndInstallUpdate(() => {})
+    expect(secondUpdate.downloadAndInstall).toHaveBeenCalledOnce()
+  })
+
   it('forwards updater download events', async () => {
     const update = {
       currentVersion: '2.0.0',

@@ -52,9 +52,21 @@ export const api: MarginApi = {
     latestCheckId = checkId
     closeUpdate(pendingUpdate)
     pendingUpdate = null
-    const currentVersion = await getVersion()
+    let currentVersion: string
+    try {
+      currentVersion = await getVersion()
+    } catch (error) {
+      if (checkId !== latestCheckId) return { available: false, currentVersion: '' }
+      throw error
+    }
     if (checkId !== latestCheckId) return { available: false, currentVersion }
-    const update = await check()
+    let update: Update | null
+    try {
+      update = await check()
+    } catch (error) {
+      if (checkId !== latestCheckId) return { available: false, currentVersion }
+      throw error
+    }
     if (checkId !== latestCheckId) {
       closeUpdate(update)
       return { available: false, currentVersion }
