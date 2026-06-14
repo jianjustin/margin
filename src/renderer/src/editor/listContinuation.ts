@@ -74,6 +74,26 @@ export function listEnterAction(
   return { type: 'continue', insert: `\n${parsed.indent}${nextMarker}` }
 }
 
+/**
+ * Returns the line text with 2 spaces prepended, or null when the line is not
+ * a markdown list item (Tab should fall through to the default handler).
+ */
+export function indentListLine(lineText: string): string | null {
+  if (!parseListLine(lineText)) return null
+  return '  ' + lineText
+}
+
+/**
+ * Returns the line text with up to 2 leading spaces removed, or null when
+ * the line has no indent (nothing to outdent) or is not a list item.
+ */
+export function outdentListLine(lineText: string): string | null {
+  const parsed = parseListLine(lineText)
+  if (!parsed || parsed.indent.length === 0) return null
+  const trim = Math.min(2, parsed.indent.length)
+  return lineText.slice(trim)
+}
+
 function handleEnter(view: EditorView): boolean {
   const { state } = view
   const range = state.selection.main
@@ -101,9 +121,44 @@ function handleEnter(view: EditorView): boolean {
   return true
 }
 
+function handleTab(view: EditorView): boolean {
+  const { state } = view
+  const range = state.selection.main
+  if (!range.empty) return false
+  const line = state.doc.lineAt(range.head)
+  const newText = indentListLine(line.text)
+  if (!newText) return false
+  view.dispatch({
+    changes: { from: line.from, to: line.to, insert: newText },
+    selection: { anchor: range.head + 2 },
+    scrollIntoView: true,
+    userEvent: 'input'
+  })
+  return true
+}
+
+function handleShiftTab(view: EditorView): boolean {
+  const { state } = view
+  const range = state.selection.main
+  if (!range.empty) return false
+  const line = state.doc.lineAt(range.head)
+  const parsed = parseListLine(line.text)
+  if (!parsed || parsed.indent.length === 0) return false
+  const trim = Math.min(2, parsed.indent.length)
+  view.dispatch({
+    changes: { from: line.from, to: line.to, insert: line.text.slice(trim) },
+    selection: { anchor: range.head - trim },
+    scrollIntoView: true,
+    userEvent: 'input'
+  })
+  return true
+}
+
 /** Keymap binding that auto-continues markdown lists on Enter. */
 export const listContinuationKeymap: readonly KeyBinding[] = [
-  { key: 'Enter', run: handleEnter }
+  { key: 'Enter', run: handleEnter },
+  { key: 'Tab', run: handleTab },
+  { key: 'Shift-Tab', run: handleShiftTab }
 ]
 
 export const listContinuation = keymap.of(listContinuationKeymap)
