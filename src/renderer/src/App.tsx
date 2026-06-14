@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
+import { useEffect, useMemo, useRef, useState, useCallback, type PointerEvent as ReactPointerEvent } from 'react'
 import { PanelLeft, AlignLeft, CalendarDays, CalendarPlus, FolderOpen, Settings } from 'lucide-react'
 import { Editor, type EditorHandle } from '@/components/Editor'
 import { saveDocument } from '@/lib/saveDocument'
@@ -26,6 +26,14 @@ import { ConflictBar } from '@/components/ConflictBar'
 import { StatusBar } from '@/components/StatusBar'
 import { open as shellOpen } from '@tauri-apps/plugin-shell'
 import { isExternal, resolveRelative } from '@/lib/resolvePath'
+import {
+  LEFT_PANE,
+  RIGHT_PANE,
+  clampPaneWidth,
+  loadPaneWidth,
+  persistPaneWidth,
+  type PaneSpec
+} from '@/lib/layout'
 import { api } from '@/lib/api'
 import type { TreeNode } from '../../shared/ipc'
 
@@ -73,6 +81,8 @@ export default function App(): JSX.Element {
   const [calendarOpen, setCalendarOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [dialog, setDialog] = useState<DialogState>(null)
+  const [leftPaneWidth, setLeftPaneWidth] = useState(() => loadPaneWidth(LEFT_PANE))
+  const [rightPaneWidth, setRightPaneWidth] = useState(() => loadPaneWidth(RIGHT_PANE))
 
   const themeMode = useThemeStore((s) => s.mode)
   const systemDark = useSystemTheme()
@@ -296,15 +306,53 @@ export default function App(): JSX.Element {
     editorRef.current?.jumpToLine(line)
   }
 
+  function startPaneResize(
+    e: ReactPointerEvent,
+    spec: PaneSpec,
+    initialWidth: number,
+    setWidth: (width: number) => void,
+    direction: 1 | -1
+  ): void {
+    e.preventDefault()
+    const startX = e.clientX
+    const previousUserSelect = document.body.style.userSelect
+    document.body.style.userSelect = 'none'
+
+    function move(ev: PointerEvent): void {
+      const next = clampPaneWidth(spec, initialWidth + (ev.clientX - startX) * direction)
+      setWidth(next)
+    }
+
+    function up(ev: PointerEvent): void {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      document.body.style.userSelect = previousUserSelect
+      const next = clampPaneWidth(spec, initialWidth + (ev.clientX - startX) * direction)
+      setWidth(persistPaneWidth(spec, next))
+    }
+
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+  }
+
   /* ── Render ────────────────────────────────────────────────── */
 
   return (
     <div className="flex h-screen bg-background text-foreground">
       {sidebarOpen && (
-        <Sidebar
-          onOpenFile={handleOpenFile}
-          onContextMenu={handleContextMenu}
-        />
+        <>
+          <Sidebar
+            width={leftPaneWidth}
+            onOpenFile={handleOpenFile}
+            onContextMenu={handleContextMenu}
+          />
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            onPointerDown={(e) => startPaneResize(e, LEFT_PANE, leftPaneWidth, setLeftPaneWidth, 1)}
+            className="relative z-20 w-[5px] flex-none cursor-col-resize bg-transparent after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-transparent hover:after:bg-[color:var(--accent-line)] [-webkit-app-region:no-drag]"
+          />
+        </>
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -441,7 +489,15 @@ export default function App(): JSX.Element {
             )}
           </main>
           {drawerOpen && path && (
-            <OutlineDrawer onJumpToLine={handleJumpToLine} />
+            <>
+              <div
+                role="separator"
+                aria-orientation="vertical"
+                onPointerDown={(e) => startPaneResize(e, RIGHT_PANE, rightPaneWidth, setRightPaneWidth, -1)}
+                className="relative z-20 w-[5px] flex-none cursor-col-resize bg-transparent after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-transparent hover:after:bg-[color:var(--accent-line)] [-webkit-app-region:no-drag]"
+              />
+              <OutlineDrawer width={rightPaneWidth} onJumpToLine={handleJumpToLine} />
+            </>
           )}
         </div>
 
