@@ -9,6 +9,8 @@
     "dev": "tauri dev",
     "build": "tauri build",
     "build:adhoc": "tauri build --bundles dmg --config src-tauri/tauri.adhoc.conf.json",
+    "release:build:adhoc": "tauri build --config '{\"bundle\":{\"macOS\":{\"signingIdentity\":\"-\"}}}'",
+    "release:prepare": "node scripts/prepare-release-assets.mjs",
     "demo": "vite --config vite.demo.config.ts",
     "vite:dev": "vite",
     "vite:build": "vite build",
