@@ -5,12 +5,12 @@ import { useVaultStore } from '@/stores/vaultStore'
 /** Banner offering to restore a crash-recovery draft found on file open. */
 export function DraftBanner(): JSX.Element | null {
   const pending = useDocumentStore((s) => s.pendingDraft)
+  const path = useDocumentStore((s) => s.path)
   if (pending == null) return null
 
   const discard = (): void => {
-    const { path } = useDocumentStore.getState()
     const root = useVaultStore.getState().root
-    useDocumentStore.getState().setPendingDraft(null)
+    if (path) useDocumentStore.getState().setPendingDraft(path, null)
     if (root && path) void api.deleteDraft(root, path).catch(() => {})
   }
 
@@ -21,7 +21,9 @@ export function DraftBanner(): JSX.Element | null {
       </span>
       <button
         className="rounded-md px-2 py-0.5 font-medium text-[color:var(--accent)] hover:bg-[color:var(--bg-hover)]"
-        onClick={() => useDocumentStore.getState().applyDraft()}
+        onClick={() => {
+          if (path) useDocumentStore.getState().applyDraft(path)
+        }}
       >
         恢复草稿
       </button>

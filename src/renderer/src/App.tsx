@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback, type PointerEvent as ReactPointerEvent } from 'react'
-import { PanelLeft, AlignLeft, CalendarDays, CalendarPlus, FolderOpen, Link2, Settings, Search } from 'lucide-react'
+import { AlignLeft, CalendarDays, Link2, PanelLeft, Settings } from 'lucide-react'
 import { SearchOverlay } from '@/components/SearchOverlay'
 import { Editor, type EditorHandle } from '@/components/Editor'
 import { saveDocument } from '@/lib/saveDocument'
@@ -26,6 +26,7 @@ import { useDraft } from '@/hooks/useDraft'
 import { DraftBanner } from '@/components/DraftBanner'
 import { ConflictBar } from '@/components/ConflictBar'
 import { StatusBar } from '@/components/StatusBar'
+import { DocumentTabs } from '@/components/DocumentTabs'
 import { open as shellOpen } from '@tauri-apps/plugin-shell'
 import { isExternal, resolveRelative } from '@/lib/resolvePath'
 import { resolveWikiLinkTarget } from '@/lib/wikiLinks'
@@ -43,6 +44,11 @@ import { api } from '@/lib/api'
 import type { TreeNode } from '../../shared/ipc'
 
 const AUTOSAVE_MS = 800
+
+interface PausedSavePaths {
+  affected: string[]
+  unaffected: string[]
+}
 
 /* Dialog state types ─────────────────────────────────────────── */
 
@@ -69,15 +75,17 @@ function DirtyDot(): JSX.Element {
 }
 
 export default function App(): JSX.Element {
-  // Only `path` and `epoch` are subscribed here — a keystroke changes `content`,
-  // not `path` or `epoch`, so the App component (and the whole file-tree subtree
-  // below it) does NOT re-render while typing. Content is consumed by leaf
-  // subscribers: the editor reads it non-reactively on (re)mount, the dirty dot
-  // and status bar subscribe to it themselves.
+  // Only active-document identity and tab presence are subscribed here — a
+  // keystroke changes active tab content, not these values, so App (and the
+  // file-tree subtree below it) does NOT re-render while typing. Content is
+  // consumed by leaf subscribers: the editor reads it non-reactively on
+  // (re)mount, the dirty dot and status bar subscribe to it themselves.
   const path = useDocumentStore((s) => s.path)
   const epoch = useDocumentStore((s) => s.epoch)
+  const hasTabs = useDocumentStore((s) => s.tabs.length > 0)
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const saveTimerPaths = useRef<string[]>([])
   const editorRef = useRef<EditorHandle>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -171,14 +179,21 @@ export default function App(): JSX.Element {
   }, [])
 
   const openFileByPath = useCallback(async (filePath: string): Promise<void> => {
+    const existing = useDocumentStore.getState().tabForPath(filePath)
+    if (existing) {
+      useDocumentStore.getState().setActivePath(filePath)
+      useVaultStore.getState().select(filePath)
+      return
+    }
+
     const text = await api.readFile(filePath)
-    useDocumentStore.getState().load(filePath, text)
+    useDocumentStore.getState().openOrActivate(filePath, text)
     useVaultStore.getState().select(filePath)
     const root = useVaultStore.getState().root
     if (root) {
       const draft = await api.readDraft(root, filePath).catch(() => null)
-      if (draft != null && draft !== text && useDocumentStore.getState().path === filePath) {
-        useDocumentStore.getState().setPendingDraft(draft)
+      if (draft != null && draft !== text && useDocumentStore.getState().tabForPath(filePath)) {
+        useDocumentStore.getState().setPendingDraft(filePath, draft)
       }
     }
   }, [])
@@ -218,19 +233,93 @@ export default function App(): JSX.Element {
     [openFileByPath]
   )
 
-  function save(): Promise<void> {
-    return saveDocument(api.writeFile, api.readFile)
+  function save(targetPath?: string): Promise<void> {
+    return saveDocument(api.writeFile, api.readFile, targetPath)
+  }
+
+  function clearPendingSave(): void {
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    saveTimer.current = null
+    saveTimerPaths.current = []
+  }
+
+  function uniquePaths(paths: string[]): string[] {
+    return Array.from(new Set(paths))
+  }
+
+  function pausePendingSaveIfAffected(basePath: string): PausedSavePaths {
+    const paused: PausedSavePaths = { affected: [], unaffected: [] }
+    if (!saveTimer.current) return paused
+
+    for (const path of uniquePaths(saveTimerPaths.current)) {
+      if (isAffectedPath(path, basePath)) paused.affected.push(path)
+      else paused.unaffected.push(path)
+    }
+
+    if (paused.affected.length === 0) return paused
+    clearPendingSave()
+    scheduleDirtyAffectedTabsSave(paused.unaffected)
+    return paused
+  }
+
+  function isAffectedPath(pathToCheck: string, basePath: string): boolean {
+    return pathToCheck === basePath || pathToCheck.startsWith(`${basePath}/`)
+  }
+
+  function scheduleDirtyAffectedTabsSave(paths: string[]): void {
+    const candidates = uniquePaths([...saveTimerPaths.current, ...paths])
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+
+    const dirtyPaths = candidates.filter((nextPath) => {
+      const tab = useDocumentStore.getState().tabForPath(nextPath)
+      return tab != null && tab.content !== tab.savedContent
+    })
+    if (dirtyPaths.length === 0) {
+      saveTimer.current = null
+      saveTimerPaths.current = []
+      return
+    }
+    saveTimerPaths.current = dirtyPaths
+    saveTimer.current = setTimeout(() => {
+      saveTimer.current = null
+      saveTimerPaths.current = []
+      dirtyPaths.forEach((nextPath) => void save(nextPath))
+    }, AUTOSAVE_MS)
+  }
+
+  function restorePausedPendingSave(paused: PausedSavePaths): void {
+    scheduleDirtyAffectedTabsSave([...paused.affected, ...paused.unaffected])
+  }
+
+  function replaceAffectedOpenTabPaths(oldBasePath: string, newBasePath: string): void {
+    const store = useDocumentStore.getState()
+    const affectedTabs = store.tabs.filter((tab) => isAffectedPath(tab.path, oldBasePath))
+    if (affectedTabs.length === 0) return
+
+    const activeBefore = store.activePath
+    let selectedPath = activeBefore
+    const nextPaths: string[] = []
+
+    for (const tab of affectedTabs) {
+      const nextPath = `${newBasePath}${tab.path.slice(oldBasePath.length)}`
+      useDocumentStore.getState().replacePath(tab.path, nextPath)
+      nextPaths.push(nextPath)
+      if (tab.path === activeBefore) selectedPath = nextPath
+    }
+
+    useVaultStore.getState().select(selectedPath)
+    scheduleDirtyAffectedTabsSave(nextPaths)
   }
 
   function handleChange(value: string): void {
-    useDocumentStore.getState().setContent(value)
-    if (saveTimer.current) clearTimeout(saveTimer.current)
-    saveTimer.current = setTimeout(() => void save(), AUTOSAVE_MS)
+    useDocumentStore.getState().setActiveContent(value)
+    const currentPath = useDocumentStore.getState().activePath
+    if (currentPath) scheduleDirtyAffectedTabsSave([currentPath])
   }
 
   useEffect(() => {
     return () => {
-      if (saveTimer.current) clearTimeout(saveTimer.current)
+      clearPendingSave()
     }
   }, [])
 
@@ -274,31 +363,53 @@ export default function App(): JSX.Element {
 
   async function doRename(node: TreeNode, name: string): Promise<void> {
     if (name === node.name) return
-    const newPath = await api.renamePath(node.path, name)
-    await refreshTree()
-    if (useDocumentStore.getState().path === node.path) {
-      const text = await api.readFile(newPath)
-      useDocumentStore.getState().load(newPath, text)
-      useVaultStore.getState().select(newPath)
+    const pausedPaths = pausePendingSaveIfAffected(node.path)
+    let renamed = false
+    try {
+      const newPath = await api.renamePath(node.path, name)
+      renamed = true
+      replaceAffectedOpenTabPaths(node.path, newPath)
+      await refreshTree()
+    } catch (err) {
+      if (!renamed) restorePausedPendingSave(pausedPaths)
+      console.error('Failed to rename path:', err)
     }
   }
 
   async function doTrash(node: TreeNode): Promise<void> {
-    await api.trashPath(node.path)
-    if (useDocumentStore.getState().path === node.path) {
-      useDocumentStore.getState().reset()
+    const pausedPaths = pausePendingSaveIfAffected(node.path)
+    let trashed = false
+    try {
+      await api.trashPath(node.path)
+      trashed = true
+      const affectedPaths = useDocumentStore
+        .getState()
+        .tabs
+        .filter((tab) => isAffectedPath(tab.path, node.path))
+        .map((tab) => tab.path)
+      for (const affectedPath of affectedPaths) {
+        useDocumentStore.getState().removePath(affectedPath)
+      }
+      useVaultStore.getState().select(useDocumentStore.getState().activePath)
+      await refreshTree()
+    } catch (err) {
+      if (!trashed) restorePausedPendingSave(pausedPaths)
+      console.error('Failed to trash path:', err)
     }
-    await refreshTree()
   }
 
   async function doMove(node: TreeNode, destDir: string): Promise<void> {
-    const newPath = await api.movePath(node.path, destDir)
-    if (useDocumentStore.getState().path === node.path) {
-      const text = await api.readFile(newPath)
-      useDocumentStore.getState().load(newPath, text)
-      useVaultStore.getState().select(newPath)
+    const pausedPaths = pausePendingSaveIfAffected(node.path)
+    let moved = false
+    try {
+      const newPath = await api.movePath(node.path, destDir)
+      moved = true
+      replaceAffectedOpenTabPaths(node.path, newPath)
+      await refreshTree()
+    } catch (err) {
+      if (!moved) restorePausedPendingSave(pausedPaths)
+      console.error('Failed to move path:', err)
     }
-    await refreshTree()
   }
 
   /* ── Schedule (日程) ───────────────────────────────────────── */
@@ -327,6 +438,10 @@ export default function App(): JSX.Element {
     await openFileByPath(created)
   }
 
+  const handleOpenSearch = useCallback(() => setSearchOpen(true), [])
+  const handleOpenToday = useCallback(() => void openSchedule(new Date()), [scheduleDir])
+  const handleCollapseSidebar = useCallback(() => setSidebarOpen(false), [])
+
   /* ── Title bar info ────────────────────────────────────────── */
 
   const parts = path ? path.split('/') : []
@@ -336,6 +451,32 @@ export default function App(): JSX.Element {
   function handleJumpToLine(line: number): void {
     editorRef.current?.jumpToLine(line)
   }
+
+  const handleActivateTab = useCallback((filePath: string): void => {
+    useDocumentStore.getState().setActivePath(filePath)
+    useVaultStore.getState().select(filePath)
+  }, [])
+
+  const handleCloseTab = useCallback(async (filePath: string): Promise<void> => {
+    const tab = useDocumentStore.getState().tabForPath(filePath)
+    if (!tab) return
+    if (tab.conflict != null) {
+      useDocumentStore.getState().setActivePath(filePath)
+      useVaultStore.getState().select(filePath)
+      return
+    }
+    if (tab.content !== tab.savedContent) {
+      await saveDocument(api.writeFile, api.readFile, filePath)
+      const after = useDocumentStore.getState().tabForPath(filePath)
+      if (!after || after.content !== after.savedContent || after.saveStatus === 'error' || after.conflict != null) {
+        useDocumentStore.getState().setActivePath(filePath)
+        useVaultStore.getState().select(filePath)
+        return
+      }
+    }
+    useDocumentStore.getState().closeTab(filePath)
+    useVaultStore.getState().select(useDocumentStore.getState().activePath)
+  }, [])
 
   function startPaneResize(
     e: ReactPointerEvent,
@@ -374,6 +515,11 @@ export default function App(): JSX.Element {
         <>
           <Sidebar
             width={leftPaneWidth}
+            scheduleEnabled={scheduleEnabled}
+            onOpenFolder={handleOpenFolder}
+            onOpenSearch={handleOpenSearch}
+            onOpenToday={handleOpenToday}
+            onCollapse={handleCollapseSidebar}
             onOpenFile={handleOpenFile}
             onContextMenu={handleContextMenu}
           />
@@ -394,48 +540,16 @@ export default function App(): JSX.Element {
             sidebarOpen ? '' : 'pl-20'
           ].join(' ')}
         >
-          <div className="flex gap-0.5 [-webkit-app-region:no-drag]">
+          {!sidebarOpen && (
             <button
-              onClick={() => setSidebarOpen((v) => !v)}
-              title="切换笔记列表 (⌘B)"
-              aria-label="Toggle sidebar"
-              className={[
-                'grid h-[24px] w-[28px] place-items-center rounded-md transition-colors',
-                sidebarOpen
-                  ? 'bg-[color:var(--accent-soft)] text-[color:var(--accent)] opacity-90'
-                  : 'text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)] hover:text-foreground'
-              ].join(' ')}
+              onClick={() => setSidebarOpen(true)}
+              title="显示文件树 (⌘B)"
+              aria-label="显示文件树"
+              className="grid h-[24px] w-[28px] place-items-center rounded-md text-[color:var(--text-dim)] transition-colors hover:bg-[color:var(--bg-hover)] hover:text-foreground [-webkit-app-region:no-drag]"
             >
               <PanelLeft size={16} />
             </button>
-            <button
-              onClick={handleOpenFolder}
-              title="打开文件夹"
-              aria-label="打开文件夹"
-              className="grid h-[24px] w-[28px] place-items-center rounded-md text-[color:var(--text-dim)] transition-colors hover:bg-[color:var(--bg-hover)] hover:text-foreground"
-            >
-              <FolderOpen size={16} />
-            </button>
-            <button
-              onClick={() => setSearchOpen(true)}
-              disabled={!vaultRoot}
-              title="搜索文件 (⌘K)"
-              aria-label="搜索文件"
-              className="grid h-[24px] w-[28px] place-items-center rounded-md text-[color:var(--text-dim)] transition-colors hover:bg-[color:var(--bg-hover)] hover:text-foreground disabled:opacity-40 disabled:pointer-events-none"
-            >
-              <Search size={16} />
-            </button>
-            {scheduleEnabled && (
-              <button
-                onClick={() => void openSchedule(new Date())}
-                title="今日日程"
-                aria-label="今日日程"
-                className="grid h-[24px] w-[28px] place-items-center rounded-md text-[color:var(--text-dim)] transition-colors hover:bg-[color:var(--bg-hover)] hover:text-foreground"
-              >
-                <CalendarPlus size={16} />
-              </button>
-            )}
-          </div>
+          )}
 
           <div
             data-tauri-drag-region
@@ -517,6 +631,10 @@ export default function App(): JSX.Element {
           </div>
         </header>
 
+        {hasTabs && (
+          <DocumentTabs onActivate={handleActivateTab} onClose={handleCloseTab} />
+        )}
+
         <div className="flex min-h-0 flex-1">
           <main className="min-h-0 min-w-0 flex-1">
             {path ? (
@@ -529,11 +647,11 @@ export default function App(): JSX.Element {
                     docKey={`${path}:${epoch}`}
                     // Read non-reactively: the editor is uncontrolled and keyed by
                     // `${path}:${epoch}`, so it only consumes this on (re)mount when
-                    // a file opens or a draft is applied. `load()` sets
+                    // a file opens, moves, or a draft is applied. Store actions set
                     // path+content together, so it's current here.
                     initialValue={useDocumentStore.getState().content}
                     onChange={handleChange}
-                    onSave={() => void save()}
+                    onSave={() => void save(path)}
                     onOpenLink={handleOpenLink}
                     filePath={path}
                   />

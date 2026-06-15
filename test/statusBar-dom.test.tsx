@@ -9,16 +9,12 @@ afterEach(cleanup)
 // StatusBar now subscribes to the document store directly (decoupled from App so
 // keystrokes don't re-render the file tree). Drive it via store state.
 function seed(content: string, saveStatus: SaveStatus): void {
-  const store = useDocumentStore.getState()
-  store.reset()
-  if (!content && saveStatus === 'saved') return
-  store.load('/status.md', content)
-  if (saveStatus === 'saving') store.markSaving()
-  if (saveStatus === 'error') store.markError()
-  if (saveStatus === 'dirty') {
-    store.markSaved(`${content} saved`)
-    store.setContent(content)
-  }
+  useDocumentStore.getState().reset()
+  useDocumentStore.getState().openOrActivate('/v/a.md', content)
+  useDocumentStore.getState().markSaved(content, '/v/a.md')
+  if (saveStatus === 'dirty') useDocumentStore.getState().setActiveContent(`${content} dirty`)
+  if (saveStatus === 'saving') useDocumentStore.getState().markSaving('/v/a.md')
+  if (saveStatus === 'error') useDocumentStore.getState().markError('/v/a.md')
 }
 
 describe('StatusBar', () => {
@@ -38,7 +34,7 @@ describe('StatusBar', () => {
   })
 
   it('hides context label and save status when no file is open', () => {
-    seed('', 'saved')
+    useDocumentStore.getState().reset()
     render(<StatusBar hasFile={false} />)
     expect(screen.queryByText('正文')).toBeNull()
     expect(screen.queryByText('已保存')).toBeNull()
