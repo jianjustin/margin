@@ -4,6 +4,7 @@ import { renderHook } from '@testing-library/react'
 import { useVaultWatch } from '@/hooks/useVaultWatch'
 import { api } from '@/lib/api'
 import { scanVaultWithSettings } from '@/lib/scanVault'
+import { beginPathMutation, endPathMutation, resetPathMutationGuards } from '@/lib/pathMutationGuards'
 import { useDocumentStore } from '@/stores/documentStore'
 import { useVaultStore } from '@/stores/vaultStore'
 import type { TreeNode } from '../src/shared/ipc'
@@ -38,6 +39,7 @@ async function triggerVaultChanged(root = '/vault'): Promise<void> {
 describe('useVaultWatch', () => {
   beforeEach(() => {
     vaultChanged.callback = null
+    resetPathMutationGuards()
     useDocumentStore.getState().reset()
     useVaultStore.getState().openRoot('/vault', [])
     useVaultStore.getState().select(null)
@@ -45,6 +47,7 @@ describe('useVaultWatch', () => {
   })
 
   afterEach(() => {
+    resetPathMutationGuards()
     vi.restoreAllMocks()
     vi.clearAllMocks()
   })
@@ -115,6 +118,34 @@ describe('useVaultWatch', () => {
     expect(a.savedContent).toBe('old-a')
     expect(b.content).toBe('disk-b')
     expect(b.savedContent).toBe('disk-b')
+    unmount()
+  })
+
+  it('does not close tabs covered by an app-owned path mutation', async () => {
+    const store = useDocumentStore.getState()
+    store.openOrActivate('/vault/folder/child.md', 'child saved')
+    store.setActiveContent('dirty child')
+    store.openOrActivate('/vault/other.md', 'other saved')
+
+    const guard = beginPathMutation('/vault/folder')
+    vi.mocked(scanVaultWithSettings).mockResolvedValue([file('/vault/other.md')])
+    vi.mocked(api.readFile).mockImplementation((path: string) => {
+      if (path === '/vault/other.md') return Promise.resolve('disk other')
+      return Promise.reject(new Error(`unexpected path ${path}`))
+    })
+
+    const { unmount } = renderHook(() => useVaultWatch())
+    await triggerVaultChanged()
+
+    const child = useDocumentStore.getState().tabForPath('/vault/folder/child.md')!
+    const other = useDocumentStore.getState().tabForPath('/vault/other.md')!
+    expect(child.content).toBe('dirty child')
+    expect(child.savedContent).toBe('child saved')
+    expect(other.content).toBe('disk other')
+    expect(api.readFile).not.toHaveBeenCalledWith('/vault/folder/child.md')
+    expect(window.alert).not.toHaveBeenCalled()
+
+    endPathMutation(guard)
     unmount()
   })
 })

@@ -3,6 +3,7 @@ import { api } from '@/lib/api'
 import { scanVaultWithSettings } from '@/lib/scanVault'
 import { useVaultStore } from '@/stores/vaultStore'
 import { useDocumentStore } from '@/stores/documentStore'
+import { isPathUnderMutation } from '@/lib/pathMutationGuards'
 
 /** Type guard: does a path still exist anywhere in the tree? */
 function pathExists(nodes: import('../../../shared/ipc').TreeNode[], target: string): boolean {
@@ -25,6 +26,8 @@ export function useVaultWatch(): void {
 
       const openTabs = useDocumentStore.getState().tabs.map((tab) => tab.path)
       for (const openPath of openTabs) {
+        if (isPathUnderMutation(openPath)) continue
+
         const currentTab = useDocumentStore.getState().tabForPath(openPath)
         if (!currentTab) continue
 

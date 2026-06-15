@@ -21,9 +21,16 @@ const apiMock = vi.hoisted(() => ({
   scanVault: vi.fn()
 }))
 
+const vaultChanged = vi.hoisted(() => ({
+  callback: null as null | ((root: string) => unknown)
+}))
+
 vi.mock('@/lib/api', () => ({
   api: {
-    onVaultChanged: () => () => {},
+    onVaultChanged: vi.fn((callback: (root: string) => unknown) => {
+      vaultChanged.callback = callback
+      return vi.fn()
+    }),
     scanVault: apiMock.scanVault,
     readFile: apiMock.readFile,
     writeFile: apiMock.writeFile,
@@ -95,6 +102,7 @@ vi.mock('@/components/Editor', () => ({
 }))
 
 import App from '@/App'
+import { resetPathMutationGuards } from '@/lib/pathMutationGuards'
 
 function deferred<T>(): {
   promise: Promise<T>
@@ -178,6 +186,8 @@ beforeEach(() => {
     })) as unknown as typeof window.matchMedia
   }
   fileTreeRenders = 0
+  vaultChanged.callback = null
+  resetPathMutationGuards()
   vi.clearAllMocks()
   apiMock.readFile.mockResolvedValue('hello')
   apiMock.writeFile.mockResolvedValue(undefined)
@@ -216,6 +226,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  resetPathMutationGuards()
   ;(console.error as unknown as { mockRestore?: () => void }).mockRestore?.()
   vi.useRealTimers()
   cleanup()
@@ -396,6 +407,51 @@ describe('App re-render isolation', () => {
     expect(tab.savedContent).toBe('child saved')
     expect(tab.saveStatus).toBe('dirty')
     expect(useVaultStore.getState().selectedPath).toBe('/v/renamed-folder/child.md')
+  })
+
+  it('does not let vault-watch close old folder tabs during a pending folder rename', async () => {
+    const rename = deferred<string>()
+    apiMock.renamePath.mockReturnValue(rename.promise)
+    openDirtyFolderChildren()
+
+    await act(async () => {
+      render(<App />)
+    })
+
+    fireEvent.contextMenu(screen.getByTestId('foldertree'))
+    fireEvent.click(screen.getByRole('button', { name: '重命名…' }))
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'renamed-folder' } })
+    fireEvent.click(screen.getByRole('button', { name: '确认' }))
+
+    apiMock.scanVault.mockResolvedValueOnce([
+      {
+        name: 'renamed-folder',
+        path: '/v/renamed-folder',
+        type: 'folder',
+        children: [{ name: 'child.md', path: '/v/renamed-folder/child.md', type: 'file' }]
+      },
+      { name: 'archive', path: '/v/archive', type: 'folder', children: [] },
+      { name: 'a.md', path: '/v/a.md', type: 'file' }
+    ])
+
+    expect(vaultChanged.callback).toBeTruthy()
+    await act(async () => {
+      await vaultChanged.callback?.('/v')
+    })
+
+    expect(useDocumentStore.getState().tabForPath('/v/folder/child.md')?.content).toBe('dirty child')
+    expect(useDocumentStore.getState().tabForPath('/v/folder/other.md')?.content).toBe('dirty other')
+
+    await act(async () => {
+      rename.resolve('/v/renamed-folder')
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(useDocumentStore.getState().tabForPath('/v/renamed-folder/child.md')?.content).toBe('dirty child')
+    expect(useDocumentStore.getState().tabForPath('/v/renamed-folder/other.md')?.content).toBe('dirty other')
+    expect(useDocumentStore.getState().activePath).toBe('/v/renamed-folder/child.md')
   })
 
   it('moves open child tabs when moving their folder and preserves dirty content', async () => {
