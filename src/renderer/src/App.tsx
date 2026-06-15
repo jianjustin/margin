@@ -50,6 +50,11 @@ interface PausedSavePaths {
   unaffected: string[]
 }
 
+interface PathMutationGuard {
+  basePath: string
+  blockedPaths: string[]
+}
+
 /* Dialog state types ─────────────────────────────────────────── */
 
 type DialogState =
@@ -86,6 +91,7 @@ export default function App(): JSX.Element {
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const saveTimerPaths = useRef<string[]>([])
+  const pathMutationGuards = useRef<PathMutationGuard[]>([])
   const editorRef = useRef<EditorHandle>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -280,11 +286,36 @@ export default function App(): JSX.Element {
     await Promise.all(uniquePaths(paths).map((draftPath) => api.deleteDraft(root, draftPath).catch(() => {})))
   }
 
+  function beginPathMutation(basePath: string): PathMutationGuard {
+    const guard: PathMutationGuard = { basePath, blockedPaths: [] }
+    pathMutationGuards.current = [...pathMutationGuards.current, guard]
+    return guard
+  }
+
+  function endPathMutation(guard: PathMutationGuard): void {
+    pathMutationGuards.current = pathMutationGuards.current.filter((item) => item !== guard)
+  }
+
+  function pathMutationGuardFor(pathToCheck: string): PathMutationGuard | null {
+    return pathMutationGuards.current.find((guard) => isAffectedPath(pathToCheck, guard.basePath)) ?? null
+  }
+
+  function restorePausedAndBlockedSave(paused: PausedSavePaths, guard: PathMutationGuard): void {
+    scheduleDirtyAffectedTabsSave([...paused.affected, ...paused.unaffected, ...guard.blockedPaths])
+  }
+
   function scheduleDirtyAffectedTabsSave(paths: string[]): void {
     const candidates = uniquePaths([...saveTimerPaths.current, ...paths])
     if (saveTimer.current) clearTimeout(saveTimer.current)
 
-    const dirtyPaths = candidates.filter((nextPath) => {
+    const schedulableCandidates: string[] = []
+    for (const nextPath of candidates) {
+      const guard = pathMutationGuardFor(nextPath)
+      if (guard) guard.blockedPaths = uniquePaths([...guard.blockedPaths, nextPath])
+      else schedulableCandidates.push(nextPath)
+    }
+
+    const dirtyPaths = schedulableCandidates.filter((nextPath) => {
       const tab = useDocumentStore.getState().tabForPath(nextPath)
       return tab != null && tab.content !== tab.savedContent
     })
@@ -299,10 +330,6 @@ export default function App(): JSX.Element {
       saveTimerPaths.current = []
       dirtyPaths.forEach((nextPath) => void save(nextPath))
     }, AUTOSAVE_MS)
-  }
-
-  function restorePausedPendingSave(paused: PausedSavePaths): void {
-    scheduleDirtyAffectedTabsSave([...paused.affected, ...paused.unaffected])
   }
 
   function replaceAffectedOpenTabPaths(oldBasePath: string, newBasePath: string): void {
@@ -379,16 +406,19 @@ export default function App(): JSX.Element {
     if (name === node.name) return
     const affectedPaths = affectedOpenTabPaths(node.path)
     const pausedPaths = pausePendingSaveIfAffected(node.path)
+    const guard = beginPathMutation(node.path)
     let renamed = false
     try {
       await waitForDocumentSaves(affectedPaths)
       const newPath = await api.renamePath(node.path, name)
       renamed = true
       await deleteDraftsForPaths(affectedPaths)
+      endPathMutation(guard)
       replaceAffectedOpenTabPaths(node.path, newPath)
       await refreshTree()
     } catch (err) {
-      if (!renamed) restorePausedPendingSave(pausedPaths)
+      endPathMutation(guard)
+      if (!renamed) restorePausedAndBlockedSave(pausedPaths, guard)
       console.error('Failed to rename path:', err)
     }
   }
@@ -396,19 +426,22 @@ export default function App(): JSX.Element {
   async function doTrash(node: TreeNode): Promise<void> {
     const affectedPaths = affectedOpenTabPaths(node.path)
     const pausedPaths = pausePendingSaveIfAffected(node.path)
+    const guard = beginPathMutation(node.path)
     let trashed = false
     try {
       await waitForDocumentSaves(affectedPaths)
       await api.trashPath(node.path)
       trashed = true
       await deleteDraftsForPaths(affectedPaths)
+      endPathMutation(guard)
       for (const affectedPath of affectedPaths) {
         useDocumentStore.getState().removePath(affectedPath)
       }
       useVaultStore.getState().select(useDocumentStore.getState().activePath)
       await refreshTree()
     } catch (err) {
-      if (!trashed) restorePausedPendingSave(pausedPaths)
+      endPathMutation(guard)
+      if (!trashed) restorePausedAndBlockedSave(pausedPaths, guard)
       console.error('Failed to trash path:', err)
     }
   }
@@ -416,16 +449,19 @@ export default function App(): JSX.Element {
   async function doMove(node: TreeNode, destDir: string): Promise<void> {
     const affectedPaths = affectedOpenTabPaths(node.path)
     const pausedPaths = pausePendingSaveIfAffected(node.path)
+    const guard = beginPathMutation(node.path)
     let moved = false
     try {
       await waitForDocumentSaves(affectedPaths)
       const newPath = await api.movePath(node.path, destDir)
       moved = true
       await deleteDraftsForPaths(affectedPaths)
+      endPathMutation(guard)
       replaceAffectedOpenTabPaths(node.path, newPath)
       await refreshTree()
     } catch (err) {
-      if (!moved) restorePausedPendingSave(pausedPaths)
+      endPathMutation(guard)
+      if (!moved) restorePausedAndBlockedSave(pausedPaths, guard)
       console.error('Failed to move path:', err)
     }
   }

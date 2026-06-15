@@ -170,6 +170,44 @@ describe('saveDocument', () => {
     expect(useDocumentStore.getState().tabForPath('/notes/c.md')!.saveStatus).toBe('saved')
   })
 
+  it('allows a later save after writeFile throws synchronously', async () => {
+    const store = useDocumentStore.getState()
+    store.openOrActivate('/notes/a.md', 'a')
+    store.setActiveContent('b')
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const throwingWrite = vi.fn(() => {
+      throw new Error('sync write failed')
+    })
+    const successfulWrite = vi.fn(() => Promise.resolve())
+
+    await saveDocument(throwingWrite, undefined, '/notes/a.md')
+    await saveDocument(successfulWrite, undefined, '/notes/a.md')
+
+    expect(throwingWrite).toHaveBeenCalledWith('/notes/a.md', 'b')
+    expect(successfulWrite).toHaveBeenCalledWith('/notes/a.md', 'b')
+    expect(useDocumentStore.getState().tabForPath('/notes/a.md')!.saveStatus).toBe('saved')
+  })
+
+  it('allows a later save after readFile throws synchronously', async () => {
+    const store = useDocumentStore.getState()
+    store.openOrActivate('/notes/a.md', 'a')
+    store.setActiveContent('b')
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const throwingRead = vi.fn(() => {
+      throw new Error('sync read failed')
+    })
+    const successfulRead = vi.fn(() => Promise.resolve('a'))
+    const writeFile = vi.fn(() => Promise.resolve())
+
+    await saveDocument(writeFile, throwingRead, '/notes/a.md')
+    await saveDocument(writeFile, successfulRead, '/notes/a.md')
+
+    expect(throwingRead).toHaveBeenCalledWith('/notes/a.md')
+    expect(successfulRead).toHaveBeenCalledWith('/notes/a.md')
+    expect(writeFile).toHaveBeenCalledWith('/notes/a.md', 'b')
+    expect(useDocumentStore.getState().tabForPath('/notes/a.md')!.saveStatus).toBe('saved')
+  })
+
   it('blocks the save and raises a conflict when disk changed externally', async () => {
     const store = useDocumentStore.getState()
     store.openOrActivate('/v/a.md', 'base')

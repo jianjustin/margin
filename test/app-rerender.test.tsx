@@ -832,6 +832,244 @@ describe('App re-render isolation', () => {
     expect(apiMock.writeFile).not.toHaveBeenCalledWith('/v/a.md', 'unsaved edit')
   })
 
+  it('does not save the old path when an affected tab is edited during delayed rename', async () => {
+    vi.useFakeTimers()
+    const rename = deferred<string>()
+    apiMock.renamePath.mockReturnValue(rename.promise)
+
+    await act(async () => {
+      render(<App />)
+    })
+
+    fireEvent.contextMenu(screen.getByTestId('filetree'))
+    fireEvent.click(screen.getByRole('button', { name: '重命名…' }))
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'renamed.md' } })
+    fireEvent.click(screen.getByRole('button', { name: '确认' }))
+    fireEvent.click(screen.getByTestId('editor'))
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(apiMock.writeFile).not.toHaveBeenCalledWith('/v/a.md', 'unsaved edit')
+
+    await act(async () => {
+      rename.resolve('/v/renamed.md')
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(apiMock.writeFile).toHaveBeenCalledWith('/v/renamed.md', 'unsaved edit')
+    expect(apiMock.writeFile).not.toHaveBeenCalledWith('/v/a.md', 'unsaved edit')
+  })
+
+  it('does not save the old path when an affected tab is edited during delayed move', async () => {
+    vi.useFakeTimers()
+    const move = deferred<string>()
+    apiMock.movePath.mockReturnValue(move.promise)
+
+    await act(async () => {
+      render(<App />)
+    })
+
+    fireEvent.contextMenu(screen.getByTestId('filetree'))
+    fireEvent.click(screen.getByRole('button', { name: '移动到…' }))
+    fireEvent.click(screen.getByRole('button', { name: 'folder' }))
+    fireEvent.click(screen.getByRole('button', { name: '移动' }))
+    fireEvent.click(screen.getByTestId('editor'))
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(apiMock.writeFile).not.toHaveBeenCalledWith('/v/a.md', 'unsaved edit')
+
+    await act(async () => {
+      move.resolve('/v/folder/a.md')
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(apiMock.writeFile).toHaveBeenCalledWith('/v/folder/a.md', 'unsaved edit')
+    expect(apiMock.writeFile).not.toHaveBeenCalledWith('/v/a.md', 'unsaved edit')
+  })
+
+  it('does not save the old path when an affected tab is edited during delayed trash', async () => {
+    vi.useFakeTimers()
+    const trash = deferred<void>()
+    apiMock.trashPath.mockReturnValue(trash.promise)
+
+    await act(async () => {
+      render(<App />)
+    })
+
+    fireEvent.contextMenu(screen.getByTestId('filetree'))
+    fireEvent.click(screen.getByRole('button', { name: '移到废纸篓' }))
+    fireEvent.click(screen.getByRole('button', { name: '移到废纸篓' }))
+    fireEvent.click(screen.getByTestId('editor'))
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(apiMock.writeFile).not.toHaveBeenCalledWith('/v/a.md', 'unsaved edit')
+
+    await act(async () => {
+      trash.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(apiMock.writeFile).not.toHaveBeenCalledWith('/v/a.md', 'unsaved edit')
+    expect(useDocumentStore.getState().tabForPath('/v/a.md')).toBeNull()
+  })
+
+  it('restores an old-path save when an affected edit happens during failed delayed rename', async () => {
+    vi.useFakeTimers()
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const rename = deferred<string>()
+    apiMock.renamePath.mockReturnValue(rename.promise)
+
+    await act(async () => {
+      render(<App />)
+    })
+
+    fireEvent.contextMenu(screen.getByTestId('filetree'))
+    fireEvent.click(screen.getByRole('button', { name: '重命名…' }))
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'renamed.md' } })
+    fireEvent.click(screen.getByRole('button', { name: '确认' }))
+    fireEvent.click(screen.getByTestId('editor'))
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(apiMock.writeFile).not.toHaveBeenCalledWith('/v/a.md', 'unsaved edit')
+
+    await act(async () => {
+      rename.reject(new Error('rename failed'))
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(apiMock.writeFile).toHaveBeenCalledWith('/v/a.md', 'unsaved edit')
+  })
+
+  it('restores an old-path save when an affected edit happens during failed delayed move', async () => {
+    vi.useFakeTimers()
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const move = deferred<string>()
+    apiMock.movePath.mockReturnValue(move.promise)
+
+    await act(async () => {
+      render(<App />)
+    })
+
+    fireEvent.contextMenu(screen.getByTestId('filetree'))
+    fireEvent.click(screen.getByRole('button', { name: '移动到…' }))
+    fireEvent.click(screen.getByRole('button', { name: 'folder' }))
+    fireEvent.click(screen.getByRole('button', { name: '移动' }))
+    fireEvent.click(screen.getByTestId('editor'))
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(apiMock.writeFile).not.toHaveBeenCalledWith('/v/a.md', 'unsaved edit')
+
+    await act(async () => {
+      move.reject(new Error('move failed'))
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(apiMock.writeFile).toHaveBeenCalledWith('/v/a.md', 'unsaved edit')
+  })
+
+  it('restores an old-path save when an affected edit happens during failed delayed trash', async () => {
+    vi.useFakeTimers()
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const trash = deferred<void>()
+    apiMock.trashPath.mockReturnValue(trash.promise)
+
+    await act(async () => {
+      render(<App />)
+    })
+
+    fireEvent.contextMenu(screen.getByTestId('filetree'))
+    fireEvent.click(screen.getByRole('button', { name: '移到废纸篓' }))
+    fireEvent.click(screen.getByRole('button', { name: '移到废纸篓' }))
+    fireEvent.click(screen.getByTestId('editor'))
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(apiMock.writeFile).not.toHaveBeenCalledWith('/v/a.md', 'unsaved edit')
+
+    await act(async () => {
+      trash.reject(new Error('trash failed'))
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(apiMock.writeFile).toHaveBeenCalledWith('/v/a.md', 'unsaved edit')
+  })
+
   it('keeps other pending descendant saves when editing the active child after folder rename', async () => {
     vi.useFakeTimers()
     openDirtyFolderChildren()

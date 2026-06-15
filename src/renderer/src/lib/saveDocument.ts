@@ -29,7 +29,13 @@ export function saveDocument(
   let tab = store.getState().tabForPath(path)
   if (!tab || tab.content === tab.savedContent || tab.conflict != null) return Promise.resolve()
 
-  const save = (async () => {
+  let resolveSave: () => void = () => {}
+  const save = new Promise<void>((resolve) => {
+    resolveSave = resolve
+  })
+  savingPaths.set(path, save)
+
+  void (async () => {
     try {
       while (true) {
         tab = store.getState().tabForPath(path)
@@ -58,10 +64,10 @@ export function saveDocument(
       console.error('Failed to save document:', err)
       store.getState().markError(path)
     } finally {
-      savingPaths.delete(path)
+      if (savingPaths.get(path) === save) savingPaths.delete(path)
+      resolveSave()
     }
   })()
 
-  savingPaths.set(path, save)
   return save
 }
