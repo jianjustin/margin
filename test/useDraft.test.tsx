@@ -16,6 +16,7 @@ vi.mock('@/lib/api', () => ({
 beforeEach(() => {
   vi.useFakeTimers()
   useVaultStore.getState().openRoot('/vault', [])
+  useDocumentStore.getState().reset()
   useDocumentStore.getState().load('/vault/a.md', 'disk')
 })
 afterEach(() => {

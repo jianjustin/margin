@@ -9,7 +9,16 @@ afterEach(cleanup)
 // StatusBar now subscribes to the document store directly (decoupled from App so
 // keystrokes don't re-render the file tree). Drive it via store state.
 function seed(content: string, saveStatus: SaveStatus): void {
-  useDocumentStore.setState({ content, savedContent: content, saveStatus })
+  const store = useDocumentStore.getState()
+  store.reset()
+  if (!content && saveStatus === 'saved') return
+  store.load('/status.md', content)
+  if (saveStatus === 'saving') store.markSaving()
+  if (saveStatus === 'error') store.markError()
+  if (saveStatus === 'dirty') {
+    store.markSaved(`${content} saved`)
+    store.setContent(content)
+  }
 }
 
 describe('StatusBar', () => {

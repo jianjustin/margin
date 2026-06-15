@@ -53,12 +53,8 @@ beforeEach(() => {
     expanded: new Set(),
     selectedPath: '/v/a.md'
   })
-  useDocumentStore.setState({
-    path: '/v/a.md',
-    content: 'hello',
-    savedContent: 'hello',
-    saveStatus: 'saved'
-  })
+  useDocumentStore.getState().reset()
+  useDocumentStore.getState().load('/v/a.md', 'hello')
 })
 
 afterEach(cleanup)

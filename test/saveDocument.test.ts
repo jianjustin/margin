@@ -3,12 +3,7 @@ import { saveDocument } from '@/lib/saveDocument'
 import { useDocumentStore } from '@/stores/documentStore'
 
 function reset(): void {
-  useDocumentStore.setState({
-    path: null,
-    content: '',
-    savedContent: '',
-    saveStatus: 'saved'
-  })
+  useDocumentStore.getState().reset()
 }
 
 const tick = (): Promise<void> => new Promise((r) => setTimeout(r, 0))
