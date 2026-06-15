@@ -3,41 +3,53 @@ import { useDocumentStore } from '@/stores/documentStore'
 type WriteFile = (path: string, content: string) => Promise<void>
 type ReadFile = (path: string) => Promise<string>
 
-let saving = false
+const savingPaths = new Set<string>()
 
 /**
- * Persist the current document to disk. Single write in flight; re-saves until
- * converged. When `readFile` is provided, the disk is checked before each
- * write — if it no longer matches the content we last loaded/saved, the write
- * is withheld and a conflict is raised instead (never silently overwrite an
- * external change). A pending conflict also pauses autosave entirely.
+ * Persist a document tab to disk. Saves are coalesced per path, so writes for
+ * unrelated tabs may proceed while repeated saves for the same path converge.
  */
-export async function saveDocument(writeFile: WriteFile, readFile?: ReadFile): Promise<void> {
+export async function saveDocument(
+  writeFile: WriteFile,
+  readFile?: ReadFile,
+  targetPath?: string
+): Promise<void> {
   const store = useDocumentStore
-  if (saving) return
-  if (!store.getState().path || !store.getState().isDirty()) return
-  if (store.getState().conflict != null) return
+  const path = targetPath ?? store.getState().activePath
+  if (!path || savingPaths.has(path)) return
 
-  saving = true
+  let tab = store.getState().tabForPath(path)
+  if (!tab || tab.content === tab.savedContent || tab.conflict != null) return
+
+  savingPaths.add(path)
   try {
-    while (store.getState().isDirty() && store.getState().conflict == null) {
-      const { path, content, savedContent } = store.getState()
-      if (!path) break
+    while (true) {
+      tab = store.getState().tabForPath(path)
+      if (!tab || tab.content === tab.savedContent || tab.conflict != null) break
+
       if (readFile) {
         const disk = await readFile(path).catch(() => null)
-        if (disk != null && disk !== savedContent && disk !== content) {
-          store.getState().setConflict(disk)
+        tab = store.getState().tabForPath(path)
+        if (!tab || tab.content === tab.savedContent || tab.conflict != null) break
+        if (disk != null && disk !== tab.savedContent && disk !== tab.content) {
+          store.getState().setConflict(path, disk)
           break
         }
+        if (disk != null && disk === tab.content) {
+          store.getState().markSaved(tab.content, path)
+          continue
+        }
       }
-      store.getState().markSaving()
+
+      const { content } = tab
+      store.getState().markSaving(path)
       await writeFile(path, content)
-      store.getState().markSaved(content)
+      store.getState().markSaved(content, path)
     }
   } catch (err) {
     console.error('Failed to save document:', err)
-    store.getState().markError()
+    store.getState().markError(path)
   } finally {
-    saving = false
+    savingPaths.delete(path)
   }
 }

@@ -23,28 +23,32 @@ export function useVaultWatch(): void {
       const tree = await scanVaultWithSettings(root)
       useVaultStore.getState().setTree(tree)
 
-      const doc = useDocumentStore.getState()
-      const openPath = doc.path
-      if (!openPath) return
+      const openTabs = useDocumentStore.getState().tabs.map((tab) => tab.path)
+      for (const openPath of openTabs) {
+        const currentTab = useDocumentStore.getState().tabForPath(openPath)
+        if (!currentTab) continue
 
-      // Open file was deleted externally.
-      if (!pathExists(tree, openPath)) {
-        window.alert('当前打开的文件已在外部被删除。')
-        doc.reset()
-        useVaultStore.getState().select(null)
-        return
-      }
+        if (!pathExists(tree, openPath)) {
+          window.alert(`打开的文件已在外部被删除：${openPath.split('/').pop() ?? openPath}`)
+          useDocumentStore.getState().removePath(openPath)
+          if (useDocumentStore.getState().activePath) {
+            useVaultStore.getState().select(useDocumentStore.getState().activePath)
+          } else {
+            useVaultStore.getState().select(null)
+          }
+          continue
+        }
 
-      // Re-read; if disk differs from what we have saved, reconcile.
-      const disk = await api.readFile(openPath)
-      // The user may have switched files while we awaited; never act on a stale path.
-      const current = useDocumentStore.getState()
-      if (current.path !== openPath) return
-      if (disk === current.savedContent) return // no real change for us
-      if (!current.isDirty()) {
-        current.load(openPath, disk) // clean → silently adopt disk (editor remounts via epoch)
-      } else {
-        current.setConflict(disk) // dirty → non-blocking conflict bar decides
+        const disk = await api.readFile(openPath).catch(() => null)
+        if (disk == null) continue
+        const latest = useDocumentStore.getState().tabForPath(openPath)
+        if (!latest) continue
+        if (disk === latest.savedContent) continue
+        if (latest.content === latest.savedContent) {
+          useDocumentStore.getState().reloadFromDisk(openPath, disk)
+        } else {
+          useDocumentStore.getState().setConflict(openPath, disk)
+        }
       }
     })
     return unsubscribe

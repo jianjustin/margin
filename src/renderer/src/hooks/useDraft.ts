@@ -6,31 +6,38 @@ import { useVaultStore } from '@/stores/vaultStore'
 export const DRAFT_INTERVAL_MS = 2000
 
 /**
- * Crash-recovery drafts: while the document is dirty, snapshot unsaved content
- * into `<vault>/.margin/drafts/` every couple of seconds; drop the draft once
- * the document is saved. All failures are silent — drafts must never interrupt
- * typing.
+ * Crash-recovery drafts are tracked per open dirty tab. Failures stay silent so
+ * draft persistence never interrupts editing.
  */
 export function useDraft(): void {
   useEffect(() => {
-    let lastWritten: string | null = null
+    const lastWritten = new Map<string, string>()
 
     const timer = setInterval(() => {
       const root = useVaultStore.getState().root
-      const { path, content, savedContent } = useDocumentStore.getState()
-      if (!root || !path || content === savedContent || content === lastWritten) return
-      lastWritten = content
-      void api.writeDraft(root, path, content).catch(() => {})
+      if (!root) return
+      for (const tab of useDocumentStore.getState().dirtyTabs()) {
+        if (tab.content === lastWritten.get(tab.path)) continue
+        lastWritten.set(tab.path, tab.content)
+        void api.writeDraft(root, tab.path, tab.content).catch(() => {})
+      }
     }, DRAFT_INTERVAL_MS)
 
     const unsub = useDocumentStore.subscribe((s, prev) => {
-      if (s.path !== prev.path) {
-        lastWritten = null
-        return // a file switch is not a save — never delete the new file's draft
+      const root = useVaultStore.getState().root
+      if (!root) return
+
+      for (const tab of s.tabs) {
+        const previous = prev.tabs.find((item) => item.path === tab.path)
+        if (previous && tab.saveStatus === 'saved' && previous.saveStatus !== 'saved') {
+          lastWritten.delete(tab.path)
+          void api.deleteDraft(root, tab.path).catch(() => {})
+        }
       }
-      if (s.path && s.saveStatus === 'saved' && prev.saveStatus !== 'saved') {
-        const root = useVaultStore.getState().root
-        if (root) void api.deleteDraft(root, s.path).catch(() => {})
+      for (const previous of prev.tabs) {
+        if (!s.tabs.some((tab) => tab.path === previous.path)) {
+          lastWritten.delete(previous.path)
+        }
       }
     })
 
