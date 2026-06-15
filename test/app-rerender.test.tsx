@@ -17,6 +17,7 @@ const apiMock = vi.hoisted(() => ({
   movePath: vi.fn(),
   trashPath: vi.fn(),
   writeDraft: vi.fn(),
+  deleteDraft: vi.fn(),
   scanVault: vi.fn()
 }))
 
@@ -31,7 +32,7 @@ vi.mock('@/lib/api', () => ({
     trashPath: apiMock.trashPath,
     writeDraft: apiMock.writeDraft,
     readDraft: vi.fn().mockResolvedValue(null),
-    deleteDraft: vi.fn().mockResolvedValue(undefined),
+    deleteDraft: apiMock.deleteDraft,
     readProjectConfig: vi.fn().mockResolvedValue(null),
     writeProjectConfig: vi.fn().mockResolvedValue(undefined)
   }
@@ -144,6 +145,29 @@ async function renameFolderToCreateMultiPathAutosave(): Promise<void> {
   expect(useDocumentStore.getState().tabForPath('/v/renamed-folder/other.md')).not.toBeNull()
 }
 
+async function enterDeferredAutosaveWrite(events: string[]): Promise<() => void> {
+  let resolveWrite: () => void = () => {}
+  apiMock.writeFile.mockImplementationOnce((path: string) => {
+    events.push(`write-start:${path}`)
+    return new Promise<void>((resolve) => {
+      resolveWrite = () => {
+        events.push(`write-resolve:${path}`)
+        resolve()
+      }
+    })
+  })
+
+  fireEvent.click(screen.getByTestId('editor'))
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(800)
+    await Promise.resolve()
+    await Promise.resolve()
+  })
+
+  expect(events).toEqual(['write-start:/v/a.md'])
+  return resolveWrite
+}
+
 beforeEach(() => {
   // jsdom has no matchMedia; useSystemTheme needs it.
   if (!window.matchMedia) {
@@ -161,6 +185,7 @@ beforeEach(() => {
   apiMock.movePath.mockResolvedValue('/v/folder/a.md')
   apiMock.trashPath.mockResolvedValue(undefined)
   apiMock.writeDraft.mockResolvedValue(undefined)
+  apiMock.deleteDraft.mockResolvedValue(undefined)
   apiMock.scanVault.mockResolvedValue([
     {
       name: 'folder',
@@ -400,6 +425,48 @@ describe('App re-render isolation', () => {
     expect(useVaultStore.getState().selectedPath).toBe('/v/archive/folder/child.md')
   })
 
+  it('deletes the old draft and preserves pending draft state when renaming an open file', async () => {
+    const store = useDocumentStore.getState()
+    store.setPendingDraft('/v/a.md', 'draft-a')
+
+    await act(async () => {
+      render(<App />)
+    })
+
+    fireEvent.contextMenu(screen.getByTestId('filetree'))
+    fireEvent.click(screen.getByRole('button', { name: '重命名…' }))
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'renamed.md' } })
+    fireEvent.click(screen.getByRole('button', { name: '确认' }))
+
+    await waitFor(() => {
+      expect(useDocumentStore.getState().tabForPath('/v/renamed.md')).not.toBeNull()
+    })
+
+    expect(apiMock.deleteDraft).toHaveBeenCalledWith('/v', '/v/a.md')
+    expect(useDocumentStore.getState().tabForPath('/v/renamed.md')!.pendingDraft).toBe('draft-a')
+  })
+
+  it('deletes the old draft and preserves pending draft state when moving an open file', async () => {
+    const store = useDocumentStore.getState()
+    store.setPendingDraft('/v/a.md', 'draft-a')
+
+    await act(async () => {
+      render(<App />)
+    })
+
+    fireEvent.contextMenu(screen.getByTestId('filetree'))
+    fireEvent.click(screen.getByRole('button', { name: '移动到…' }))
+    fireEvent.click(screen.getByRole('button', { name: 'folder' }))
+    fireEvent.click(screen.getByRole('button', { name: '移动' }))
+
+    await waitFor(() => {
+      expect(useDocumentStore.getState().tabForPath('/v/folder/a.md')).not.toBeNull()
+    })
+
+    expect(apiMock.deleteDraft).toHaveBeenCalledWith('/v', '/v/a.md')
+    expect(useDocumentStore.getState().tabForPath('/v/folder/a.md')!.pendingDraft).toBe('draft-a')
+  })
+
   it('removes open child tabs when trashing their folder', async () => {
     const store = useDocumentStore.getState()
     store.reset()
@@ -422,6 +489,30 @@ describe('App re-render isolation', () => {
 
     expect(useDocumentStore.getState().activePath).toBe('/v/a.md')
     expect(useVaultStore.getState().selectedPath).toBe('/v/a.md')
+  })
+
+  it('deletes old drafts for affected open tabs when trashing a folder', async () => {
+    const store = useDocumentStore.getState()
+    store.reset()
+    store.openOrActivate('/v/folder/child.md', 'child')
+    store.setPendingDraft('/v/folder/child.md', 'draft child')
+    store.openOrActivate('/v/folder/other.md', 'other')
+    store.setPendingDraft('/v/folder/other.md', 'draft other')
+
+    await act(async () => {
+      render(<App />)
+    })
+
+    fireEvent.contextMenu(screen.getByTestId('foldertree'))
+    fireEvent.click(screen.getByRole('button', { name: '移到废纸篓' }))
+    fireEvent.click(screen.getByRole('button', { name: '移到废纸篓' }))
+
+    await waitFor(() => {
+      expect(useDocumentStore.getState().tabForPath('/v/folder/child.md')).toBeNull()
+    })
+
+    expect(apiMock.deleteDraft).toHaveBeenCalledWith('/v', '/v/folder/child.md')
+    expect(apiMock.deleteDraft).toHaveBeenCalledWith('/v', '/v/folder/other.md')
   })
 
   it('saves a dirty renamed tab at its new path when autosave was pending for the old path', async () => {
@@ -560,6 +651,119 @@ describe('App re-render isolation', () => {
 
     expect(apiMock.writeFile).toHaveBeenCalledWith('/v/renamed.md', 'unsaved edit')
     expect(apiMock.writeFile).not.toHaveBeenCalledWith('/v/a.md', 'unsaved edit')
+  })
+
+  it('waits for an in-flight save before renaming the affected path', async () => {
+    vi.useFakeTimers()
+    const events: string[] = []
+
+    await act(async () => {
+      render(<App />)
+    })
+
+    const resolveWrite = await enterDeferredAutosaveWrite(events)
+    apiMock.renamePath.mockImplementationOnce(() => {
+      events.push('rename')
+      return Promise.resolve('/v/renamed.md')
+    })
+
+    fireEvent.contextMenu(screen.getByTestId('filetree'))
+    fireEvent.click(screen.getByRole('button', { name: '重命名…' }))
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'renamed.md' } })
+    fireEvent.click(screen.getByRole('button', { name: '确认' }))
+
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(apiMock.renamePath).not.toHaveBeenCalled()
+    expect(events).toEqual(['write-start:/v/a.md'])
+
+    await act(async () => {
+      resolveWrite()
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(apiMock.renamePath).toHaveBeenCalledWith('/v/a.md', 'renamed.md')
+    expect(events).toEqual(['write-start:/v/a.md', 'write-resolve:/v/a.md', 'rename'])
+  })
+
+  it('waits for an in-flight save before moving the affected path', async () => {
+    vi.useFakeTimers()
+    const events: string[] = []
+
+    await act(async () => {
+      render(<App />)
+    })
+
+    const resolveWrite = await enterDeferredAutosaveWrite(events)
+    apiMock.movePath.mockImplementationOnce(() => {
+      events.push('move')
+      return Promise.resolve('/v/folder/a.md')
+    })
+
+    fireEvent.contextMenu(screen.getByTestId('filetree'))
+    fireEvent.click(screen.getByRole('button', { name: '移动到…' }))
+    fireEvent.click(screen.getByRole('button', { name: 'folder' }))
+    fireEvent.click(screen.getByRole('button', { name: '移动' }))
+
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(apiMock.movePath).not.toHaveBeenCalled()
+    expect(events).toEqual(['write-start:/v/a.md'])
+
+    await act(async () => {
+      resolveWrite()
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(apiMock.movePath).toHaveBeenCalledWith('/v/a.md', '/v/folder')
+    expect(events).toEqual(['write-start:/v/a.md', 'write-resolve:/v/a.md', 'move'])
+  })
+
+  it('waits for an in-flight save before trashing the affected path', async () => {
+    vi.useFakeTimers()
+    const events: string[] = []
+
+    await act(async () => {
+      render(<App />)
+    })
+
+    const resolveWrite = await enterDeferredAutosaveWrite(events)
+    apiMock.trashPath.mockImplementationOnce(() => {
+      events.push('trash')
+      return Promise.resolve()
+    })
+
+    fireEvent.contextMenu(screen.getByTestId('filetree'))
+    fireEvent.click(screen.getByRole('button', { name: '移到废纸篓' }))
+    fireEvent.click(screen.getByRole('button', { name: '移到废纸篓' }))
+
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(apiMock.trashPath).not.toHaveBeenCalled()
+    expect(events).toEqual(['write-start:/v/a.md'])
+
+    await act(async () => {
+      resolveWrite()
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(apiMock.trashPath).toHaveBeenCalledWith('/v/a.md')
+    expect(events).toEqual(['write-start:/v/a.md', 'write-resolve:/v/a.md', 'trash'])
   })
 
   it('saves the new path when an affected tab is edited during delayed rename', async () => {

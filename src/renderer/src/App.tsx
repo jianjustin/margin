@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, useCallback, type PointerEvent as
 import { AlignLeft, CalendarDays, Link2, PanelLeft, Settings } from 'lucide-react'
 import { SearchOverlay } from '@/components/SearchOverlay'
 import { Editor, type EditorHandle } from '@/components/Editor'
-import { saveDocument } from '@/lib/saveDocument'
+import { saveDocument, waitForDocumentSaves } from '@/lib/saveDocument'
 import { useDocumentStore } from '@/stores/documentStore'
 import { useVaultStore, loadPersistedRoot } from '@/stores/vaultStore'
 import { useSettingsStore } from '@/stores/settingsStore'
@@ -266,6 +266,20 @@ export default function App(): JSX.Element {
     return pathToCheck === basePath || pathToCheck.startsWith(`${basePath}/`)
   }
 
+  function affectedOpenTabPaths(basePath: string): string[] {
+    return useDocumentStore
+      .getState()
+      .tabs
+      .filter((tab) => isAffectedPath(tab.path, basePath))
+      .map((tab) => tab.path)
+  }
+
+  async function deleteDraftsForPaths(paths: string[]): Promise<void> {
+    const root = useVaultStore.getState().root
+    if (!root || paths.length === 0) return
+    await Promise.all(uniquePaths(paths).map((draftPath) => api.deleteDraft(root, draftPath).catch(() => {})))
+  }
+
   function scheduleDirtyAffectedTabsSave(paths: string[]): void {
     const candidates = uniquePaths([...saveTimerPaths.current, ...paths])
     if (saveTimer.current) clearTimeout(saveTimer.current)
@@ -363,11 +377,14 @@ export default function App(): JSX.Element {
 
   async function doRename(node: TreeNode, name: string): Promise<void> {
     if (name === node.name) return
+    const affectedPaths = affectedOpenTabPaths(node.path)
     const pausedPaths = pausePendingSaveIfAffected(node.path)
     let renamed = false
     try {
+      await waitForDocumentSaves(affectedPaths)
       const newPath = await api.renamePath(node.path, name)
       renamed = true
+      await deleteDraftsForPaths(affectedPaths)
       replaceAffectedOpenTabPaths(node.path, newPath)
       await refreshTree()
     } catch (err) {
@@ -377,16 +394,14 @@ export default function App(): JSX.Element {
   }
 
   async function doTrash(node: TreeNode): Promise<void> {
+    const affectedPaths = affectedOpenTabPaths(node.path)
     const pausedPaths = pausePendingSaveIfAffected(node.path)
     let trashed = false
     try {
+      await waitForDocumentSaves(affectedPaths)
       await api.trashPath(node.path)
       trashed = true
-      const affectedPaths = useDocumentStore
-        .getState()
-        .tabs
-        .filter((tab) => isAffectedPath(tab.path, node.path))
-        .map((tab) => tab.path)
+      await deleteDraftsForPaths(affectedPaths)
       for (const affectedPath of affectedPaths) {
         useDocumentStore.getState().removePath(affectedPath)
       }
@@ -399,11 +414,14 @@ export default function App(): JSX.Element {
   }
 
   async function doMove(node: TreeNode, destDir: string): Promise<void> {
+    const affectedPaths = affectedOpenTabPaths(node.path)
     const pausedPaths = pausePendingSaveIfAffected(node.path)
     let moved = false
     try {
+      await waitForDocumentSaves(affectedPaths)
       const newPath = await api.movePath(node.path, destDir)
       moved = true
+      await deleteDraftsForPaths(affectedPaths)
       replaceAffectedOpenTabPaths(node.path, newPath)
       await refreshTree()
     } catch (err) {

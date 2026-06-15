@@ -218,8 +218,8 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
                 content: content ?? tab.content,
                 savedContent: content ?? tab.savedContent,
                 saveStatus: content == null ? tab.saveStatus : 'saved',
-                pendingDraft: null,
-                conflict: null,
+                pendingDraft: content == null ? tab.pendingDraft : null,
+                conflict: content == null ? tab.conflict : null,
                 epoch: tab.epoch + 1
               }
             : tab

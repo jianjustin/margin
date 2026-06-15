@@ -136,6 +136,41 @@ describe('documentStore tabs', () => {
     expect(s.content).toBe('edited')
   })
 
+  it('replacePath preserves draft and conflict banner state when content is omitted', () => {
+    const store = useDocumentStore.getState()
+    store.openOrActivate('/notes/a.md', 'disk')
+    store.setActiveContent('mine')
+    store.setPendingDraft('/notes/a.md', 'draft')
+    store.setConflict('/notes/a.md', 'theirs')
+    const before = useDocumentStore.getState().tabForPath('/notes/a.md')!.epoch
+
+    store.replacePath('/notes/a.md', '/notes/renamed.md')
+
+    const tab = useDocumentStore.getState().tabForPath('/notes/renamed.md')!
+    expect(tab.content).toBe('mine')
+    expect(tab.savedContent).toBe('disk')
+    expect(tab.pendingDraft).toBe('draft')
+    expect(tab.conflict).toBe('theirs')
+    expect(tab.epoch).toBe(before + 1)
+  })
+
+  it('replacePath clears draft and conflict banner state when content replaces disk state', () => {
+    const store = useDocumentStore.getState()
+    store.openOrActivate('/notes/a.md', 'disk')
+    store.setActiveContent('mine')
+    store.setPendingDraft('/notes/a.md', 'draft')
+    store.setConflict('/notes/a.md', 'theirs')
+
+    store.replacePath('/notes/a.md', '/notes/renamed.md', 'new disk')
+
+    const tab = useDocumentStore.getState().tabForPath('/notes/renamed.md')!
+    expect(tab.content).toBe('new disk')
+    expect(tab.savedContent).toBe('new disk')
+    expect(tab.saveStatus).toBe('saved')
+    expect(tab.pendingDraft).toBeNull()
+    expect(tab.conflict).toBeNull()
+  })
+
   it('removePath closes the matching tab', () => {
     const store = useDocumentStore.getState()
     store.openOrActivate('/notes/a.md', 'a')

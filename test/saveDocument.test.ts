@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { saveDocument } from '@/lib/saveDocument'
+import { saveDocument, waitForDocumentSave } from '@/lib/saveDocument'
 import { useDocumentStore } from '@/stores/documentStore'
 
 function reset(): void {
@@ -65,6 +65,43 @@ describe('saveDocument', () => {
     resolvers[1]()
     await first
     expect(useDocumentStore.getState().tabForPath('/notes/a.md')!.saveStatus).toBe('saved')
+  })
+
+  it('exposes the in-flight save promise for a path', async () => {
+    const store = useDocumentStore.getState()
+    store.openOrActivate('/notes/a.md', 'a')
+    store.setActiveContent('b')
+
+    const events: string[] = []
+    let resolveWrite: () => void = () => {}
+    const writeFile = vi.fn(() => {
+      events.push('write-start')
+      return new Promise<void>((resolve) => {
+        resolveWrite = () => {
+          events.push('write-resolve')
+          resolve()
+        }
+      })
+    })
+
+    const save = saveDocument(writeFile, undefined, '/notes/a.md')
+    await tick()
+
+    let waited = false
+    const wait = waitForDocumentSave('/notes/a.md').then(() => {
+      waited = true
+      events.push('wait-resolve')
+    })
+    await tick()
+
+    expect(waited).toBe(false)
+    expect(events).toEqual(['write-start'])
+
+    resolveWrite()
+    await Promise.all([save, wait])
+
+    expect(waited).toBe(true)
+    expect(events).toEqual(['write-start', 'write-resolve', 'wait-resolve'])
   })
 
   it('allows different-path saves to run independently', async () => {
