@@ -117,16 +117,45 @@ function topFolders(tree: TreeNode[]): string[] {
   return tree.filter((n) => n.type === 'folder').map((n) => n.name)
 }
 
+interface AppSwitchProps {
+  checked: boolean
+  onChange: (checked: boolean) => void
+  label: string
+}
+
+function AppSwitch({ checked, onChange, label }: AppSwitchProps): JSX.Element {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-label={label}
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className={['app-switch', checked ? 'app-switch-on' : 'app-switch-off'].join(' ')}
+    >
+      <span className="app-switch-thumb" />
+    </button>
+  )
+}
+
 /* ── Main panel ─────────────────────────────────────────────────── */
 
 export function SettingsPanel({ tree, onClose }: SettingsPanelProps): JSX.Element {
   const scheduleEnabled = useSettingsStore((s) => s.scheduleEnabled)
   const scheduleDir = useSettingsStore((s) => s.scheduleDir)
   const hiddenFolders = useSettingsStore((s) => s.hiddenFolders)
+  const assetsDir = useSettingsStore((s) => s.assetsDir)
+  const plantUmlServerUrl = useSettingsStore((s) => s.plantUmlServerUrl)
+  const diagramFitWidth = useSettingsStore((s) => s.diagramFitWidth)
+  const mathEnabled = useSettingsStore((s) => s.mathEnabled)
   const setScheduleEnabled = useSettingsStore((s) => s.setScheduleEnabled)
   const setScheduleDir = useSettingsStore((s) => s.setScheduleDir)
   const addHiddenFolder = useSettingsStore((s) => s.addHiddenFolder)
   const removeHiddenFolder = useSettingsStore((s) => s.removeHiddenFolder)
+  const setAssetsDir = useSettingsStore((s) => s.setAssetsDir)
+  const setPlantUmlServerUrl = useSettingsStore((s) => s.setPlantUmlServerUrl)
+  const setDiagramFitWidth = useSettingsStore((s) => s.setDiagramFitWidth)
+  const setMathEnabled = useSettingsStore((s) => s.setMathEnabled)
   const [hiddenInput, setHiddenInput] = useState('')
   const updater = useUpdater()
 
@@ -182,22 +211,7 @@ export function SettingsPanel({ tree, onClose }: SettingsPanelProps): JSX.Elemen
               <div className={labelClass}>启用日程功能</div>
               <div className={descClass}>在标题栏显示日程入口和日历</div>
             </div>
-            <button
-              role="switch"
-              aria-checked={scheduleEnabled}
-              onClick={() => setScheduleEnabled(!scheduleEnabled)}
-              className={[
-                'relative h-[22px] w-[40px] flex-none rounded-full transition-colors',
-                scheduleEnabled ? 'bg-[color:var(--accent)]' : 'bg-[color:var(--border)]'
-              ].join(' ')}
-            >
-              <span
-                className={[
-                  'absolute top-[2px] h-[18px] w-[18px] rounded-full bg-white shadow transition-transform',
-                  scheduleEnabled ? 'translate-x-[20px]' : 'translate-x-[2px]'
-                ].join(' ')}
-              />
-            </button>
+            <AppSwitch checked={scheduleEnabled} onChange={setScheduleEnabled} label="启用日程功能" />
           </div>
 
           {scheduleEnabled && (
@@ -261,6 +275,51 @@ export function SettingsPanel({ tree, onClose }: SettingsPanelProps): JSX.Elemen
                   </div>
                 ))
               )}
+            </div>
+          </div>
+
+          {/* ── 富内容 ───────────────── */}
+          <div className="mt-6 border-t border-[color:var(--border-soft)] pt-4">
+            <div className={sectionTitle}>富内容</div>
+
+            <div className={`${labelClass} mb-1.5`}>图片资产目录</div>
+            <input
+              value={assetsDir}
+              onChange={(e) => setAssetsDir(e.target.value)}
+              placeholder="assets"
+              className="w-full rounded-md border border-[color:var(--border-soft)] bg-[color:var(--bg)] px-2 py-1.5 text-[12px] text-foreground outline-none placeholder:text-[color:var(--text-faint)] focus:border-[color:var(--accent-line)]"
+            />
+            <div className={`${descClass} mt-1.5`}>
+              拖拽或粘贴图片时复制到此文件库相对目录。
+            </div>
+
+            <div className="mt-3">
+              <div className={`${labelClass} mb-1.5`}>图表渲染服务</div>
+              <input
+                value={plantUmlServerUrl}
+                onChange={(e) => setPlantUmlServerUrl(e.target.value)}
+                placeholder="https://kroki.io"
+                className="w-full rounded-md border border-[color:var(--border-soft)] bg-[color:var(--bg)] px-2 py-1.5 text-[12px] text-foreground outline-none placeholder:text-[color:var(--text-faint)] focus:border-[color:var(--accent-line)]"
+              />
+              <div className={`${descClass} mt-1.5`}>
+                PlantUML 和 DOT 使用 Kroki 兼容接口；Mermaid 本地渲染。
+              </div>
+            </div>
+
+            <div className={rowClass}>
+              <div>
+                <div className={labelClass}>图表自适应宽度</div>
+                <div className={descClass}>关闭后保留原始尺寸并横向滚动</div>
+              </div>
+              <AppSwitch checked={diagramFitWidth} onChange={setDiagramFitWidth} label="图表自适应宽度" />
+            </div>
+
+            <div className={rowClass}>
+              <div>
+                <div className={labelClass}>数学公式</div>
+                <div className={descClass}>使用 KaTeX 渲染行内和块级 LaTeX</div>
+              </div>
+              <AppSwitch checked={mathEnabled} onChange={setMathEnabled} label="数学公式" />
             </div>
           </div>
 

@@ -75,6 +75,48 @@ describe('api command arguments', () => {
     expect(invoke).toHaveBeenLastCalledWith('open_path_in_finder', {
       path: '/vault/a.md'
     })
+
+    await api.importAssetFromPath('/vault', '/tmp/pic.png', 'assets')
+    expect(invoke).toHaveBeenLastCalledWith('import_asset_from_path', {
+      root: '/vault',
+      sourcePath: '/tmp/pic.png',
+      assetsDir: 'assets'
+    })
+
+    await api.writeAssetBytes('/vault', 'pasted.png', [1, 2, 3], 'assets')
+    expect(invoke).toHaveBeenLastCalledWith('write_asset_bytes', {
+      root: '/vault',
+      fileName: 'pasted.png',
+      bytes: [1, 2, 3],
+      assetsDir: 'assets'
+    })
+
+    await api.readAssetBytes('/vault/assets/pasted.png')
+    expect(invoke).toHaveBeenLastCalledWith('read_asset_bytes', {
+      path: '/vault/assets/pasted.png'
+    })
+
+    await api.readAssetDataUrl('/vault/assets/pasted.png')
+    expect(invoke).toHaveBeenLastCalledWith('read_asset_data_url', {
+      path: '/vault/assets/pasted.png'
+    })
+
+    await api.renderRemoteDiagram('https://kroki.io', 'plantuml', '@startuml\n@enduml')
+    expect(invoke).toHaveBeenLastCalledWith('render_remote_diagram', {
+      serverUrl: 'https://kroki.io',
+      kind: 'plantuml',
+      code: '@startuml\n@enduml'
+    })
+
+    await api.readRemoteDataUrl('https://example.test/demo.mp4')
+    expect(invoke).toHaveBeenLastCalledWith('read_remote_data_url', {
+      url: 'https://example.test/demo.mp4'
+    })
+
+    await api.cacheRemoteMedia('https://example.test/demo.mp4')
+    expect(invoke).toHaveBeenLastCalledWith('cache_remote_media', {
+      url: 'https://example.test/demo.mp4'
+    })
   })
 
   it('returns the current app version', async () => {

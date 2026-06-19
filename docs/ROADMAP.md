@@ -1,9 +1,86 @@
 # Margin — Roadmap
 
 > 最后更新：2026-06-19
-> 当前版本：**v2.3.0** (Tauri v2 + React 18 + CodeMirror 6)
+> 当前版本：**v2.4.0** (Tauri v2 + React 18 + CodeMirror 6)
 
 Margin 是一款面向 Obsidian vault 的 WYSIWYG Markdown 编辑器。本 Roadmap 以「Markdown 笔记应用」的产品视角规划版本迭代，每个版本包含明确的功能清单、验收标准和技术要点。
+
+---
+
+## P0 高优先级 — 长期项目架构主线
+
+> 目标：将 Margin 从「Tauri + React + CodeMirror 应用」逐步演进为「可复用 Markdown WYSIWYG 编辑器内核 + Obsidian-compatible vault 项目 + native-feeling App Shell + 插件平台」。短期继续保留 Tauri/React/CodeMirror，长期把核心能力从具体 UI 和运行时中剥离出来，为 Swift/AppKit、iOS、Web/WASM 或其他宿主预留路径。
+
+### P0.1 Editor Project — 平台无关编辑器内核
+
+- [ ] **建立 `editor-core` 边界** — 从 CodeMirror 插件中抽出纯编辑器逻辑：
+  - Markdown/GFM/Obsidian 语义解析（frontmatter、wiki link、task、table、footnote、math、code fence、image、callout）
+  - 编辑命令（toggle bold、continue list、toggle checkbox、insert table row、paste image、slash insert）
+  - projection schema（style、conceal、block widget、link、diagnostic），作为 CodeMirror/TextKit 等渲染器的统一输入
+- [ ] **保留 `editor-codemirror` 作为首个 adapter**
+  - CodeMirror 仅负责输入、选区、decorations/widgets 渲染和 viewport 协调
+  - 不再让业务语义直接散落在 CM6 `StateField`、`ViewPlugin` 和 React 组件中
+- [ ] **预留 `editor-textkit` 原型路径**
+  - 未来用 Swift/AppKit/TextKit 验证同一 projection schema 是否可渲染为 attributed ranges、attachments、layout fragments
+  - 原型只验证单文件编辑窗口，不作为整 App 迁移前提
+- [ ] **编辑器验收标准**
+  - 现有 WYSIWYG 行为测试先冻结，再抽 core
+  - 大文件增量解析不能退化为每次输入全文重算
+  - 原始 Markdown 文本始终是 source of truth，projection 不改变存储格式
+
+### P0.2 Vault / File Tree Project — Vault 模型与文件树核心
+
+- [ ] **建立 `vault-core` 边界**
+  - 文件扫描、隐藏目录、路径安全策略、assets 目录、project config、drafts、文件 watcher 事件统一建模
+  - 输出稳定 `VaultSnapshot`、`VaultOperation`、`VaultEvent`，供 React/Swift/iOS UI 复用
+- [ ] **建立 `file-tree-core` 边界**
+  - 树归一化、排序、过滤、虚拟目录、rename/move/trash plan 独立于 UI
+  - 文件树 UI 只消费 view model，不直接耦合 Rust command、Zustand store 或 DOM 行为
+- [ ] **Vault 验收标准**
+  - 大 vault 下支持增量扫描和事件合并
+  - rename/move/trash 与打开标签、草稿、跨窗口事件保持一致
+  - 插件未来可以贡献 file badge、context menu、virtual folder，但不能直接绕过路径策略
+
+### P0.3 App Project — 宿主、窗口与原生能力
+
+- [ ] **明确 App Shell 职责**
+  - window lifecycle、menu、keyboard shortcuts、settings、layout、panels、dialogs、updater、native integrations
+  - App Shell 通过 workspace/editor/vault/plugin service 调用核心能力，不直接实现 Markdown 语义
+- [ ] **保留 `apps/margin-tauri` 为生产宿主**
+  - 继续承载当前 React/Tauri 产品
+  - 优先补齐 macOS 原生体验：菜单、Preferences、Open Recent、Services、Finder 集成、窗口恢复
+- [ ] **规划 `apps/margin-macos` 原型**
+  - Swift/AppKit 或 SwiftUI + AppKit，仅用于验证 native shell 和 TextKit/WebView editor adapter
+  - 不在 editor-core 和 vault-core 边界稳定前全量迁移
+- [ ] **App 验收标准**
+  - 同一 command registry 能驱动菜单、快捷键、slash menu、命令面板和插件命令
+  - UI 层不直接依赖具体编辑器实现细节
+
+### P0.4 Plugin Platform — 插件优先架构
+
+- [ ] **建立 `plugin-api` 和 `plugin-host`**
+  - 插件通过 facade 访问 `editor`、`vault`、`workspace`、`commands`、`ui`
+  - 插件不能直接访问 Zustand store、CodeMirror instance、Tauri invoke 或底层文件系统
+- [ ] **定义权限与贡献点**
+  - 权限示例：`editor.read`、`editor.decorate`、`vault.read`、`vault.write`、`network`
+  - 贡献点示例：editor syntax extension、block renderer、slash menu item、command、sidebar panel、status bar item、file badge、context menu、export action
+- [ ] **内置功能插件化**
+  - Mermaid、KaTeX、outline、backlinks、calendar、templates、export 优先按内置插件边界重构
+  - 先内部使用插件 API，稳定后再开放第三方插件
+- [ ] **插件验收标准**
+  - 插件 API 版本化
+  - 高风险能力必须声明权限
+  - 插件输出结构化结果，不直接改 DOM 或绕过 editor/vault core
+
+### P0.5 推荐迁移顺序
+
+1. 冻结现有编辑器行为测试：live preview、table、frontmatter、wiki link、list continuation、rich content、math、diagram、image。
+2. 从 `src/renderer/src/editor/livePreview/*` 抽出 `editor-core` 纯函数和 projection schema。
+3. 重写 CodeMirror adapter，让现有 UI 继续工作但不再承载业务语义。
+4. 从 vault 扫描、路径规则、hidden folders、draft/project config 中抽出 `vault-core`。
+5. 建立 command registry，统一菜单、快捷键、slash menu、命令面板和插件命令。
+6. 建立内部 `plugin-api`，先迁移 Mermaid/KaTeX/outline/backlinks 等内置能力。
+7. 做 Swift/AppKit 单文件编辑原型，评估 TextKit adapter 与 native shell 收益。
 
 ---
 
@@ -64,51 +141,49 @@ Margin 是一款面向 Obsidian vault 的 WYSIWYG Markdown 编辑器。本 Roadm
 - [x] 跨窗口事件同步（设置、主题、文件保存、路径变更）
 - [x] 多 vault 同时打开（不同窗口不同 vault，互不干扰）
 
----
-
-## v2.4 — 富内容扩展 ⬜
+### v2.4 — 富内容扩展
 
 > 目标：将代码块扩展为可视化图表渲染，支持数学公式，增强图片嵌入体验。
-> 预计：2026 Q3
+> 完成：2026-06-19
 
 ### 2.4.1 图表渲染
 
-- [ ] **Mermaid 图表** — `mermaid` 语言标识的代码块使用 Mermaid.js 渲染为 SVG 图表
+- [x] **Mermaid 图表** — `mermaid` 语言标识的代码块使用 Mermaid.js 渲染为 SVG 图表
   - 光标进入块时 widget 隐藏，显示原始源码（复用现有 `StateField` 方案）
   - 渲染失败 fallback 显示原始代码块 + 行内错误提示
   - 支持 flowchart、sequence、class、state、gantt、pie 等常用图表类型
   - 缩放适配（overflow scroll / fit width toggle）
-- [ ] **PlantUML 图表** — `plantuml` 语言标识渲染为图形
+- [x] **PlantUML 图表** — `plantuml` 语言标识渲染为图形
   - 默认使用 PlantUML Server 远程渲染（可配置自建 Kroki 服务地址）
   - 渲染结果缓存（按源码 hash），避免重复网络请求
   - 离线降级：无网络时显示「需要网络」占位提示
-- [ ] **Graphviz / DOT** — `dot` 语言标识，通过 Kroki 或本地 Viz.js 渲染
+- [x] **Graphviz / DOT** — `dot` 语言标识，通过 Kroki 或本地 Viz.js 渲染
   - 优先级低，作为 PlantUML 基础设施的延伸
 
 ### 2.4.2 数学公式
 
-- [ ] **行内公式** — `$...$` 语法使用 KaTeX 渲染为行内 widget
-- [ ] **块级公式** — `$$...$$` 语法渲染为块级 widget（居中、带编号可选）
-- [ ] **编辑态切换** — 光标进入公式区域时还原 LaTeX 源码，失焦后渲染
-- [ ] **KaTeX 打包** — Bundle KaTeX 核心 + 必要字体，避免 CDN 依赖，控制包体积增量 <200KB
-- [ ] **渲染兜底** — KaTeX 解析失败时原样显示源码（红色波浪下划线提示语法错误）
+- [x] **行内公式** — `$...$` 语法使用 KaTeX 渲染为行内 widget
+- [x] **块级公式** — `$$...$$` 语法渲染为块级 widget（居中、带编号可选）
+- [x] **编辑态切换** — 光标进入公式区域时还原 LaTeX 源码，失焦后渲染
+- [x] **KaTeX 打包** — Bundle KaTeX 核心 + 必要字体，避免 CDN 依赖，控制包体积增量 <200KB
+- [x] **渲染兜底** — KaTeX 解析失败时原样显示源码（红色波浪下划线提示语法错误）
 
 ### 2.4.3 图片增强
 
-- [ ] **拖拽/粘贴图片** — 从 Finder 拖入或剪贴板粘贴图片时：
+- [x] **拖拽/粘贴图片** — 从 Finder 拖入或剪贴板粘贴图片时：
   - 自动复制到 vault 的 `assets/` 目录（可配置目标文件夹）
   - 生成 `![alt](assets/filename.png)` 链接并插入光标位置
   - 文件名冲突时自动追加数字后缀
-- [ ] **图片尺寸控制** — 支持 `![alt|500](image.png)` 或 `![alt](image.png =500x)` 语法控制显示宽度
-- [ ] **图片预览浮层** — Cmd+Click 图片在浮层中查看原图（支持缩放、拖拽）
+- [x] **图片尺寸控制** — 支持 `![alt|500](image.png)` 或 `![alt](image.png =500x)` 语法控制显示宽度
+- [x] **图片预览浮层** — Cmd+Click 图片在浮层中查看原图（支持缩放、拖拽）
 
 ### 2.4.4 其他富内容
 
-- [ ] **`<video>` / `<audio>` 嵌入** — markdown 图片语法链接到视频/音频文件时渲染为可播放控件
-- [ ] **Callout / Admonition** — Obsidian 风格的 `> [!note]` / `> [!warning]` 语法渲染为彩色提示块
+- [x] **`<video>` / `<audio>` 嵌入** — markdown 图片语法链接到视频/音频文件时渲染为可播放控件
+- [x] **Callout / Admonition** — Obsidian 风格的 `> [!note]` / `> [!warning]` 语法渲染为彩色提示块
   - 内置 note、warning、danger、tip、info、quote 六种类型
   - 支持折叠（`> [!note]-` 默认折叠）
-- [ ] **高亮语法** — `==highlight==` 渲染为黄色高亮背景
+- [x] **高亮语法** — `==highlight==` 渲染为黄色高亮背景
 
 ---
 

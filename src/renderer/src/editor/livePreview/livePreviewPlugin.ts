@@ -5,15 +5,20 @@ import {
   CheckboxWidget,
   HrWidget,
   CodeBlockWidget,
+  DiagramWidget,
   TableWidget,
   PropertiesWidget,
   ImageWidget,
+  MediaWidget,
   FootnoteWidget,
   LinkIconWidget,
-  WikiLinkWidget
+  WikiLinkWidget,
+  MathWidget,
+  CalloutWidget
 } from './widgets'
-import { docPathFacet } from '../docPathFacet'
-import { isExternal, resolveRelative } from '@/lib/resolvePath'
+import { docPathFacet, vaultRootFacet } from '../docPathFacet'
+import { isExternal, resolveMarkdownAsset } from '@/lib/resolvePath'
+import { richContentConfigFacet } from './richContent'
 
 const hideMark = Decoration.replace({})
 const boldMark = Decoration.mark({ class: 'cm-strong' })
@@ -21,6 +26,7 @@ const italicMark = Decoration.mark({ class: 'cm-em' })
 const strikeMark = Decoration.mark({ class: 'cm-strike' })
 const inlineCodeMark = Decoration.mark({ class: 'cm-inline-code' })
 const linkMark = Decoration.mark({ class: 'cm-link' })
+const highlightMark = Decoration.mark({ class: 'cm-highlight' })
 const quoteLine = Decoration.line({ class: 'cm-blockquote' })
 const codeLine = Decoration.line({ class: 'cm-code-block' })
 const frontmatterLine = Decoration.line({ class: 'cm-frontmatter' })
@@ -51,6 +57,9 @@ function buildDecorations(state: EditorState): DecorationSet {
         break
       case 'link':
         ranges.push(linkMark.range(s.from, s.to))
+        break
+      case 'highlight':
+        ranges.push(highlightMark.range(s.from, s.to))
         break
       case 'linkIcon':
         ranges.push(
@@ -89,6 +98,16 @@ function buildDecorations(state: EditorState): DecorationSet {
           }).range(s.from, s.to)
         )
         break
+      case 'diagramBlock': {
+        const cfg = state.facet(richContentConfigFacet)
+        ranges.push(
+          Decoration.replace({
+            widget: new DiagramWidget(s.source ?? '', s.info ?? 'mermaid', cfg.plantUmlServerUrl, cfg.diagramFitWidth),
+            block: true
+          }).range(s.from, s.to)
+        )
+        break
+      }
       case 'table':
         ranges.push(
           Decoration.replace({
@@ -108,9 +127,22 @@ function buildDecorations(state: EditorState): DecorationSet {
       case 'image': {
         const src = s.source ?? ''
         const dp = state.facet(docPathFacet)
-        const resolved = isExternal(src) ? src : resolveRelative(src, dp)
+        const root = state.facet(vaultRootFacet)
+        const cfg = state.facet(richContentConfigFacet)
+        const resolved = isExternal(src) ? src : resolveMarkdownAsset(src, dp, root, cfg.assetsDir)
         ranges.push(
-          Decoration.replace({ widget: new ImageWidget(src, s.info ?? '', resolved) }).range(s.from, s.to)
+          Decoration.replace({ widget: new ImageWidget(src, s.info ?? '', resolved, s.width, s.height) }).range(s.from, s.to)
+        )
+        break
+      }
+      case 'media': {
+        const src = s.source ?? ''
+        const dp = state.facet(docPathFacet)
+        const root = state.facet(vaultRootFacet)
+        const cfg = state.facet(richContentConfigFacet)
+        const resolved = isExternal(src) ? src : resolveMarkdownAsset(src, dp, root, cfg.assetsDir)
+        ranges.push(
+          Decoration.replace({ widget: new MediaWidget(src, s.info ?? '', resolved, s.width, s.height) }).range(s.from, s.to)
         )
         break
       }
@@ -129,6 +161,32 @@ function buildDecorations(state: EditorState): DecorationSet {
             }).range(s.from, s.to)
           )
         }
+        break
+      case 'mathInline': {
+        const cfg = state.facet(richContentConfigFacet)
+        if (cfg.mathEnabled) {
+          ranges.push(
+            Decoration.replace({ widget: new MathWidget(s.source ?? '', false) }).range(s.from, s.to)
+          )
+        }
+        break
+      }
+      case 'mathBlock': {
+        const cfg = state.facet(richContentConfigFacet)
+        if (cfg.mathEnabled) {
+          ranges.push(
+            Decoration.replace({ widget: new MathWidget(s.source ?? '', true), block: true }).range(s.from, s.to)
+          )
+        }
+        break
+      }
+      case 'callout':
+        ranges.push(
+          Decoration.replace({
+            widget: new CalloutWidget(s.info ?? 'note', s.title ?? '', s.source ?? '', s.folded ?? false),
+            block: true
+          }).range(s.from, s.to)
+        )
         break
     }
   }

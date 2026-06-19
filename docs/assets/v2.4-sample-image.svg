@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540" role="img" aria-labelledby="title desc">
+  <title id="title">Margin v2.4 Sample Image</title>
+  <desc id="desc">A simple local SVG image for testing Markdown image rendering.</desc>
+  <rect width="960" height="540" fill="#f6f1e8"/>
+  <rect x="64" y="58" width="832" height="424" rx="18" fill="#fffdf8" stroke="#d8c8aa" stroke-width="3"/>
+  <circle cx="158" cy="154" r="48" fill="#3b82f6"/>
+  <circle cx="258" cy="154" r="48" fill="#16a34a"/>
+  <circle cx="358" cy="154" r="48" fill="#f59e0b"/>
+  <path d="M144 310h672" stroke="#334155" stroke-width="18" stroke-linecap="round"/>
+  <path d="M144 366h488" stroke="#64748b" stroke-width="18" stroke-linecap="round"/>
+  <path d="M144 422h272" stroke="#94a3b8" stroke-width="18" stroke-linecap="round"/>
+  <text x="144" y="252" font-family="Arial, Helvetica, sans-serif" font-size="52" font-weight="700" fill="#1f2937">Margin v2.4</text>
+  <text x="144" y="292" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#475569">Local image rendering test asset</text>
+</svg>

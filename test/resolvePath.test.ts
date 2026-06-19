@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { isExternal, resolveRelative } from '@/lib/resolvePath'
+import { isExternal, resolveMarkdownAsset, resolveRelative } from '@/lib/resolvePath'
 
 describe('isExternal', () => {
   it('recognizes http/https/data/asset/mailto', () => {
@@ -26,5 +26,24 @@ describe('resolveRelative', () => {
   })
   it('returns null without a document path', () => {
     expect(resolveRelative('a.png', null)).toBeNull()
+  })
+})
+
+describe('resolveMarkdownAsset', () => {
+  it('resolves configured asset directory links against the vault root', () => {
+    expect(
+      resolveMarkdownAsset(
+        'assets/IOT中台目标架构-1.png',
+        '/vault/daily/2026-06-19.md',
+        '/vault',
+        'assets'
+      )
+    ).toBe('/vault/assets/IOT中台目标架构-1.png')
+  })
+
+  it('keeps non-asset relative links relative to the document directory', () => {
+    expect(resolveMarkdownAsset('img/a.png', '/vault/daily/n.md', '/vault', 'assets')).toBe(
+      '/vault/daily/img/a.png'
+    )
   })
 })

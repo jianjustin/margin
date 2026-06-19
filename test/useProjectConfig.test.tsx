@@ -4,12 +4,17 @@ import { act, render, cleanup, waitFor } from '@testing-library/react'
 
 const readProjectConfig = vi.fn()
 const writeProjectConfig = vi.fn().mockResolvedValue(undefined)
+const emit = vi.fn()
 
 vi.mock('@/lib/api', () => ({
   api: {
     readProjectConfig: (...a: unknown[]) => readProjectConfig(...a),
     writeProjectConfig: (...a: unknown[]) => writeProjectConfig(...a)
   }
+}))
+
+vi.mock('@tauri-apps/api/event', () => ({
+  emit: (...args: unknown[]) => emit(...args)
 }))
 
 import { useProjectConfig } from '@/hooks/useProjectConfig'
@@ -24,8 +29,17 @@ function Harness(): null {
 beforeEach(() => {
   readProjectConfig.mockReset().mockResolvedValue(null)
   writeProjectConfig.mockReset().mockResolvedValue(undefined)
+  emit.mockReset().mockResolvedValue(undefined)
   useVaultStore.setState({ root: null, tree: [], expanded: new Set(), selectedPath: null })
-  useSettingsStore.setState({ scheduleEnabled: true, scheduleDir: '日程', hiddenFolders: [] })
+  useSettingsStore.setState({
+    scheduleEnabled: true,
+    scheduleDir: '日程',
+    hiddenFolders: [],
+    assetsDir: 'assets',
+    plantUmlServerUrl: 'https://kroki.io',
+    diagramFitWidth: true,
+    mathEnabled: true
+  })
 })
 
 afterEach(cleanup)
@@ -65,7 +79,11 @@ describe('useProjectConfig', () => {
     expect(JSON.parse(json)).toEqual({
       scheduleEnabled: true,
       scheduleDir: 'Notes',
-      hiddenFolders: []
+      hiddenFolders: [],
+      assetsDir: 'assets',
+      plantUmlServerUrl: 'https://kroki.io',
+      diagramFitWidth: true,
+      mathEnabled: true
     })
   })
 

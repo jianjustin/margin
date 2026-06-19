@@ -55,6 +55,13 @@ export interface MarginApi {
   movePath(srcPath: string, destDir: string): Promise<string>
   openPathInFinder(path: string): Promise<void>
   ensureNote(dir: string, name: string, template?: string): Promise<string>
+  importAssetFromPath(root: string, sourcePath: string, assetsDir: string): Promise<string>
+  writeAssetBytes(root: string, fileName: string, bytes: number[], assetsDir: string): Promise<string>
+  readAssetBytes(path: string): Promise<number[]>
+  readAssetDataUrl(path: string): Promise<string>
+  readRemoteDataUrl(url: string): Promise<string>
+  cacheRemoteMedia(url: string): Promise<string>
+  renderRemoteDiagram(serverUrl: string, kind: string, code: string): Promise<string>
   /** Read `<root>/.margin/config.json`; null when no config has been written. */
   readProjectConfig(root: string): Promise<string | null>
   /** Write `<root>/.margin/config.json`, creating the hidden dir if needed. */

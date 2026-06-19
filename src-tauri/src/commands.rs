@@ -3,12 +3,17 @@ use crate::fs_ops;
 use crate::path_policy::assert_safe_path;
 use crate::vault_scanner;
 use crate::vault_scanner::TreeNode;
+use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use std::collections::HashMap;
-use std::path::Path;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+use std::path::{Path, PathBuf};
 #[cfg(target_os = "macos")]
 use std::process::Command;
 use std::sync::Mutex;
+use std::time::Duration;
 use tauri::State;
+use tauri::Manager;
 use tauri_plugin_dialog::DialogExt;
 
 /// Managed state for the vault file watchers — one per vault root.
@@ -110,6 +115,285 @@ pub fn read_file(path: String) -> Result<String, String> {
 pub fn write_file(path: String, content: String) -> Result<(), String> {
     assert_safe_path(&path)?;
     std::fs::write(&path, &content).map_err(|e| format!("Could not save file: {}", e))
+}
+
+fn sanitize_asset_dir(assets_dir: &str) -> Result<String, String> {
+    let clean = assets_dir.trim().trim_matches('/').to_string();
+    if clean.is_empty()
+        || clean.contains("..")
+        || clean.contains('\\')
+        || clean.split('/').any(|seg| seg.is_empty() || seg.starts_with('.'))
+    {
+        return Err("Invalid asset directory".to_string());
+    }
+    Ok(clean)
+}
+
+fn sanitize_asset_name(file_name: &str) -> Result<String, String> {
+    let clean = file_name.trim();
+    if clean.is_empty() || clean.contains('/') || clean.contains('\\') || clean.starts_with('.') {
+        return Err("Invalid asset file name".to_string());
+    }
+    Ok(clean.to_string())
+}
+
+fn unique_asset_path(dir: &Path, file_name: &str) -> PathBuf {
+    let path = Path::new(file_name);
+    let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or(file_name);
+    let ext = path.extension().and_then(|e| e.to_str());
+
+    let mut candidate = dir.join(file_name);
+    let mut n = 1u32;
+    while candidate.exists() {
+        let next = match ext {
+            Some(e) => format!("{}-{}.{}", stem, n, e),
+            None => format!("{}-{}", stem, n),
+        };
+        candidate = dir.join(next);
+        n += 1;
+    }
+    candidate
+}
+
+fn vault_relative(root: &str, path: &Path) -> Result<String, String> {
+    let rel = path
+        .strip_prefix(root)
+        .map_err(|_| "Asset path is outside the vault".to_string())?;
+    Ok(rel.to_string_lossy().replace('\\', "/"))
+}
+
+fn path_mime_type(path: &Path) -> &'static str {
+    match path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase()
+        .as_str()
+    {
+        "jpg" | "jpeg" => "image/jpeg",
+        "webp" => "image/webp",
+        "gif" => "image/gif",
+        "svg" => "image/svg+xml",
+        "avif" => "image/avif",
+        "bmp" => "image/bmp",
+        "mp4" => "video/mp4",
+        "webm" => "video/webm",
+        "mov" => "video/quicktime",
+        "mp3" => "audio/mpeg",
+        "wav" => "audio/wav",
+        "ogg" => "audio/ogg",
+        "m4a" => "audio/mp4",
+        "aac" => "audio/aac",
+        "flac" => "audio/flac",
+        _ => "image/png",
+    }
+}
+
+fn media_extension_from_mime(mime: &str, url_path: &str) -> &'static str {
+    let lower_path = url_path.to_ascii_lowercase();
+    if lower_path.ends_with(".mp4") {
+        return "mp4";
+    }
+    if lower_path.ends_with(".webm") {
+        return "webm";
+    }
+    if lower_path.ends_with(".mov") {
+        return "mov";
+    }
+    if lower_path.ends_with(".mp3") {
+        return "mp3";
+    }
+    if lower_path.ends_with(".wav") {
+        return "wav";
+    }
+    if lower_path.ends_with(".ogg") {
+        return "ogg";
+    }
+    match mime {
+        "video/mp4" => "mp4",
+        "video/webm" => "webm",
+        "video/quicktime" => "mov",
+        "audio/mpeg" => "mp3",
+        "audio/wav" => "wav",
+        "audio/ogg" => "ogg",
+        "audio/mp4" => "m4a",
+        "audio/aac" => "aac",
+        "audio/flac" => "flac",
+        _ => "bin",
+    }
+}
+
+fn hash_url(url: &str) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    url.hash(&mut hasher);
+    hasher.finish()
+}
+
+fn validate_http_url(url: &str, label: &str) -> Result<reqwest::Url, String> {
+    let parsed = reqwest::Url::parse(url).map_err(|e| format!("Invalid {} URL: {}", label, e))?;
+    if parsed.scheme() != "https" && parsed.scheme() != "http" {
+        return Err(format!("{} URL must use http or https", label));
+    }
+    Ok(parsed)
+}
+
+#[tauri::command]
+pub fn import_asset_from_path(
+    root: String,
+    source_path: String,
+    assets_dir: String,
+) -> Result<String, String> {
+    assert_safe_path(&root)?;
+    assert_safe_path(&source_path)?;
+    let assets_dir = sanitize_asset_dir(&assets_dir)?;
+    let source = Path::new(&source_path);
+    let name = source
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| "Cannot determine asset file name".to_string())?;
+    let name = sanitize_asset_name(name)?;
+    let dir = Path::new(&root).join(&assets_dir);
+    std::fs::create_dir_all(&dir).map_err(|e| format!("Could not create asset directory: {}", e))?;
+    let dest = unique_asset_path(&dir, &name);
+    std::fs::copy(source, &dest).map_err(|e| format!("Could not import asset: {}", e))?;
+    vault_relative(&root, &dest)
+}
+
+#[tauri::command]
+pub fn write_asset_bytes(
+    root: String,
+    file_name: String,
+    bytes: Vec<u8>,
+    assets_dir: String,
+) -> Result<String, String> {
+    assert_safe_path(&root)?;
+    let assets_dir = sanitize_asset_dir(&assets_dir)?;
+    let name = sanitize_asset_name(&file_name)?;
+    let dir = Path::new(&root).join(&assets_dir);
+    std::fs::create_dir_all(&dir).map_err(|e| format!("Could not create asset directory: {}", e))?;
+    let dest = unique_asset_path(&dir, &name);
+    std::fs::write(&dest, bytes).map_err(|e| format!("Could not write asset: {}", e))?;
+    vault_relative(&root, &dest)
+}
+
+#[tauri::command]
+pub fn read_asset_bytes(path: String) -> Result<Vec<u8>, String> {
+    assert_safe_path(&path)?;
+    std::fs::read(&path).map_err(|e| format!("Could not read asset: {}", e))
+}
+
+#[tauri::command]
+pub fn read_asset_data_url(path: String) -> Result<String, String> {
+    let bytes = read_asset_bytes(path.clone())?;
+    let mime = path_mime_type(Path::new(&path));
+    Ok(format!("data:{};base64,{}", mime, BASE64_STANDARD.encode(bytes)))
+}
+
+fn diagram_endpoint(server_url: &str, kind: &str) -> Result<String, String> {
+    let base = server_url.trim().trim_end_matches('/');
+    validate_http_url(base, "diagram server")?;
+    let kroki_kind = if kind == "dot" { "graphviz" } else { kind };
+    Ok(format!("{}/{}/svg", base, kroki_kind))
+}
+
+#[tauri::command]
+pub async fn read_remote_data_url(url: String) -> Result<String, String> {
+    validate_http_url(&url, "remote media")?;
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(30))
+        .build()
+        .map_err(|e| format!("Could not create remote media client: {}", e))?;
+    let res = client
+        .get(url)
+        .send()
+        .await
+        .map_err(|e| format!("Remote media request failed: {}", e))?;
+    let status = res.status();
+    if !status.is_success() {
+        return Err(format!("Remote media returned {}", status));
+    }
+    let mime = res
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.split(';').next())
+        .filter(|v| !v.is_empty())
+        .unwrap_or("application/octet-stream")
+        .to_string();
+    let bytes = res
+        .bytes()
+        .await
+        .map_err(|e| format!("Could not read remote media: {}", e))?;
+    Ok(format!("data:{};base64,{}", mime, BASE64_STANDARD.encode(bytes)))
+}
+
+#[tauri::command]
+pub async fn cache_remote_media(app: tauri::AppHandle, url: String) -> Result<String, String> {
+    let parsed = validate_http_url(&url, "remote media")?;
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(30))
+        .build()
+        .map_err(|e| format!("Could not create remote media client: {}", e))?;
+    let res = client
+        .get(url.clone())
+        .send()
+        .await
+        .map_err(|e| format!("Remote media request failed: {}", e))?;
+    let status = res.status();
+    if !status.is_success() {
+        return Err(format!("Remote media returned {}", status));
+    }
+    let mime = res
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.split(';').next())
+        .filter(|v| !v.is_empty())
+        .unwrap_or("application/octet-stream")
+        .to_string();
+    let ext = media_extension_from_mime(&mime, parsed.path());
+    let bytes = res
+        .bytes()
+        .await
+        .map_err(|e| format!("Could not read remote media: {}", e))?;
+    let dir = app
+        .path()
+        .app_cache_dir()
+        .map_err(|e| format!("Could not locate app cache: {}", e))?
+        .join("remote-media");
+    std::fs::create_dir_all(&dir).map_err(|e| format!("Could not create media cache: {}", e))?;
+    let dest = dir.join(format!("{:016x}.{}", hash_url(&url), ext));
+    std::fs::write(&dest, bytes).map_err(|e| format!("Could not write media cache: {}", e))?;
+    Ok(dest.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+pub async fn render_remote_diagram(
+    server_url: String,
+    kind: String,
+    code: String,
+) -> Result<String, String> {
+    let endpoint = diagram_endpoint(&server_url, &kind)?;
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(20))
+        .build()
+        .map_err(|e| format!("Could not create diagram client: {}", e))?;
+    let res = client
+        .post(endpoint)
+        .header(reqwest::header::CONTENT_TYPE, "text/plain")
+        .body(code)
+        .send()
+        .await
+        .map_err(|e| format!("Diagram request failed: {}", e))?;
+    let status = res.status();
+    let text = res
+        .text()
+        .await
+        .map_err(|e| format!("Could not read diagram response: {}", e))?;
+    if !status.is_success() {
+        return Err(format!("Diagram server returned {}: {}", status, text));
+    }
+    Ok(text)
 }
 
 // ---------------------------------------------------------------------------
@@ -349,6 +633,52 @@ mod tests {
         assert!(write_draft("".into(), note.clone(), "x".into()).is_err());
 
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn asset_import_writes_unique_relative_paths() {
+        let root = std::env::temp_dir().join("__margin_test_assets__");
+        let source_dir = std::env::temp_dir().join("__margin_test_asset_source__");
+        let _ = std::fs::remove_dir_all(&root);
+        let _ = std::fs::remove_dir_all(&source_dir);
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::create_dir_all(&source_dir).unwrap();
+        let source = source_dir.join("pic.png");
+        std::fs::write(&source, b"png").unwrap();
+
+        let root_s = root.to_string_lossy().to_string();
+        let source_s = source.to_string_lossy().to_string();
+
+        assert_eq!(
+            import_asset_from_path(root_s.clone(), source_s.clone(), "assets".into()).unwrap(),
+            "assets/pic.png"
+        );
+        assert_eq!(
+            import_asset_from_path(root_s.clone(), source_s.clone(), "assets".into()).unwrap(),
+            "assets/pic-1.png"
+        );
+        assert_eq!(
+            write_asset_bytes(root_s.clone(), "paste.png".into(), vec![1, 2], "assets".into()).unwrap(),
+            "assets/paste.png"
+        );
+        assert_eq!(read_asset_bytes(root.join("assets/paste.png").to_string_lossy().to_string()).unwrap(), vec![1, 2]);
+        assert_eq!(
+            read_asset_data_url(root.join("assets/paste.png").to_string_lossy().to_string()).unwrap(),
+            "data:image/png;base64,AQI="
+        );
+        assert_eq!(path_mime_type(Path::new("demo.mp4")), "video/mp4");
+        assert_eq!(media_extension_from_mime("audio/mpeg", "/audio"), "mp3");
+        assert_eq!(media_extension_from_mime("video/mp4", "/path/movie.bin"), "mp4");
+        assert!(validate_http_url("file:///tmp/demo.mp4", "remote media").is_err());
+        assert_eq!(
+            diagram_endpoint("https://kroki.io/", "dot").unwrap(),
+            "https://kroki.io/graphviz/svg"
+        );
+        assert!(diagram_endpoint("file:///tmp", "plantuml").is_err());
+        assert!(write_asset_bytes(root_s, "paste.png".into(), vec![], "../bad".into()).is_err());
+
+        let _ = std::fs::remove_dir_all(&root);
+        let _ = std::fs::remove_dir_all(&source_dir);
     }
 
     #[test]

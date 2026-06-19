@@ -4,6 +4,8 @@ import { findLanguage, highlightInto } from './codeHighlight'
 import { parseTable, serializeTable, deleteTableRow, type Align } from './tableModel'
 import { parseFrontmatter, serializeFrontmatter, type FmField } from './frontmatterModel'
 import { createWikiLinkElement, renderInlineMarkdown } from './inlineMarkdown'
+import type { DiagramKind } from './richContent'
+import { api } from '@/lib/api'
 
 /** Renders a task-list checkbox replacing the raw `[ ]` / `[x]` token. */
 export class CheckboxWidget extends WidgetType {
@@ -34,7 +36,7 @@ export class CheckboxWidget extends WidgetType {
   }
 
   ignoreEvent(): boolean {
-    return false
+    return true
   }
 }
 
@@ -160,6 +162,113 @@ export class CodeBlockWidget extends WidgetType {
       }
     }
     return pre
+  }
+
+  ignoreEvent(): boolean {
+    return true
+  }
+}
+
+const diagramCache = new Map<string, string>()
+let mermaidSeq = 0
+
+function renderDiagramFallback(root: HTMLElement, code: string, message: string): void {
+  root.textContent = ''
+  const error = document.createElement('div')
+  error.className = 'cm-rich-error'
+  error.textContent = message
+  const pre = document.createElement('pre')
+  pre.className = 'cm-code-render cm-diagram-fallback'
+  const codeEl = document.createElement('code')
+  codeEl.textContent = code
+  pre.appendChild(codeEl)
+  root.append(error, pre)
+}
+
+export class DiagramWidget extends WidgetType {
+  constructor(
+    readonly code: string,
+    readonly kind: string,
+    readonly serverUrl: string,
+    readonly fitWidth: boolean
+  ) {
+    super()
+  }
+
+  eq(other: DiagramWidget): boolean {
+    return (
+      other.code === this.code &&
+      other.kind === this.kind &&
+      other.serverUrl === this.serverUrl &&
+      other.fitWidth === this.fitWidth
+    )
+  }
+
+  toDOM(view: EditorView): HTMLElement {
+    const root = document.createElement('div')
+    root.className = ['cm-diagram-render', this.fitWidth ? 'cm-diagram-fit' : 'cm-diagram-scroll'].join(' ')
+    root.dataset.diagramKind = this.kind
+
+    const status = document.createElement('div')
+    status.className = 'cm-diagram-status'
+    status.textContent = 'Rendering diagram...'
+    root.appendChild(status)
+
+    if (this.kind === 'mermaid') {
+      void this.renderMermaid(root, view)
+    } else {
+      void this.renderRemote(root, view)
+    }
+    return root
+  }
+
+  private async renderMermaid(root: HTMLElement, view: EditorView): Promise<void> {
+    const key = `mermaid:${this.code}`
+    const cached = diagramCache.get(key)
+    if (cached) {
+      root.innerHTML = cached
+      return
+    }
+    try {
+      const mod = await import('mermaid')
+      const mermaid = mod.default
+      mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'neutral' })
+      const id = `margin-mermaid-${++mermaidSeq}`
+      const result = await mermaid.render(id, this.code)
+      if (!root.isConnected) return
+      diagramCache.set(key, result.svg)
+      root.innerHTML = result.svg
+      view.requestMeasure()
+    } catch (error) {
+      if (!root.isConnected) return
+      renderDiagramFallback(root, this.code, error instanceof Error ? error.message : 'Mermaid render failed')
+      view.requestMeasure()
+    }
+  }
+
+  private async renderRemote(root: HTMLElement, view: EditorView): Promise<void> {
+    const kind = this.kind as DiagramKind
+    const key = `${this.serverUrl}:${kind}:${this.code}`
+    const cached = diagramCache.get(key)
+    if (cached) {
+      root.innerHTML = cached
+      return
+    }
+    try {
+      const svg = await api.renderRemoteDiagram(this.serverUrl, kind, this.code)
+      if (!root.isConnected) return
+      diagramCache.set(key, svg)
+      root.innerHTML = svg
+      view.requestMeasure()
+    } catch (error) {
+      if (!root.isConnected) return
+      renderDiagramFallback(
+        root,
+        this.code,
+        error instanceof Error ? `图表渲染失败: ${error.message}` : '图表渲染失败'
+      )
+      view.requestMeasure()
+    }
   }
 
   ignoreEvent(): boolean {
@@ -586,19 +695,57 @@ function toDisplayUrl(p: string): string {
   }
 }
 
+function canReadLocalImage(path: string): boolean {
+  return !/^(https?:|data:|asset:|blob:)/i.test(path)
+}
+
+function isRemoteUrl(path: string): boolean {
+  return /^https?:/i.test(path)
+}
+
+function mediaMimeType(path: string): string {
+  const clean = path.split(/[?#]/, 1)[0].toLowerCase()
+  if (clean.endsWith('.mp4') || clean.endsWith('.m4v')) return 'video/mp4'
+  if (clean.endsWith('.webm')) return 'video/webm'
+  if (clean.endsWith('.mov')) return 'video/quicktime'
+  if (clean.endsWith('.ogv')) return 'video/ogg'
+  if (clean.endsWith('.mp3')) return 'audio/mpeg'
+  if (clean.endsWith('.wav')) return 'audio/wav'
+  if (clean.endsWith('.ogg')) return 'audio/ogg'
+  if (clean.endsWith('.m4a')) return 'audio/mp4'
+  if (clean.endsWith('.aac')) return 'audio/aac'
+  if (clean.endsWith('.flac')) return 'audio/flac'
+  const dataMatch = path.match(/^data:([^;,]+)/i)
+  return dataMatch?.[1] ?? ''
+}
+
+function mediaErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) return error.message
+  if (typeof error === 'string' && error) return error
+  return '未知错误'
+}
+
 /** Renders `![alt](src)` as an inline image with graceful error fallback. */
 export class ImageWidget extends WidgetType {
   constructor(
     readonly src: string,
     readonly alt: string,
     /** Absolute path or external URL; null when unresolvable (no doc path). */
-    readonly resolved: string | null
+    readonly resolved: string | null,
+    readonly width?: number,
+    readonly height?: number
   ) {
     super()
   }
 
   eq(other: ImageWidget): boolean {
-    return other.src === this.src && other.alt === this.alt && other.resolved === this.resolved
+    return (
+      other.src === this.src &&
+      other.alt === this.alt &&
+      other.resolved === this.resolved &&
+      other.width === this.width &&
+      other.height === this.height
+    )
   }
 
   toDOM(view: EditorView): HTMLElement {
@@ -606,35 +753,319 @@ export class ImageWidget extends WidgetType {
     wrap.className = 'cm-image-wrap'
     if (!this.resolved) return this.renderError(wrap)
 
-    const url = toDisplayUrl(this.resolved)
+    let currentUrl = toDisplayUrl(this.resolved)
+    let triedLocalBytes = false
     const img = document.createElement('img')
     img.alt = this.alt
-    const dims = imageDims.get(url)
+    if (this.width) img.style.width = `${this.width}px`
+    if (this.height) img.style.height = `${this.height}px`
+    const dims = imageDims.get(currentUrl)
     if (dims) img.style.aspectRatio = `${dims.w} / ${dims.h}`
+    img.addEventListener('mousedown', (event) => {
+      if (!(event.metaKey || event.ctrlKey)) return
+      event.preventDefault()
+      wrap.dispatchEvent(
+        new CustomEvent('margin-open-image-preview', {
+          detail: { src: currentUrl, alt: this.alt },
+          bubbles: true,
+          composed: true
+        })
+      )
+    })
     img.addEventListener('load', () => {
       if (!wrap.isConnected) return
-      if (!imageDims.has(url)) {
-        imageDims.set(url, { w: img.naturalWidth, h: img.naturalHeight })
+      if (!imageDims.has(currentUrl)) {
+        imageDims.set(currentUrl, { w: img.naturalWidth, h: img.naturalHeight })
         view.requestMeasure()
       }
     })
     img.addEventListener('error', () => {
       if (!wrap.isConnected) return
+      if (!triedLocalBytes && this.resolved && canReadLocalImage(this.resolved)) {
+        triedLocalBytes = true
+        const failedUrl = currentUrl
+        void api
+          .readAssetDataUrl(this.resolved)
+          .then((dataUrl) => {
+            if (!wrap.isConnected) return
+            currentUrl = dataUrl
+            img.src = currentUrl
+            view.requestMeasure()
+          })
+          .catch(() => {
+            if (!wrap.isConnected) return
+            wrap.textContent = ''
+            this.renderError(wrap, failedUrl)
+            view.requestMeasure()
+          })
+        return
+      }
       wrap.textContent = ''
-      this.renderError(wrap)
+      this.renderError(wrap, currentUrl)
       view.requestMeasure()
     })
-    img.src = url
+    img.src = currentUrl
     wrap.appendChild(img)
     return wrap
   }
 
-  private renderError(wrap: HTMLElement): HTMLElement {
+  private renderError(wrap: HTMLElement, displayUrl?: string): HTMLElement {
     const ph = document.createElement('span')
     ph.className = 'cm-image-error'
-    ph.textContent = `图片加载失败: ${this.alt || ''} (${this.src})`
+    const resolved = this.resolved ? ` → ${this.resolved}` : ''
+    const url = displayUrl ? ` → ${displayUrl}` : ''
+    ph.textContent = `图片加载失败: ${this.alt || ''} (${this.src}${resolved}${url})`
     wrap.appendChild(ph)
     return wrap
+  }
+
+  ignoreEvent(): boolean {
+    return true
+  }
+}
+
+export class MediaWidget extends WidgetType {
+  constructor(
+    readonly src: string,
+    readonly alt: string,
+    readonly resolved: string | null,
+    readonly width?: number,
+    readonly height?: number
+  ) {
+    super()
+  }
+
+  eq(other: MediaWidget): boolean {
+    return (
+      other.src === this.src &&
+      other.alt === this.alt &&
+      other.resolved === this.resolved &&
+      other.width === this.width &&
+      other.height === this.height
+    )
+  }
+
+  toDOM(): HTMLElement {
+    const wrap = document.createElement('span')
+    wrap.className = 'cm-media-wrap'
+    if (!this.resolved) {
+      const ph = document.createElement('span')
+      ph.className = 'cm-image-error'
+      ph.textContent = `媒体加载失败: ${this.alt || this.src}`
+      wrap.appendChild(ph)
+      return wrap
+    }
+
+    let fallbackStage: 'direct' | 'cache' | 'data' | 'failed' = 'direct'
+    const isAudio = /\.(mp3|wav|ogg|m4a|aac|flac)(?:[?#].*)?$/i.test(this.src)
+    const el = isAudio ? document.createElement('audio') : document.createElement('video')
+    const source = document.createElement('source')
+    const status = document.createElement('span')
+    el.controls = true
+    el.preload = 'metadata'
+    el.className = 'cm-media-control'
+    status.className = 'cm-media-status'
+    status.hidden = true
+    if (!isAudio) {
+      const video = el as HTMLVideoElement
+      video.playsInline = true
+      if (this.width) video.style.width = `${this.width}px`
+      if (this.height) video.style.height = `${this.height}px`
+    }
+
+    const setStatus = (message: string, failed = false): void => {
+      status.hidden = false
+      status.textContent = message
+      status.classList.toggle('cm-media-status-error', failed)
+    }
+
+    const setSource = (url: string, typeHint = this.src): void => {
+      source.src = url
+      const type = mediaMimeType(typeHint) || mediaMimeType(url)
+      if (type) {
+        source.type = type
+      } else {
+        source.removeAttribute('type')
+      }
+      el.removeAttribute('src')
+      if (!source.parentElement) el.appendChild(source)
+      if (!navigator.userAgent.includes('jsdom')) {
+        el.load()
+      }
+    }
+
+    const fail = (error: unknown): void => {
+      fallbackStage = 'failed'
+      setStatus(`媒体加载失败: ${mediaErrorMessage(error)}`, true)
+    }
+
+    const loadRemoteDataUrl = (reason: unknown): void => {
+      if (!this.resolved || !isRemoteUrl(this.resolved)) {
+        fail(reason)
+        return
+      }
+      fallbackStage = 'data'
+      setStatus('正在读取远程媒体备用数据...')
+      void api
+        .readRemoteDataUrl(this.resolved)
+        .then((url) => {
+          if (!wrap.isConnected) return
+          setSource(url, this.src)
+          setStatus('已切换到内存媒体，若仍无法播放请检查媒体编码。')
+        })
+        .catch((error) => {
+          if (!wrap.isConnected) return
+          fail(error)
+        })
+    }
+
+    el.addEventListener('error', () => {
+      if (!wrap.isConnected || !this.resolved || fallbackStage === 'failed') return
+      if (isRemoteUrl(this.resolved)) {
+        if (fallbackStage === 'direct') {
+          fallbackStage = 'cache'
+          setStatus('正在缓存远程媒体...')
+          void api
+            .cacheRemoteMedia(this.resolved)
+            .then((path) => {
+              if (!wrap.isConnected) return
+              setSource(toDisplayUrl(path), path)
+              setStatus('已缓存远程媒体，若仍无法播放会继续尝试内存媒体。')
+            })
+            .catch((error) => {
+              if (!wrap.isConnected) return
+              loadRemoteDataUrl(error)
+            })
+          return
+        }
+        if (fallbackStage === 'cache') {
+          loadRemoteDataUrl(el.error ?? '缓存媒体仍无法播放')
+          return
+        }
+        fail(el.error ?? '内存媒体仍无法播放')
+        return
+      }
+      if (fallbackStage === 'direct') {
+        fallbackStage = 'data'
+        setStatus('正在读取本地媒体备用数据...')
+        void api
+          .readAssetDataUrl(this.resolved)
+          .then((url) => {
+            if (!wrap.isConnected) return
+            setSource(url, this.src)
+            setStatus('已切换到内存媒体，若仍无法播放请检查媒体编码。')
+          })
+          .catch((error) => {
+            if (!wrap.isConnected) return
+            fail(error)
+          })
+        return
+      }
+      fail(el.error ?? '内存媒体仍无法播放')
+    })
+    setSource(toDisplayUrl(this.resolved), this.resolved)
+    wrap.appendChild(el)
+    wrap.appendChild(status)
+    return wrap
+  }
+
+  ignoreEvent(): boolean {
+    return true
+  }
+}
+
+export class MathWidget extends WidgetType {
+  constructor(
+    readonly source: string,
+    readonly block: boolean
+  ) {
+    super()
+  }
+
+  eq(other: MathWidget): boolean {
+    return other.source === this.source && other.block === this.block
+  }
+
+  toDOM(view: EditorView): HTMLElement {
+    const el = document.createElement(this.block ? 'div' : 'span')
+    el.className = this.block ? 'cm-math-block' : 'cm-math-inline'
+    void import('katex')
+      .then((mod) => {
+        if (!el.isConnected) return
+        mod.default.render(this.source, el, {
+          displayMode: this.block,
+          throwOnError: true,
+          strict: false
+        })
+        view.requestMeasure()
+      })
+      .catch((error) => {
+        if (!el.isConnected) return
+        el.classList.add('cm-math-error')
+        el.textContent = this.block ? `$$${this.source}$$` : `$${this.source}$`
+        el.title = error instanceof Error ? error.message : 'KaTeX render failed'
+        view.requestMeasure()
+      })
+    return el
+  }
+
+  ignoreEvent(): boolean {
+    return true
+  }
+}
+
+export class CalloutWidget extends WidgetType {
+  constructor(
+    readonly type: string,
+    readonly title: string,
+    readonly body: string,
+    readonly folded: boolean
+  ) {
+    super()
+  }
+
+  eq(other: CalloutWidget): boolean {
+    return (
+      other.type === this.type &&
+      other.title === this.title &&
+      other.body === this.body &&
+      other.folded === this.folded
+    )
+  }
+
+  toDOM(): HTMLElement {
+    const root = document.createElement('aside')
+    root.className = `cm-callout cm-callout-${this.type}`
+    let open = !this.folded
+
+    const header = document.createElement('button')
+    header.type = 'button'
+    header.className = 'cm-callout-title'
+    header.setAttribute('aria-expanded', String(open))
+    const marker = document.createElement('span')
+    marker.className = 'cm-callout-marker'
+    marker.textContent = open ? '!' : '+'
+    const title = document.createElement('span')
+    title.textContent = this.title
+    header.append(marker, title)
+    root.appendChild(header)
+
+    const renderBody = (): void => {
+      root.querySelector('.cm-callout-body')?.remove()
+      header.setAttribute('aria-expanded', String(open))
+      marker.textContent = open ? '!' : '+'
+      if (!open || !this.body) return
+      const body = document.createElement('div')
+      body.className = 'cm-callout-body'
+      body.appendChild(renderInlineMarkdown(this.body))
+      root.appendChild(body)
+    }
+    header.addEventListener('click', () => {
+      open = !open
+      renderBody()
+    })
+    renderBody()
+    return root
   }
 
   ignoreEvent(): boolean {

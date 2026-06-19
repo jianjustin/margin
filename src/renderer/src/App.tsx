@@ -118,6 +118,10 @@ export default function App(): JSX.Element {
   const scheduleEnabled = useSettingsStore((s) => s.scheduleEnabled)
   const scheduleDir = useSettingsStore((s) => s.scheduleDir)
   const hiddenFolders = useSettingsStore((s) => s.hiddenFolders)
+  const assetsDir = useSettingsStore((s) => s.assetsDir)
+  const plantUmlServerUrl = useSettingsStore((s) => s.plantUmlServerUrl)
+  const diagramFitWidth = useSettingsStore((s) => s.diagramFitWidth)
+  const mathEnabled = useSettingsStore((s) => s.mathEnabled)
   const scheduleDates = useMemo(
     () => (scheduleEnabled ? collectScheduleDates(vaultTree, scheduleDir) : new Set<string>()),
     [vaultTree, scheduleDir, scheduleEnabled]
@@ -728,7 +732,13 @@ export default function App(): JSX.Element {
                     onChange={handleChange}
                     onSave={() => void save(path)}
                     onOpenLink={handleOpenLink}
+                    onAssetImported={() => void refreshTree()}
                     filePath={path}
+                    vaultRoot={vaultRoot}
+                    assetsDir={assetsDir}
+                    plantUmlServerUrl={plantUmlServerUrl}
+                    diagramFitWidth={diagramFitWidth}
+                    mathEnabled={mathEnabled}
                   />
                 </div>
               </div>

@@ -41,6 +41,16 @@ export const api: MarginApi = {
   movePath: (srcPath, destDir) => invoke<string>('move_path', { srcPath, destDir }),
   openPathInFinder: (path) => invoke<void>('open_path_in_finder', { path }),
   ensureNote: (dir, name, template) => invoke<string>('ensure_note', { dir, name, template: template ?? '' }),
+  importAssetFromPath: (root, sourcePath, assetsDir) =>
+    invoke<string>('import_asset_from_path', { root, sourcePath, assetsDir }),
+  writeAssetBytes: (root, fileName, bytes, assetsDir) =>
+    invoke<string>('write_asset_bytes', { root, fileName, bytes, assetsDir }),
+  readAssetBytes: (path) => invoke<number[]>('read_asset_bytes', { path }),
+  readAssetDataUrl: (path) => invoke<string>('read_asset_data_url', { path }),
+  readRemoteDataUrl: (url) => invoke<string>('read_remote_data_url', { url }),
+  cacheRemoteMedia: (url) => invoke<string>('cache_remote_media', { url }),
+  renderRemoteDiagram: (serverUrl, kind, code) =>
+    invoke<string>('render_remote_diagram', { serverUrl, kind, code }),
   readProjectConfig: (root) => invoke<string | null>('read_project_config', { root }),
   writeProjectConfig: (root, content) => invoke<void>('write_project_config', { root, content }),
   writeDraft: (root, path, content) => invoke<void>('write_draft', { root, path, content }),

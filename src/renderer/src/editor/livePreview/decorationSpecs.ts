@@ -4,6 +4,13 @@ import type { SyntaxNode } from '@lezer/common'
 import { rangeRevealed } from './reveal'
 import { collectFootnoteRefs, findFootnoteDef } from './footnotes'
 import { isExternal } from '@/lib/resolvePath'
+import {
+  collectHighlightRanges,
+  collectMathRanges,
+  diagramKindForInfo,
+  parseCallout,
+  parseImageMeta
+} from './richContent'
 
 export type DecoKind =
   | 'hide'
@@ -20,11 +27,17 @@ export type DecoKind =
   | 'task'
   | 'frontmatter'
   | 'codeBlock'
+  | 'diagramBlock'
   | 'table'
   | 'properties'
   | 'image'
+  | 'media'
   | 'footnoteRef'
   | 'wikiLink'
+  | 'mathInline'
+  | 'mathBlock'
+  | 'callout'
+  | 'highlight'
 
 export interface DecoSpec {
   kind: DecoKind
@@ -35,6 +48,10 @@ export interface DecoSpec {
   checked?: boolean
   info?: string
   source?: string
+  width?: number
+  height?: number
+  title?: string
+  folded?: boolean
 }
 
 /**
@@ -201,6 +218,24 @@ export function collectDecorations(state: EditorState): DecoSpec[] {
 
       // Blockquote
       if (name === 'Blockquote') {
+        const callout = parseCallout(doc.sliceString(node.from, node.to))
+        if (callout) {
+          const revealed = rangeRevealed(state, node.from, node.to)
+          if (!revealed) {
+            specs.push({
+              kind: 'callout',
+              from: node.from,
+              to: node.to,
+              revealed: false,
+              info: callout.type,
+              title: callout.title,
+              folded: callout.folded,
+              source: callout.body
+            })
+            blockGuardEnd = node.to
+            return false
+          }
+        }
         for (const s of eachLine(state, node.from, node.to, (lineFrom) => ({
           kind: 'quoteLine',
           from: lineFrom,
@@ -230,12 +265,13 @@ export function collectDecorations(state: EditorState): DecoSpec[] {
           // Strip the opening/closing fence lines for the rendered code body.
           const lines = doc.sliceString(node.from, node.to).split('\n')
           const body = lines.slice(1, lines.length - 1).join('\n')
+          const diagramKind = diagramKindForInfo(info)
           specs.push({
-            kind: 'codeBlock',
+            kind: diagramKind ? 'diagramBlock' : 'codeBlock',
             from: node.from,
             to: node.to,
             revealed: false,
-            info,
+            info: diagramKind ?? info,
             source: body
           })
           blockGuardEnd = node.to
@@ -324,7 +360,18 @@ export function collectDecorations(state: EditorState): DecoSpec[] {
             break
           }
         }
-        specs.push({ kind: 'image', from: node.from, to: node.to, revealed: false, source: url, info: alt })
+        const meta = parseImageMeta(alt, url)
+        specs.push({
+          kind: meta.mediaKind ? 'media' : 'image',
+          from: node.from,
+          to: node.to,
+          revealed: false,
+          source: meta.url,
+          info: meta.alt,
+          title: meta.alt,
+          width: meta.width,
+          height: meta.height
+        })
         return false // widget replaces the range — skip children
       }
 
@@ -387,6 +434,47 @@ export function collectDecorations(state: EditorState): DecoSpec[] {
         info: findFootnoteDef(fullText, ref.label) ?? ''
       })
     }
+  }
+
+  // Text-level image fallback for Obsidian-style size suffixes such as
+  // `![alt](video.mp4 =640x)`, which the markdown grammar may not classify as
+  // an Image because of the whitespace inside the destination.
+  const imageRe = /!\[([^\]\n]*)\]\(([^)\n]+)\)/g
+  for (const match of fullText.matchAll(imageRe)) {
+    const from = match.index ?? 0
+    const to = from + match[0].length
+    if (skipAt(from) || rangeRevealed(state, from, to)) continue
+    if (specs.some((spec) => (spec.kind === 'image' || spec.kind === 'media') && spec.from === from && spec.to === to)) {
+      continue
+    }
+    const meta = parseImageMeta(match[1], match[2])
+    specs.push({
+      kind: meta.mediaKind ? 'media' : 'image',
+      from,
+      to,
+      revealed: false,
+      source: meta.url,
+      info: meta.alt,
+      title: meta.alt,
+      width: meta.width,
+      height: meta.height
+    })
+  }
+
+  for (const math of collectMathRanges(state, tree, skipAt)) {
+    specs.push({
+      kind: math.block ? 'mathBlock' : 'mathInline',
+      from: math.from,
+      to: math.to,
+      revealed: false,
+      source: math.source
+    })
+  }
+
+  for (const highlight of collectHighlightRanges(state, tree, skipAt)) {
+    specs.push({ kind: 'hide', from: highlight.markerFrom, to: highlight.markerFrom + 2, revealed: false })
+    specs.push({ kind: 'highlight', from: highlight.from, to: highlight.to, revealed: false })
+    specs.push({ kind: 'hide', from: highlight.markerTo - 2, to: highlight.markerTo, revealed: false })
   }
 
   // Wiki links: [[target]] or [[target|display]].

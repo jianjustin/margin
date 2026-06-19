@@ -55,18 +55,34 @@ describe('project config helpers', () => {
       expect(projectConfigOf({
         scheduleEnabled: true,
         scheduleDir: '日程',
-        hiddenFolders: ['.claude']
+        hiddenFolders: ['.claude'],
+        assetsDir: 'assets',
+        plantUmlServerUrl: 'https://kroki.io',
+        diagramFitWidth: true,
+        mathEnabled: true
       })).toEqual({
         scheduleEnabled: true,
         scheduleDir: '日程',
-        hiddenFolders: ['.claude']
+        hiddenFolders: ['.claude'],
+        assetsDir: 'assets',
+        plantUmlServerUrl: 'https://kroki.io',
+        diagramFitWidth: true,
+        mathEnabled: true
       })
     })
   })
 
   describe('applyProjectConfig', () => {
     beforeEach(() => {
-      useSettingsStore.setState({ scheduleEnabled: true, scheduleDir: '日程', hiddenFolders: [] })
+      useSettingsStore.setState({
+        scheduleEnabled: true,
+        scheduleDir: '日程',
+        hiddenFolders: [],
+        assetsDir: 'assets',
+        plantUmlServerUrl: 'https://kroki.io',
+        diagramFitWidth: true,
+        mathEnabled: true
+      })
     })
 
     it('overrides in-memory settings without persisting to localStorage', () => {
