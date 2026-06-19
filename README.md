@@ -1,52 +1,87 @@
 # Margin
 
-A Markdown editor for Obsidian vaults — Bear typography, Obsidian data model.
-Built on Electron + React + TypeScript (Vite via `electron-vite`), Tailwind/shadcn,
-Zustand, and CodeMirror 6.
+A WYSIWYG Markdown editor for Obsidian vaults — Bear-like typography, Obsidian-compatible data model.
+Built on Tauri v2 + React + TypeScript (Vite), Tailwind CSS, Zustand, and CodeMirror 6.
 
-## Requirements
+Obsidian vault 的所见即所得 Markdown 编辑器 —— Bear 风格的排版，兼容 Obsidian 数据模型。
+基于 Tauri v2 + React + TypeScript（Vite）、Tailwind CSS、Zustand 和 CodeMirror 6 构建。
 
-- Node.js 20+ and npm 10+
-- macOS (the app uses `titleBarStyle: 'hiddenInset'`; other platforms run but are untested)
+---
 
-## Getting started
+## Features / 功能
 
-```bash
-# 1. Install dependencies (also downloads the Electron binary)
-npm install
+- **WYSIWYG Markdown**: Live preview with rich block rendering (tables, code blocks, frontmatter)
+- **Obsidian-compatible**: Works directly on Obsidian vaults; supports wiki links (`[[link]]`), backlinks, and YAML frontmatter
+- **File Tree Sidebar**: Browse, create, rename, move, and trash notes and folders
+- **Document Tabs**: Open multiple documents in a single window
+- **Multi-Window** (v2.3.0): Create fully-functional peer windows; different windows can open different vaults; settings and theme sync across windows
+- **Schedule / 日程**: Built-in daily notes with calendar picker
+- **Search**: Full-text search across the vault (⌘K)
+- **Outline Drawer**: Document structure sidebar
+- **Draft Recovery**: Crash-safe unsaved content recovery
+- **Theme**: Light / Dark / Auto mode
 
-# 2. Launch the app in development (hot reload for main + renderer)
-npm run dev
-```
+---
 
-`npm run dev` builds the Electron main and preload processes, starts the Vite
-dev server for the renderer at `http://localhost:5173/`, and opens the app
-window. Use **Open…** in the header to open a Markdown file, then edit — changes
-autosave 800 ms after you stop typing, and ⌘S saves immediately.
+## Requirements / 环境要求
 
-> If `npm run dev` fails with `Error: Electron uninstall`, the Electron binary
-> didn't download during install. Fetch it manually:
-> `node node_modules/electron/install.js`
+- **Node.js** 20+ and **pnpm** 9+
+- **Rust** toolchain (1.77+)
+- macOS (primary target; other platforms may work but are untested)
 
-## Verify
-
-Run the full check before committing:
-
-```bash
-npm run typecheck   # tsc for both the node (main/preload) and web (renderer) projects
-npm test            # vitest unit tests (run once)
-npm run build       # production build into out/
-```
-
-Other useful scripts:
+## Getting Started / 快速开始
 
 ```bash
-npm run test:watch  # vitest in watch mode
-npm run preview     # preview the production build
+# 1. Install dependencies
+pnpm install
+
+# 2. Launch in development mode (hot reload for frontend + Rust)
+pnpm dev
+
+# 3. Run type checks and tests
+pnpm typecheck
+pnpm test
 ```
 
-## Status
+```bash
+# Build production DMG
+pnpm build:adhoc
+```
 
-M1 — single-file editor. Open / edit / autosave with a hardened save path
-(in-flight guard, re-save on mid-write changes, error recovery).
-See `docs/superpowers/plans/` in the parent vault for the roadmap.
+## Shortcuts / 快捷键
+
+| Key / 快捷键 | Action / 操作 |
+|-------------|--------------|
+| ⌘S | Save / 保存 |
+| ⌘B | Toggle sidebar / 切换侧栏 |
+| ⌘\\ | Toggle outline / 切换大纲 |
+| ⌘, | Settings / 设置 |
+| ⌘K | Search files / 搜索文件 |
+| ⌘Shift+N | New window / 新建窗口 |
+
+## Project Structure / 项目结构
+
+```
+margin/
+├── src/
+│   ├── renderer/src/        # React frontend (Vite)
+│   │   ├── components/      # UI components
+│   │   ├── editor/          # CodeMirror 6 setup + live preview
+│   │   ├── hooks/           # React hooks
+│   │   ├── lib/             # Utilities
+│   │   └── stores/          # Zustand state stores
+│   └── shared/              # Shared types (IPC)
+├── src-tauri/               # Tauri backend (Rust)
+│   └── src/
+│       ├── commands.rs      # Tauri invoke commands
+│       ├── file_watcher.rs  # FS watcher
+│       ├── fs_ops.rs        # File operations
+│       └── vault_scanner.rs # Vault tree scanner
+├── docs/                    # Documentation + change proposals
+├── test/                    # Vitest test suites
+└── release/                 # Release assets
+```
+
+## License / 许可证
+
+MIT
