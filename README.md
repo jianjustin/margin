@@ -1,79 +1,97 @@
 # Margin
 
-A WYSIWYG Markdown editor for Obsidian vaults — Bear-like typography, Obsidian-compatible data model.
-Built on Tauri v2 + React + TypeScript (Vite), Tailwind CSS, Zustand, and CodeMirror 6.
+> A WYSIWYG Markdown editor for Obsidian vaults — Bear-like typography, Obsidian-compatible data model.
 
-Obsidian vault 的所见即所得 Markdown 编辑器 —— Bear 风格的排版，兼容 Obsidian 数据模型。
-基于 Tauri v2 + React + TypeScript（Vite）、Tailwind CSS、Zustand 和 CodeMirror 6 构建。
+Built on **Tauri v2** + **React** + **TypeScript** (Vite), Tailwind CSS, Zustand, and CodeMirror 6.
 
----
-
-## Features / 功能
-
-- **WYSIWYG Markdown**: Live preview with rich block rendering (tables, code blocks, frontmatter)
-- **Obsidian-compatible**: Works directly on Obsidian vaults; supports wiki links (`[[link]]`), backlinks, and YAML frontmatter
-- **File Tree Sidebar**: Browse, create, rename, move, and trash notes and folders
-- **Document Tabs**: Open multiple documents in a single window
-- **Multi-Window** (v2.3.0): Create fully-functional peer windows; different windows can open different vaults; settings and theme sync across windows
-- **Schedule / 日程**: Built-in daily notes with calendar picker
-- **Search**: Full-text search across the vault (⌘K)
-- **Outline Drawer**: Document structure sidebar
-- **Draft Recovery**: Crash-safe unsaved content recovery
-- **Theme**: Light / Dark / Auto mode
+[中文文档](README.zh.md)
 
 ---
 
-## Requirements / 环境要求
+## About
 
-- **Node.js** 20+ and **pnpm** 9+
-- **Rust** toolchain (1.77+)
-- macOS (primary target; other platforms may work but are untested)
+**Margin** is a native macOS Markdown editor designed for users who manage their notes as [Obsidian](https://obsidian.md) vaults. Unlike Electron-based alternatives, Margin is built on Tauri v2 for a lightweight, native-feeling experience.
 
-## Getting Started / 快速开始
+### Why Margin?
+
+- **Edit directly on Obsidian vaults** — no import/export, no format conversion. Your `.md` files stay exactly where they are.
+- **WYSIWYG with live preview** — write in rich text while editing the underlying Markdown. Tables, code blocks, and YAML frontmatter render as styled blocks inline.
+- **Bear-inspired typography** — clean, readable defaults using IBM Plex typefaces.
+- **Native performance** — Tauri v2 Rust backend with a React frontend. Smaller binary, lower memory footprint than Electron apps.
+- **Multi-window, multi-vault** (v2.3.0) — open different vaults in separate windows, with cross-window settings and theme sync.
+
+---
+
+## Features
+
+- **WYSIWYG Markdown** — live preview with rich block rendering for tables, code blocks, and frontmatter
+- **Obsidian-compatible** — wiki links (`[[link]]`), backlinks panel, YAML frontmatter, `.obsidian`-safe
+- **File Tree Sidebar** — browse, create, rename, move, and trash notes and folders
+- **Document Tabs** — open multiple documents; ⌘S to save, autosave after 800ms idle
+- **Multi-Window** — fully-functional peer windows; different vaults per window; cross-window sync
+- **Daily Notes** — built-in schedule/日程 with calendar picker and auto-template
+- **Full-Text Search** — ⌘K to search across the entire vault
+- **Outline Drawer** — document structure sidebar with jump-to-line
+- **Draft Recovery** — crash-safe unsaved content stored in `.margin/drafts/`
+- **Theme** — Light / Dark / Auto (follows system)
+
+---
+
+## Requirements
+
+- **Node.js** 20+ · **pnpm** 9+
+- **Rust** toolchain 1.77+
+- **macOS** (primary target)
+
+---
+
+## Getting Started
 
 ```bash
-# 1. Install dependencies
+# Install dependencies
 pnpm install
 
-# 2. Launch in development mode (hot reload for frontend + Rust)
+# Development (hot reload for frontend + Rust)
 pnpm dev
 
-# 3. Run type checks and tests
+# Type check + tests
 pnpm typecheck
 pnpm test
-```
 
-```bash
-# Build production DMG
+# Production DMG build
 pnpm build:adhoc
 ```
 
-## Shortcuts / 快捷键
+---
 
-| Key / 快捷键 | Action / 操作 |
-|-------------|--------------|
-| ⌘S | Save / 保存 |
-| ⌘B | Toggle sidebar / 切换侧栏 |
-| ⌘\\ | Toggle outline / 切换大纲 |
-| ⌘, | Settings / 设置 |
-| ⌘K | Search files / 搜索文件 |
-| ⌘Shift+N | New window / 新建窗口 |
+## Shortcuts
 
-## Project Structure / 项目结构
+| Key | Action |
+|-----|--------|
+| ⌘S | Save |
+| ⌘B | Toggle sidebar |
+| ⌘\\ | Toggle outline |
+| ⌘, | Settings |
+| ⌘K | Search files |
+| ⌘Shift+N | New window |
+
+---
+
+## Project Structure
 
 ```
 margin/
 ├── src/
 │   ├── renderer/src/        # React frontend (Vite)
 │   │   ├── components/      # UI components
-│   │   ├── editor/          # CodeMirror 6 setup + live preview
+│   │   ├── editor/          # CodeMirror 6 + live preview
 │   │   ├── hooks/           # React hooks
 │   │   ├── lib/             # Utilities
 │   │   └── stores/          # Zustand state stores
 │   └── shared/              # Shared types (IPC)
 ├── src-tauri/               # Tauri backend (Rust)
 │   └── src/
-│       ├── commands.rs      # Tauri invoke commands
+│       ├── commands.rs      # Tauri commands
 │       ├── file_watcher.rs  # FS watcher
 │       ├── fs_ops.rs        # File operations
 │       └── vault_scanner.rs # Vault tree scanner
@@ -82,6 +100,8 @@ margin/
 └── release/                 # Release assets
 ```
 
-## License / 许可证
+---
+
+## License
 
 MIT
