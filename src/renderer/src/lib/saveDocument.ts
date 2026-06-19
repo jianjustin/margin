@@ -1,4 +1,6 @@
 import { useDocumentStore } from '@/stores/documentStore'
+import { emit } from '@tauri-apps/api/event'
+import { windowId, EV_FILE_SAVED } from '@/lib/windowIdentity'
 
 type WriteFile = (path: string, content: string) => Promise<void>
 type ReadFile = (path: string) => Promise<string>
@@ -59,6 +61,7 @@ export function saveDocument(
         store.getState().markSaving(path)
         await writeFile(path, content)
         store.getState().markSaved(content, path)
+        void emit(EV_FILE_SAVED, { path, content, _source: windowId })
       }
     } catch (err) {
       console.error('Failed to save document:', err)

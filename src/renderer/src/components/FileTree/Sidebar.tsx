@@ -1,5 +1,5 @@
 import { memo } from 'react'
-import { CalendarPlus, FolderOpen, PanelLeftClose, Search } from 'lucide-react'
+import { AppWindow, CalendarPlus, FolderOpen, PanelLeftClose, Search } from 'lucide-react'
 import type { TreeNode } from '../../../../shared/ipc'
 import { useVaultStore } from '@/stores/vaultStore'
 import { FileTree } from './FileTree'
@@ -11,6 +11,7 @@ interface SidebarProps {
   onOpenSearch?: () => void
   onOpenToday?: () => void
   onCollapse?: () => void
+  onNewWindow?: () => void
   onOpenFile: (node: TreeNode) => void
   onContextMenu: (node: TreeNode, x: number, y: number) => void
 }
@@ -31,6 +32,7 @@ function SidebarInner({
   onOpenSearch,
   onOpenToday,
   onCollapse,
+  onNewWindow,
   onOpenFile,
   onContextMenu
 }: SidebarProps): JSX.Element {
@@ -45,11 +47,14 @@ function SidebarInner({
   return (
     <aside
       style={{ width }}
-      className="flex h-full flex-none flex-col border-r border-[color:var(--border-soft)] bg-[color:var(--sidebar-bg)] pt-[42px]"
+      className="flex h-full flex-none flex-col border-r border-[color:var(--border-soft)] bg-[color:var(--sidebar-bg)]"
     >
       {showToolbar && (
-        <div className="flex h-[34px] shrink-0 items-center justify-between px-3">
-          <div className="flex gap-0.5">
+        <div
+          data-tauri-drag-region
+          className="flex h-[32px] shrink-0 items-center justify-end px-3"
+        >
+          <div className="flex gap-0.5 [-webkit-app-region:no-drag]">
             <button
               onClick={onOpenFolder}
               title="打开文件夹"
@@ -75,6 +80,16 @@ function SidebarInner({
                 className={toolbarButton()}
               >
                 <CalendarPlus size={16} />
+              </button>
+            )}
+            {onNewWindow && (
+              <button
+                onClick={onNewWindow}
+                title="新建窗口 (⇧⌘N)"
+                aria-label="新建窗口"
+                className={toolbarButton()}
+              >
+                <AppWindow size={16} />
               </button>
             )}
             <button

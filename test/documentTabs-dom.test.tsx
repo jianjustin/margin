@@ -20,6 +20,24 @@ describe('DocumentTabs', () => {
     expect(screen.getByRole('tab', { name: /b.md/ }).getAttribute('aria-selected')).toBe('true')
   })
 
+  it('uses compact inline topbar styling instead of a standalone tab bar surface', () => {
+    useDocumentStore.getState().openOrActivate('/v/a.md', 'a')
+    render(<DocumentTabs onActivate={() => {}} onClose={() => Promise.resolve()} />)
+    const tablist = screen.getByRole('tablist')
+    expect(tablist.className).toContain('h-[30px]')
+    expect(tablist.className).not.toContain('border-b')
+    expect(tablist.className).not.toContain('bg-[color:var(--bg-panel)]')
+  })
+
+  it('separates adjacent tabs with subtle curved dividers', () => {
+    const store = useDocumentStore.getState()
+    store.openOrActivate('/v/a.md', 'a')
+    store.openOrActivate('/v/b.md', 'b')
+    store.openOrActivate('/v/c.md', 'c')
+    render(<DocumentTabs onActivate={() => {}} onClose={() => Promise.resolve()} />)
+    expect(screen.getAllByTestId('tab-arc-separator')).toHaveLength(2)
+  })
+
   it('calls onActivate when a tab is clicked', () => {
     const onActivate = vi.fn()
     const store = useDocumentStore.getState()

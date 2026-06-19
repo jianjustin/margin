@@ -48,6 +48,10 @@ import {
   type PaneSpec
 } from '@/lib/layout'
 import { api } from '@/lib/api'
+import { createPeerWindow, parseOpenParam, parseVaultParam, isBlankWindow } from '@/lib/windowManager'
+import { startEventBridge } from '@/lib/eventBridge'
+import { emit } from '@tauri-apps/api/event'
+import { windowId, EV_PATH_MUTATED } from '@/lib/windowIdentity'
 import type { TreeNode } from '../../shared/ipc'
 
 const AUTOSAVE_MS = 800
@@ -139,14 +143,41 @@ export default function App(): JSX.Element {
     else root.removeAttribute('data-theme')
   }, [themeMode, systemDark])
 
-  /* ── Boot: open persisted vault root ───────────────────────── */
+  /* ── Boot: determine window role and open vault ────────────── */
 
   useEffect(() => {
-    const saved = loadPersistedRoot()
-    if (!saved) return
-    void scanVaultWithSettings(saved)
-      .then((tree) => useVaultStore.getState().openRoot(saved, tree))
-      .catch(() => useVaultStore.getState().closeVault())
+    // Start cross-window event bridge (idempotent per window).
+    const stopBridge = startEventBridge()
+
+    const openParam = parseOpenParam()
+    const vaultParam = parseVaultParam()
+
+    if (openParam && vaultParam) {
+      // Window created via "Open in New Window" — auto-open the target.
+      void scanVaultWithSettings(vaultParam)
+        .then((tree) => {
+          useVaultStore.getState().openRoot(vaultParam, tree)
+          return api.readFile(openParam)
+        })
+        .then((text) => {
+          if (text) {
+            useDocumentStore.getState().openOrActivate(openParam, text)
+            useVaultStore.getState().select(openParam)
+          }
+        })
+        .catch(() => useVaultStore.getState().closeVault())
+    } else if (isBlankWindow()) {
+      // Window created via Cmd+Shift+N — start blank, no auto-restore.
+    } else {
+      // Main window (first launch) — restore persisted vault.
+      const saved = loadPersistedRoot()
+      if (!saved) return
+      void scanVaultWithSettings(saved)
+        .then((tree) => useVaultStore.getState().openRoot(saved, tree))
+        .catch(() => useVaultStore.getState().closeVault())
+    }
+
+    return stopBridge
   }, [])
 
   /* ── Global keyboard shortcuts ─────────────────────────────── */
@@ -168,6 +199,10 @@ export default function App(): JSX.Element {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault()
         setSearchOpen((v) => !v)
+      }
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'N') {
+        e.preventDefault()
+        createPeerWindow()
       }
     }
     window.addEventListener('keydown', handleKeyDown)
@@ -396,6 +431,7 @@ export default function App(): JSX.Element {
       const newPath = await api.renamePath(node.path, name)
       succeeded = true
       replaceAffectedOpenTabPaths(node.path, newPath)
+      void emit(EV_PATH_MUTATED, { action: 'rename', oldPath: node.path, newPath, _source: windowId })
       await deleteDraftsForPaths(affectedPaths)
       await refreshTree()
     } catch (err) {
@@ -418,6 +454,7 @@ export default function App(): JSX.Element {
       for (const affectedPath of affectedPaths) {
         useDocumentStore.getState().removePath(affectedPath)
       }
+      void emit(EV_PATH_MUTATED, { action: 'trash', oldPath: node.path, _source: windowId })
       useVaultStore.getState().select(useDocumentStore.getState().activePath)
       await deleteDraftsForPaths(affectedPaths)
       await refreshTree()
@@ -439,6 +476,7 @@ export default function App(): JSX.Element {
       const newPath = await api.movePath(node.path, destDir)
       succeeded = true
       replaceAffectedOpenTabPaths(node.path, newPath)
+      void emit(EV_PATH_MUTATED, { action: 'move', oldPath: node.path, newPath, _source: windowId })
       await deleteDraftsForPaths(affectedPaths)
       await refreshTree()
     } catch (err) {
@@ -478,6 +516,7 @@ export default function App(): JSX.Element {
   const handleOpenSearch = useCallback(() => setSearchOpen(true), [])
   const handleOpenToday = useCallback(() => void openSchedule(new Date()), [scheduleDir])
   const handleCollapseSidebar = useCallback(() => setSidebarOpen(false), [])
+  const handleNewWindow = useCallback(() => createPeerWindow(), [])
 
   /* ── Title bar info ────────────────────────────────────────── */
 
@@ -557,6 +596,7 @@ export default function App(): JSX.Element {
             onOpenSearch={handleOpenSearch}
             onOpenToday={handleOpenToday}
             onCollapse={handleCollapseSidebar}
+            onNewWindow={handleNewWindow}
             onOpenFile={handleOpenFile}
             onContextMenu={handleContextMenu}
           />
@@ -573,7 +613,7 @@ export default function App(): JSX.Element {
         <header
           data-tauri-drag-region
           className={[
-            'flex h-[34px] shrink-0 items-center gap-3 bg-[color:var(--bg)] px-3 text-sm text-[color:var(--text-faint)]',
+            'flex h-[32px] shrink-0 items-center gap-2 bg-[color:var(--bg)] px-2 text-sm text-[color:var(--text-faint)]',
             sidebarOpen ? '' : 'pl-20'
           ].join(' ')}
         >
@@ -588,21 +628,11 @@ export default function App(): JSX.Element {
             </button>
           )}
 
-          <div
-            data-tauri-drag-region
-            className="pointer-events-none flex min-w-0 flex-1 items-center justify-center gap-2 text-[12px] font-medium text-[color:var(--text-faint)]"
-          >
-            {path ? (
-              <>
-                {parentName && <span className="text-[color:var(--text-faint)]">{parentName}</span>}
-                {parentName && <span className="text-[color:var(--text-faint)]">/</span>}
-                <span id="title-name" className="truncate">{fileName}</span>
-                <DirtyDot />
-              </>
-            ) : (
-              <span className="text-[color:var(--text-faint)]">未打开文件</span>
-            )}
-          </div>
+          {hasTabs ? (
+            <DocumentTabs onActivate={handleActivateTab} onClose={handleCloseTab} />
+          ) : (
+            <div data-tauri-drag-region className="min-w-0 flex-1" />
+          )}
 
           <div className="relative flex gap-0.5 [-webkit-app-region:no-drag]">
             <ThemeToggle />
@@ -668,8 +698,16 @@ export default function App(): JSX.Element {
           </div>
         </header>
 
-        {hasTabs && (
-          <DocumentTabs onActivate={handleActivateTab} onClose={handleCloseTab} />
+        {path && (
+          <div
+            data-tauri-drag-region
+            className="flex h-[22px] shrink-0 items-center justify-center gap-2 border-b border-[color:var(--border-soft)] bg-[color:var(--bg)] px-3 text-[11.5px] font-medium text-[color:var(--text-faint)]"
+          >
+            {parentName && <span>{parentName}</span>}
+            {parentName && <span>/</span>}
+            <span id="title-name" className="truncate">{fileName}</span>
+            <DirtyDot />
+          </div>
         )}
 
         <div className="flex min-h-0 flex-1">
@@ -695,8 +733,22 @@ export default function App(): JSX.Element {
                 </div>
               </div>
             ) : (
-              <div className="flex h-full items-center justify-center text-muted-foreground">
-                打开文件夹或文件开始编辑
+              <div className="flex h-full flex-col items-center justify-center gap-4 text-muted-foreground">
+                <p className="text-sm">打开文件夹或文件开始编辑</p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => void openFolder()}
+                    className="rounded-md bg-[color:var(--accent)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity"
+                  >
+                    打开文件夹
+                  </button>
+                  <button
+                    onClick={() => createPeerWindow()}
+                    className="rounded-md border border-[color:var(--border)] px-4 py-2 text-sm font-medium text-foreground hover:bg-[color:var(--bg-hover)] transition-colors"
+                  >
+                    新建窗口 (⇧⌘N)
+                  </button>
+                </div>
               </div>
             )}
           </main>
@@ -748,6 +800,12 @@ export default function App(): JSX.Element {
           onCopyRelativePath={(n) => {
             setMenu(null)
             void copyText(projectRelativePath(vaultRoot, n.path))
+          }}
+          onOpenInNewWindow={(n) => {
+            setMenu(null)
+            if (vaultRoot) {
+              createPeerWindow({ filePath: n.path, vaultRoot })
+            }
           }}
           onOpenInFinder={(n) => {
             setMenu(null)

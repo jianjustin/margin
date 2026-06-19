@@ -104,6 +104,22 @@ describe('Sidebar toolbar', () => {
     expect(buttons.slice(0, 4)).toEqual(['打开文件夹', '搜索文件', '今日日程', '折叠文件树'])
   })
 
+  it('right-aligns the sidebar toolbar with the traffic-light title row', () => {
+    const actions = handlers()
+    render(
+      <Sidebar
+        width={260}
+        scheduleEnabled
+        {...actions}
+        onOpenFile={() => {}}
+        onContextMenu={() => {}}
+      />
+    )
+
+    const toolbarRow = screen.getByRole('button', { name: '打开文件夹' }).parentElement?.parentElement
+    expect(toolbarRow?.className).toContain('justify-end')
+  })
+
   it('does not render toolbar actions until every action handler is provided', () => {
     const actions = handlers()
     render(

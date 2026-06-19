@@ -8,6 +8,7 @@ mod path_policy;
 mod vault_scanner;
 
 use commands::WatcherManager;
+use std::collections::HashMap;
 use std::sync::Mutex;
 
 fn main() {
@@ -16,8 +17,9 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .manage(WatcherManager(Mutex::new(None)))
+        .manage(WatcherManager(Mutex::new(HashMap::new())))
         .invoke_handler(tauri::generate_handler![
+            commands::create_peer_window,
             commands::open_file_dialog,
             commands::open_folder_dialog,
             commands::read_file,

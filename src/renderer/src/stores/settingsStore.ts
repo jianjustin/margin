@@ -1,5 +1,7 @@
 import { create } from 'zustand'
+import { emit } from '@tauri-apps/api/event'
 import { normalizeFolderPathInput, normalizeHiddenFolderRules } from '@/lib/folderRules'
+import { windowId, EV_SETTINGS_CHANGED } from '@/lib/windowIdentity'
 
 const SETTINGS_KEY = 'margin.settings'
 
@@ -80,16 +82,19 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   setScheduleEnabled: (v) => {
     set({ scheduleEnabled: v })
     persist({ ...get(), scheduleEnabled: v })
+    void emit(EV_SETTINGS_CHANGED, { scheduleEnabled: v, _source: windowId })
   },
   setScheduleDir: (dir) => {
     const clean = dir.trim() || DEFAULTS.scheduleDir
     set({ scheduleDir: clean })
     persist({ ...get(), scheduleDir: clean })
+    void emit(EV_SETTINGS_CHANGED, { scheduleDir: clean, _source: windowId })
   },
   setHiddenFolders: (rules) => {
     const hiddenFolders = normalizeHiddenFolderRules(rules)
     set({ hiddenFolders })
     persist({ ...get(), hiddenFolders })
+    void emit(EV_SETTINGS_CHANGED, { hiddenFolders, _source: windowId })
   },
   addHiddenFolder: (rule) => {
     const normalized = normalizeFolderPathInput(rule)
@@ -97,12 +102,14 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     const hiddenFolders = normalizeHiddenFolderRules([...get().hiddenFolders, normalized])
     set({ hiddenFolders })
     persist({ ...get(), hiddenFolders })
+    void emit(EV_SETTINGS_CHANGED, { hiddenFolders, _source: windowId })
   },
   removeHiddenFolder: (rule) => {
     const normalized = normalizeFolderPathInput(rule)
     const hiddenFolders = get().hiddenFolders.filter((value) => value !== normalized)
     set({ hiddenFolders })
     persist({ ...get(), hiddenFolders })
+    void emit(EV_SETTINGS_CHANGED, { hiddenFolders, _source: windowId })
   },
   applyProjectConfig: (partial) => set(partial)
 }))

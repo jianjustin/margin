@@ -3,6 +3,7 @@ use crate::fs_ops;
 use crate::path_policy::assert_safe_path;
 use crate::vault_scanner;
 use crate::vault_scanner::TreeNode;
+use std::collections::HashMap;
 use std::path::Path;
 #[cfg(target_os = "macos")]
 use std::process::Command;
@@ -10,8 +11,56 @@ use std::sync::Mutex;
 use tauri::State;
 use tauri_plugin_dialog::DialogExt;
 
-/// Managed state for the vault file watcher.
-pub struct WatcherManager(pub Mutex<Option<WatcherState>>);
+/// Managed state for the vault file watchers — one per vault root.
+pub struct WatcherManager(pub Mutex<HashMap<String, WatcherState>>);
+
+// ---------------------------------------------------------------------------
+// Window management
+// ---------------------------------------------------------------------------
+
+/// Create a new peer (fully-functional) window. Optionally targets a specific
+/// file by passing `open` and `vault` query parameters.
+#[tauri::command]
+pub fn create_peer_window(
+    app: tauri::AppHandle,
+    open: Option<String>,
+    vault: Option<String>,
+) -> Result<(), String> {
+    use tauri::WebviewUrl;
+    use tauri::WebviewWindowBuilder;
+
+    let label = format!("win-{}", std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis());
+
+    let mut url = String::from("index.html?blank=1");
+    if let (Some(ref file), Some(ref root)) = (&open, &vault) {
+        url = format!(
+            "index.html?open={}&vault={}",
+            urlencoding(file),
+            urlencoding(root)
+        );
+    }
+
+    WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(url.into()))
+        .title("Margin")
+        .inner_size(1280.0, 800.0)
+        .title_bar_style(tauri::TitleBarStyle::Overlay)
+        .build()
+        .map_err(|e| format!("Failed to create window: {}", e))?;
+
+    Ok(())
+}
+
+/// Minimal percent-encoding for URL query parameters.
+fn urlencoding(s: &str) -> String {
+    s.replace('%', "%25")
+        .replace('&', "%26")
+        .replace('=', "%3D")
+        .replace('#', "%23")
+        .replace('?', "%3F")
+}
 
 // ---------------------------------------------------------------------------
 // Dialog commands
@@ -161,13 +210,17 @@ pub fn scan_vault(
 ) -> Result<Vec<TreeNode>, String> {
     assert_safe_path(&root)?;
 
-    // Start / restart the file watcher for this vault root.
-    let new_watcher = file_watcher::start_watching(&root, app)?;
-    let mut guard = watcher_manager
-        .0
-        .lock()
-        .map_err(|e| format!("Watcher lock poisoned: {}", e))?;
-    *guard = Some(new_watcher);
+    // Create a watcher for this vault root only if one doesn't already exist.
+    {
+        let mut guard = watcher_manager
+            .0
+            .lock()
+            .map_err(|e| format!("Watcher lock poisoned: {}", e))?;
+        if !guard.contains_key(&root) {
+            let watcher = file_watcher::start_watching(&root, app)?;
+            guard.insert(root.clone(), watcher);
+        }
+    }
 
     Ok(vault_scanner::scan_vault(&root, &hidden_folders))
 }

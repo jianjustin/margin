@@ -1,4 +1,6 @@
 import { create } from 'zustand'
+import { emit } from '@tauri-apps/api/event'
+import { windowId, EV_THEME_CHANGED } from '@/lib/windowIdentity'
 
 export type ThemeMode = 'auto' | 'light' | 'dark'
 export type EffectiveTheme = 'light' | 'dark'
@@ -37,6 +39,7 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
       // ignore persistence failure
     }
     set({ mode })
+    void emit(EV_THEME_CHANGED, { mode, _source: windowId })
   },
   cycleMode: () => {
     const next = CYCLE[(CYCLE.indexOf(get().mode) + 1) % CYCLE.length]

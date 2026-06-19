@@ -11,6 +11,7 @@ use tauri::{AppHandle, Emitter};
 /// Holds the active file-system watcher so it can be stopped and restarted.
 pub struct WatcherState {
     _watcher: RecommendedWatcher,
+    #[allow(dead_code)]
     pub root: String,
     /// Setting this flag to `true` signals the debounce thread to exit.
     stop_flag: Arc<Mutex<bool>>,
