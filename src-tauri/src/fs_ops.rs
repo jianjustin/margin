@@ -101,9 +101,39 @@ pub fn rename_path(old_path: &str, new_name: &str) -> Result<String, String> {
 }
 
 /// Move a file/folder to the OS trash (never a hard delete).
+///
+/// On macOS with iCloud Drive + Optimize Storage, files may be evicted
+/// (placeholder only, content in the cloud).  Accessing them forces the
+/// system to materialize them before we hand them to `trash::delete`,
+/// which avoids the "需要下载" system error.
 pub fn trash_path(path: &str) -> Result<(), String> {
     assert_safe_path(path)?;
+    materialize_tree(Path::new(path));
     trash::delete(path).map_err(|e| format!("Could not trash: {}", e))
+}
+
+/// Touch every file under `root` so the OS downloads any evicted stubs
+/// before we operate on the tree.  Best-effort — we never fail here.
+fn materialize_tree(root: &Path) {
+    if root.is_dir() {
+        if let Ok(entries) = std::fs::read_dir(root) {
+            for entry in entries.flatten() {
+                let p = entry.path();
+                if p.is_dir() {
+                    materialize_tree(&p);
+                } else {
+                    let _ = std::fs::metadata(&p);
+                }
+            }
+        }
+    } else if root.is_symlink() {
+        // Resolve symlinks and materialize the target.
+        if let Ok(target) = std::fs::read_link(root) {
+            materialize_tree(&target);
+        }
+    } else {
+        let _ = std::fs::metadata(root);
+    }
 }
 
 /// Move a file/folder into `dest_dir`, keeping its original name. Creates

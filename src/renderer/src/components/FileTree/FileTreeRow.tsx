@@ -19,7 +19,7 @@ function fileIconLabel(ext: string): { label: string; color: string } {
     case 'markdown':
       return { label: 'M', color: 'var(--sidebar-icon)' }
     case 'json':
-      return { label: '{ }', color: 'var(--text-dim)' }
+      return { label: '{}', color: 'var(--text-dim)' }
     case 'canvas':
       return { label: '◇', color: 'oklch(0.72 0.09 240)' }
     case 'txt':
