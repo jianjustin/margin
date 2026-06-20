@@ -1,6 +1,8 @@
 use crate::path_policy::assert_safe_path;
 use std::fs;
 use std::io::Read;
+#[cfg(target_os = "macos")]
+use std::process::Command;
 use std::path::{Path, PathBuf};
 
 /// Find a non-colliding path by appending `-1`, `-2`, ... before the extension.
@@ -103,15 +105,58 @@ pub fn rename_path(old_path: &str, new_name: &str) -> Result<String, String> {
 
 /// Move a file/folder to the OS trash (never a hard delete).
 ///
-/// On macOS, cloud-sync services (iCloud Drive, OneDrive) with on-demand
-/// / "Optimize Storage" may evict files so only a placeholder stub exists
-/// locally.  We recursively open + read a byte from every file
-/// beforehand to force the system to materialize them, which avoids the
-/// "需要下载" error that `trash::delete` would otherwise hit.
+/// On macOS, `NSFileManager::trashItemAtURL` (used by the `trash` crate)
+/// is intercepted by File Provider extensions (OneDrive, iCloud).  Those
+/// extensions may refuse the request even when files are fully downloaded.
+///
+/// Strategy:
+/// 1. Recursively touch every file so evicted stubs are materialized.
+/// 2. Try `trash::delete`.
+/// 3. On macOS, fall back to telling Finder to delete the item — Finder
+///    has the entitlements to coordinate with File Provider extensions.
 pub fn trash_path(path: &str) -> Result<(), String> {
     assert_safe_path(path)?;
     materialize_tree(Path::new(path));
-    trash::delete(path).map_err(|e| format!("Could not trash: {}", e))
+
+    match trash::delete(path) {
+        Ok(()) => Ok(()),
+        Err(e) => {
+            #[cfg(target_os = "macos")]
+            {
+                trash_via_finder(path)
+                    .map_err(|finder_err| format!("Could not trash: {} / Finder fallback: {}", e, finder_err))
+            }
+            #[cfg(not(target_os = "macos"))]
+            {
+                Err(format!("Could not trash: {}", e))
+            }
+        }
+    }
+}
+
+/// Ask Finder to move `path` to the Trash via AppleScript.  Finder has
+/// broader entitlements than a third-party app and can reliably handle
+/// File Provider items (OneDrive, iCloud).
+#[cfg(target_os = "macos")]
+fn trash_via_finder(path: &str) -> Result<(), String> {
+    // Escape backslashes and double-quotes for AppleScript string literal.
+    let escaped = path.replace('\\', "\\\\").replace('"', "\\\"");
+    let script = format!(
+        "tell application \"Finder\" to delete POSIX file \"{}\"",
+        escaped
+    );
+    let output = Command::new("osascript")
+        .arg("-e")
+        .arg(&script)
+        .output()
+        .map_err(|e| format!("Could not launch osascript: {}", e))?;
+    if output.status.success() {
+        Ok(())
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        Err(format!("{} {}", stderr.trim(), stdout.trim()).trim().to_string())
+    }
 }
 
 /// Touch every file under `root` so the OS downloads any evicted stubs
