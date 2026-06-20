@@ -4,6 +4,7 @@ import type { SyntaxNode } from '@lezer/common'
 import { rangeRevealed } from './reveal'
 import { collectFootnoteRefs, findFootnoteDef } from './footnotes'
 import { isExternal } from '@/lib/resolvePath'
+import { LIST_INDENT } from '../listContinuation'
 import {
   collectHighlightRanges,
   collectMathRanges,
@@ -38,6 +39,8 @@ export type DecoKind =
   | 'mathBlock'
   | 'callout'
   | 'highlight'
+  | 'listBullet'
+  | 'listNumber'
 
 export interface DecoSpec {
   kind: DecoKind
@@ -318,6 +321,38 @@ export function collectDecorations(state: EditorState): DecoSpec[] {
           to: line.to,
           revealed: rangeRevealed(state, line.from, line.to)
         })
+        return
+      }
+
+      // List item: hide the raw ListMark (-, *, +, 1.) and show a bullet/number
+      // widget when the cursor is outside the line; reveal raw source when inside.
+      if (name === 'ListItem') {
+        const taskMarker = node.node.getChild('TaskMarker')
+        if (taskMarker) return // TaskMarker handler below hides the mark + shows checkbox
+
+        const mark = node.node.getChild('ListMark')
+        if (!mark) return
+
+        const markRaw = doc.sliceString(mark.from, mark.to)
+        const isOrdered = /^\d+\./.test(markRaw.trimStart())
+        const num = isOrdered ? parseInt(markRaw.trimStart(), 10) : undefined
+        const revealed = rangeRevealed(state, node.from, node.to)
+
+        // Hide the raw ListMark text (e.g. "- ", "1. ")
+        specs.push({ kind: 'hide', from: mark.from, to: mark.to, revealed })
+
+        if (!revealed) {
+          const line = doc.lineAt(node.from)
+          const indentLevel = Math.floor((mark.from - line.from) / LIST_INDENT)
+          specs.push({
+            kind: isOrdered ? 'listNumber' : 'listBullet',
+            from: mark.from,
+            to: mark.to,
+            revealed: false,
+            info: isOrdered ? String(num) : undefined,
+            level: indentLevel
+          })
+        }
         return
       }
 

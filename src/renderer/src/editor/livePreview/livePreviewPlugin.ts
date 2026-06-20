@@ -14,7 +14,8 @@ import {
   LinkIconWidget,
   WikiLinkWidget,
   MathWidget,
-  CalloutWidget
+  CalloutWidget,
+  BulletWidget
 } from './widgets'
 import { docPathFacet, vaultRootFacet } from '../docPathFacet'
 import { isExternal, resolveMarkdownAsset } from '@/lib/resolvePath'
@@ -193,6 +194,24 @@ function buildDecorations(state: EditorState): DecorationSet {
             block: true
           }).range(s.from, s.to)
         )
+        break
+      case 'listBullet':
+        if (!s.revealed) {
+          ranges.push(
+            Decoration.replace({
+              widget: new BulletWidget(false, undefined, s.level ?? 0)
+            }).range(s.from, s.to)
+          )
+        }
+        break
+      case 'listNumber':
+        if (!s.revealed) {
+          ranges.push(
+            Decoration.replace({
+              widget: new BulletWidget(true, Number(s.info ?? '1'), s.level ?? 0)
+            }).range(s.from, s.to)
+          )
+        }
         break
     }
   }

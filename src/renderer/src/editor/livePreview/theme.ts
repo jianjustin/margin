@@ -120,6 +120,29 @@ export const marginEditorTheme = EditorView.theme({
     boxShadow: 'inset 0 0 0 3px var(--bg)'
   },
 
+  '.cm-list-bullet': {
+    display: 'inline-block',
+    minWidth: '1.2em',
+    color: 'var(--text)',
+    fontWeight: '600',
+    marginRight: '0.4em',
+    textAlign: 'right',
+    userSelect: 'none'
+  },
+  '.cm-list-bullet-nested': {
+    position: 'relative'
+  },
+  '.cm-list-bullet-nested::before': {
+    content: "''",
+    position: 'absolute',
+    top: '0',
+    bottom: '0',
+    left: 'calc(-1 * var(--list-level) * 1.2em + 0.3em)',
+    borderLeft: '1px solid var(--border-soft)',
+    opacity: '0.6',
+    pointerEvents: 'none'
+  },
+
   '.cm-frontmatter': {
     fontFamily: MONO,
     fontSize: '0.82em',

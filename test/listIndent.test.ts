@@ -2,37 +2,37 @@ import { describe, it, expect } from 'vitest'
 import { indentListLine, outdentListLine } from '@/editor/listContinuation'
 
 describe('indentListLine', () => {
-  it('prepends 2 spaces to a top-level bullet item', () => {
-    expect(indentListLine('- item')).toBe('  - item')
+  it('prepends 4 spaces to a top-level bullet item', () => {
+    expect(indentListLine('- item')).toBe('    - item')
   })
-  it('prepends 2 more spaces to an already-indented bullet', () => {
-    expect(indentListLine('  - item')).toBe('    - item')
+  it('prepends 4 more spaces to an already-indented bullet', () => {
+    expect(indentListLine('    - item')).toBe('        - item')
   })
   it('works with ordered list items', () => {
-    expect(indentListLine('1. first')).toBe('  1. first')
+    expect(indentListLine('1. first')).toBe('    1. first')
   })
   it('works with task list items', () => {
-    expect(indentListLine('- [ ] task')).toBe('  - [ ] task')
+    expect(indentListLine('- [ ] task')).toBe('    - [ ] task')
   })
   it('returns null for non-list lines', () => {
     expect(indentListLine('plain text')).toBeNull()
     expect(indentListLine('# heading')).toBeNull()
   })
   it('works with * and + bullet markers', () => {
-    expect(indentListLine('* item')).toBe('  * item')
-    expect(indentListLine('+ item')).toBe('  + item')
+    expect(indentListLine('* item')).toBe('    * item')
+    expect(indentListLine('+ item')).toBe('    + item')
   })
 })
 
 describe('outdentListLine', () => {
-  it('removes 2 leading spaces from indented bullet', () => {
-    expect(outdentListLine('  - item')).toBe('- item')
+  it('removes 4 leading spaces from indented bullet', () => {
+    expect(outdentListLine('    - item')).toBe('- item')
   })
   it('removes only 1 space when indent is 1', () => {
     expect(outdentListLine(' - item')).toBe('- item')
   })
-  it('removes only 2 spaces when indent is 4 (moves up one level)', () => {
-    expect(outdentListLine('    - item')).toBe('  - item')
+  it('removes only 4 spaces when indent is 8 (moves up one level)', () => {
+    expect(outdentListLine('        - item')).toBe('    - item')
   })
   it('returns null when there is no indent', () => {
     expect(outdentListLine('- item')).toBeNull()
@@ -41,10 +41,10 @@ describe('outdentListLine', () => {
     expect(outdentListLine('plain text')).toBeNull()
   })
   it('works with task list items that have indent', () => {
-    expect(outdentListLine('  - [ ] task')).toBe('- [ ] task')
+    expect(outdentListLine('    - [ ] task')).toBe('- [ ] task')
   })
   it('works with * and + bullet markers', () => {
-    expect(outdentListLine('  * item')).toBe('* item')
-    expect(outdentListLine('  + item')).toBe('+ item')
+    expect(outdentListLine('    * item')).toBe('* item')
+    expect(outdentListLine('    + item')).toBe('+ item')
   })
 })

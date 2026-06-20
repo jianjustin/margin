@@ -755,6 +755,7 @@ export class ImageWidget extends WidgetType {
 
     let currentUrl = toDisplayUrl(this.resolved)
     let triedLocalBytes = false
+    let remoteFallbackUsed = false
     const img = document.createElement('img')
     img.alt = this.alt
     if (this.width) img.style.width = `${this.width}px`
@@ -781,6 +782,8 @@ export class ImageWidget extends WidgetType {
     })
     img.addEventListener('error', () => {
       if (!wrap.isConnected) return
+
+      // Local file fallback: try reading as a data URL (handles Tauri asset:// quirks).
       if (!triedLocalBytes && this.resolved && canReadLocalImage(this.resolved)) {
         triedLocalBytes = true
         const failedUrl = currentUrl
@@ -800,6 +803,39 @@ export class ImageWidget extends WidgetType {
           })
         return
       }
+
+      // Remote URL fallback: cache → data URL pipeline.
+      if (!remoteFallbackUsed && this.resolved && isRemoteUrl(this.resolved)) {
+        remoteFallbackUsed = true
+        const failedUrl = currentUrl
+        void api
+          .cacheRemoteMedia(this.resolved)
+          .then((cachedPath) => {
+            if (!wrap.isConnected) return
+            currentUrl = toDisplayUrl(cachedPath)
+            img.src = currentUrl
+            view.requestMeasure()
+          })
+          .catch(() => {
+            if (!wrap.isConnected) return
+            void api
+              .readRemoteDataUrl(this.resolved!)
+              .then((dataUrl) => {
+                if (!wrap.isConnected) return
+                currentUrl = dataUrl
+                img.src = currentUrl
+                view.requestMeasure()
+              })
+              .catch(() => {
+                if (!wrap.isConnected) return
+                wrap.textContent = ''
+                this.renderError(wrap, failedUrl)
+                view.requestMeasure()
+              })
+          })
+        return
+      }
+
       wrap.textContent = ''
       this.renderError(wrap, currentUrl)
       view.requestMeasure()
@@ -1151,6 +1187,36 @@ export class FootnoteWidget extends WidgetType {
       })
     }
     return sup
+  }
+
+  ignoreEvent(): boolean {
+    return true
+  }
+}
+
+/** Renders a list bullet (•) or number (1.) replacing the raw ListMark. */
+export class BulletWidget extends WidgetType {
+  constructor(
+    readonly ordered: boolean,
+    readonly number: number | undefined,
+    readonly level: number
+  ) {
+    super()
+  }
+
+  eq(other: BulletWidget): boolean {
+    return other.ordered === this.ordered && other.number === this.number && other.level === this.level
+  }
+
+  toDOM(): HTMLElement {
+    const span = document.createElement('span')
+    span.className = 'cm-list-bullet'
+    if (this.level > 0) {
+      span.classList.add('cm-list-bullet-nested')
+      span.style.setProperty('--list-level', String(this.level))
+    }
+    span.textContent = this.ordered ? `${this.number ?? 1}.` : '•'
+    return span
   }
 
   ignoreEvent(): boolean {

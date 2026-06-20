@@ -74,23 +74,26 @@ export function listEnterAction(
   return { type: 'continue', insert: `\n${parsed.indent}${nextMarker}` }
 }
 
+/** Width of one list-indent step in spaces (Tab equivalent). */
+export const LIST_INDENT = 4
+
 /**
- * Returns the line text with 2 spaces prepended, or null when the line is not
- * a markdown list item (Tab should fall through to the default handler).
+ * Returns the line text with LIST_INDENT spaces prepended, or null when the
+ * line is not a markdown list item (Tab should fall through to the default handler).
  */
 export function indentListLine(lineText: string): string | null {
   if (!parseListLine(lineText)) return null
-  return '  ' + lineText
+  return '    ' + lineText
 }
 
 /**
- * Returns the line text with up to 2 leading spaces removed, or null when
- * the line has no indent (nothing to outdent) or is not a list item.
+ * Returns the line text with up to LIST_INDENT leading spaces removed, or null
+ * when the line has no indent (nothing to outdent) or is not a list item.
  */
 export function outdentListLine(lineText: string): string | null {
   const parsed = parseListLine(lineText)
   if (!parsed || parsed.indent.length === 0) return null
-  const trim = Math.min(2, parsed.indent.length)
+  const trim = Math.min(LIST_INDENT, parsed.indent.length)
   return lineText.slice(trim)
 }
 
@@ -130,7 +133,7 @@ function handleTab(view: EditorView): boolean {
   if (!newText) return false
   view.dispatch({
     changes: { from: line.from, to: line.to, insert: newText },
-    selection: { anchor: range.head + 2 },
+    selection: { anchor: range.head + LIST_INDENT },
     scrollIntoView: true,
     userEvent: 'input'
   })
@@ -147,7 +150,7 @@ function handleShiftTab(view: EditorView): boolean {
   const trim = line.text.length - newText.length
   view.dispatch({
     changes: { from: line.from, to: line.to, insert: newText },
-    selection: { anchor: range.head - trim },
+    selection: { anchor: Math.max(line.from, range.head - trim) },
     scrollIntoView: true,
     userEvent: 'input'
   })
