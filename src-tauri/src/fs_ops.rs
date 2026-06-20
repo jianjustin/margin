@@ -103,10 +103,11 @@ pub fn rename_path(old_path: &str, new_name: &str) -> Result<String, String> {
 
 /// Move a file/folder to the OS trash (never a hard delete).
 ///
-/// On macOS with iCloud Drive + Optimize Storage, files may be evicted
-/// (placeholder only, content in the cloud).  Accessing them forces the
-/// system to materialize them before we hand them to `trash::delete`,
-/// which avoids the "需要下载" system error.
+/// On macOS, cloud-sync services (iCloud Drive, OneDrive) with on-demand
+/// / "Optimize Storage" may evict files so only a placeholder stub exists
+/// locally.  We recursively open + read a byte from every file
+/// beforehand to force the system to materialize them, which avoids the
+/// "需要下载" error that `trash::delete` would otherwise hit.
 pub fn trash_path(path: &str) -> Result<(), String> {
     assert_safe_path(path)?;
     materialize_tree(Path::new(path));
@@ -116,9 +117,10 @@ pub fn trash_path(path: &str) -> Result<(), String> {
 /// Touch every file under `root` so the OS downloads any evicted stubs
 /// before we operate on the tree.  Best-effort — we never fail here.
 ///
-/// `std::fs::metadata` on an iCloud-evicted file returns the stub metadata
-/// *without* triggering a download.  We must actually open the file and
-/// read at least one byte to force the system to materialize its content.
+/// `std::fs::metadata` on an evicted stub (iCloud / OneDrive Files
+/// On-Demand) returns cached attributes *without* triggering a download.
+/// We must actually open the file and read at least one byte to force
+/// the File Provider to materialize its content.
 fn materialize_tree(root: &Path) {
     if root.is_dir() {
         if let Ok(entries) = std::fs::read_dir(root) {
@@ -141,8 +143,8 @@ fn materialize_tree(root: &Path) {
     }
 }
 
-/// Open `path` and read one byte to force iCloud (or similar lazy-fetch
-/// filesystems) to materialize the file content.
+/// Open `path` and read one byte to force the File Provider (iCloud,
+/// OneDrive, etc.) to materialize the file content.
 fn materialize_file(path: &Path) {
     if let Ok(mut f) = std::fs::File::open(path) {
         let mut buf = [0u8; 1];
