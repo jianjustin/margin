@@ -19,14 +19,14 @@ function fileIconLabel(ext: string): { label: string; color: string } {
     case 'markdown':
       return { label: 'M', color: 'var(--sidebar-icon)' }
     case 'json':
-      return { label: '{ }', color: 'var(--text-faint)' }
+      return { label: '{ }', color: 'var(--text-dim)' }
     case 'canvas':
       return { label: '◇', color: 'oklch(0.72 0.09 240)' }
     case 'txt':
-      return { label: 'T', color: 'var(--text-faint)' }
+      return { label: 'T', color: 'var(--text-dim)' }
     case 'yaml':
     case 'yml':
-      return { label: 'Y', color: 'var(--text-faint)' }
+      return { label: 'Y', color: 'var(--text-dim)' }
     case 'css':
     case 'scss':
       return { label: '#', color: 'oklch(0.72 0.09 240)' }
@@ -36,7 +36,7 @@ function fileIconLabel(ext: string): { label: string; color: string } {
     case 'jsx':
       return { label: 'JS', color: 'oklch(0.72 0.11 50)' }
     default:
-      return { label: '·', color: 'var(--text-faint)' }
+      return { label: '·', color: 'var(--text-dim)' }
   }
 }
 
@@ -89,7 +89,7 @@ export function FileTreeRow({
           : 'border border-transparent hover:bg-[color:var(--sidebar-hover)]'
       ].join(' ')}
     >
-      <span className="grid w-3 flex-none place-items-center text-[color:var(--text-faint)]">
+      <span className="grid w-3 flex-none place-items-center text-[color:var(--text-dim)]">
         {isFolder && (
           <ChevronRight
             size={12}
@@ -112,7 +112,7 @@ export function FileTreeRow({
       <span
         className={[
           'flex-1 truncate',
-          selected ? 'text-[color:var(--text-dim)]' : 'text-[color:var(--text-faint)]'
+          selected ? 'text-foreground font-medium' : 'text-[color:var(--text-dim)]'
         ].join(' ')}
       >
         {node.name}

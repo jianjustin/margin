@@ -108,7 +108,7 @@ function SidebarInner({
         <>
           <div
             className={[
-              'px-4 pb-1 text-[10px] font-medium uppercase tracking-[.08em] text-[color:var(--text-faint)] opacity-75',
+              'px-4 pb-1 text-[10px] font-medium uppercase tracking-[.08em] text-[color:var(--text-dim)]',
               showToolbar ? 'pt-1' : 'pt-2'
             ].join(' ')}
           >
@@ -121,7 +121,7 @@ function SidebarInner({
           />
         </>
       ) : (
-        <div className="px-4 py-6 text-center text-xs text-[color:var(--text-faint)]">
+        <div className="px-4 py-6 text-center text-xs text-[color:var(--text-dim)]">
           打开文件夹开始浏览笔记
         </div>
       )}

@@ -845,7 +845,7 @@ export class MediaWidget extends WidgetType {
     )
   }
 
-  toDOM(): HTMLElement {
+  toDOM(view: EditorView): HTMLElement {
     const wrap = document.createElement('span')
     wrap.className = 'cm-media-wrap'
     if (!this.resolved) {
@@ -856,14 +856,18 @@ export class MediaWidget extends WidgetType {
       return wrap
     }
 
-    let fallbackStage: 'direct' | 'cache' | 'data' | 'failed' = 'direct'
     const isAudio = /\.(mp3|wav|ogg|m4a|aac|flac)(?:[?#].*)?$/i.test(this.src)
     const el = isAudio ? document.createElement('audio') : document.createElement('video')
-    const source = document.createElement('source')
     const status = document.createElement('span')
     el.controls = true
     el.preload = 'metadata'
     el.className = 'cm-media-control'
+    // Ensure the element is always visible — some WebViews collapse
+    // media elements that lack explicit dimensions.
+    el.style.width = '100%'
+    if (isAudio) {
+      el.style.height = '48px'
+    }
     status.className = 'cm-media-status'
     status.hidden = true
     if (!isAudio) {
@@ -879,93 +883,100 @@ export class MediaWidget extends WidgetType {
       status.classList.toggle('cm-media-status-error', failed)
     }
 
-    const setSource = (url: string, typeHint = this.src): void => {
-      source.src = url
-      const type = mediaMimeType(typeHint) || mediaMimeType(url)
-      if (type) {
-        source.type = type
-      } else {
-        source.removeAttribute('type')
-      }
-      el.removeAttribute('src')
-      if (!source.parentElement) el.appendChild(source)
-      if (!navigator.userAgent.includes('jsdom')) {
-        el.load()
-      }
-    }
-
     const fail = (error: unknown): void => {
-      fallbackStage = 'failed'
       setStatus(`媒体加载失败: ${mediaErrorMessage(error)}`, true)
     }
 
-    const loadRemoteDataUrl = (reason: unknown): void => {
-      if (!this.resolved || !isRemoteUrl(this.resolved)) {
-        fail(reason)
-        return
-      }
-      fallbackStage = 'data'
-      setStatus('正在读取远程媒体备用数据...')
-      void api
-        .readRemoteDataUrl(this.resolved)
-        .then((url) => {
-          if (!wrap.isConnected) return
-          setSource(url, this.src)
-          setStatus('已切换到内存媒体，若仍无法播放请检查媒体编码。')
-        })
-        .catch((error) => {
-          if (!wrap.isConnected) return
-          fail(error)
-        })
-    }
-
-    el.addEventListener('error', () => {
-      if (!wrap.isConnected || !this.resolved || fallbackStage === 'failed') return
-      if (isRemoteUrl(this.resolved)) {
-        if (fallbackStage === 'direct') {
-          fallbackStage = 'cache'
-          setStatus('正在缓存远程媒体...')
-          void api
-            .cacheRemoteMedia(this.resolved)
-            .then((path) => {
-              if (!wrap.isConnected) return
-              setSource(toDisplayUrl(path), path)
-              setStatus('已缓存远程媒体，若仍无法播放会继续尝试内存媒体。')
-            })
-            .catch((error) => {
-              if (!wrap.isConnected) return
-              loadRemoteDataUrl(error)
-            })
-          return
-        }
-        if (fallbackStage === 'cache') {
-          loadRemoteDataUrl(el.error ?? '缓存媒体仍无法播放')
-          return
-        }
-        fail(el.error ?? '内存媒体仍无法播放')
-        return
-      }
-      if (fallbackStage === 'direct') {
-        fallbackStage = 'data'
-        setStatus('正在读取本地媒体备用数据...')
-        void api
-          .readAssetDataUrl(this.resolved)
-          .then((url) => {
-            if (!wrap.isConnected) return
-            setSource(url, this.src)
-            setStatus('已切换到内存媒体，若仍无法播放请检查媒体编码。')
-          })
-          .catch((error) => {
-            if (!wrap.isConnected) return
-            fail(error)
-          })
-        return
-      }
-      fail(el.error ?? '内存媒体仍无法播放')
-    })
-    setSource(toDisplayUrl(this.resolved), this.resolved)
+    // Element must be in DOM before setting src so the WebView connects it
+    // properly and the controls bar is visible from the start.
     wrap.appendChild(el)
     wrap.appendChild(status)
+
+    if (isRemoteUrl(this.resolved)) {
+      // Remote media: set direct URL for immediate visibility, AND start
+      // cache download in parallel via the Rust backend (bypasses WebView
+      // restrictions). When the cached file is ready, swap to asset:// URL.
+      el.src = toDisplayUrl(this.resolved)
+
+      let cacheDone = false
+      let directFailed = false
+
+      const applyCached = (path: string): void => {
+        if (!wrap.isConnected || cacheDone) return
+        cacheDone = true
+        el.src = toDisplayUrl(path)
+        setStatus('已缓存远程媒体，若仍无法播放请检查媒体编码。')
+      }
+
+      const tryDataUrl = (): void => {
+        if (!wrap.isConnected || cacheDone) return
+        setStatus('正在读取远程媒体数据…')
+        void api
+          .readRemoteDataUrl(this.resolved!)
+          .then((url) => {
+            if (!wrap.isConnected || cacheDone) return
+            cacheDone = true
+            el.src = url
+            setStatus('已加载内存媒体，若仍无法播放请检查媒体编码。')
+          })
+          .catch((e) => {
+            if (!wrap.isConnected || cacheDone) return
+            fail(e)
+          })
+      }
+
+      // Start cache download immediately — runs in Rust, not affected by
+      // WebView network restrictions.
+      setStatus('正在缓存远程媒体...')
+      void api
+        .cacheRemoteMedia(this.resolved)
+        .then((path) => {
+          if (directFailed || !wrap.isConnected) {
+            applyCached(path)
+          } else {
+            // Direct load hasn't failed yet — cache is ready as backup.
+            // Keep direct URL for now; if it fails later the error handler
+            // will still fire and we'll apply the cache then.
+            cacheDone = true
+            el.src = toDisplayUrl(path)
+            setStatus('已缓存远程媒体，若仍无法播放请检查媒体编码。')
+          }
+        })
+        .catch(() => {
+          if (!wrap.isConnected) return
+          tryDataUrl()
+        })
+
+      el.addEventListener('error', () => {
+        if (!wrap.isConnected) return
+        directFailed = true
+        if (cacheDone) {
+          // Cache is already applied; try data URL as last resort.
+          tryDataUrl()
+        }
+        // else: cache is still downloading, wait for it.
+      }, { once: true })
+
+    } else {
+      // Local media: direct asset:// URL with data URL fallback.
+      el.src = toDisplayUrl(this.resolved)
+      el.addEventListener('error', () => {
+        if (!wrap.isConnected) return
+        setStatus('正在读取本地媒体备用数据...')
+        void api
+          .readAssetDataUrl(this.resolved!)
+          .then((url) => {
+            if (!wrap.isConnected) return
+            el.src = url
+            setStatus('已切换到内存媒体，若仍无法播放请检查媒体编码。')
+          })
+          .catch((e) => {
+            if (!wrap.isConnected) return
+            fail(e)
+          })
+      }, { once: true })
+    }
+
     return wrap
   }
 

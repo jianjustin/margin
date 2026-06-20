@@ -279,7 +279,7 @@ export const marginEditorTheme = EditorView.theme({
   },
   '.cm-prop-add:hover': { color: 'var(--accent)' },
 
-  '.cm-image-wrap': { display: 'inline-block', maxWidth: '100%' },
+  '.cm-image-wrap': { display: 'block', maxWidth: '100%' },
   '.cm-image-wrap img': {
     maxWidth: '100%',
     borderRadius: '6px',
@@ -290,6 +290,31 @@ export const marginEditorTheme = EditorView.theme({
     color: 'var(--text-faint)',
     fontSize: '13px',
     fontStyle: 'italic'
+  },
+
+  '.cm-media-wrap': {
+    display: 'block',
+    margin: '12px 0',
+    maxWidth: '100%'
+  },
+  '.cm-media-control': {
+    display: 'block',
+    width: '100%',
+    maxWidth: '100%',
+    minHeight: '48px',
+    borderRadius: '8px',
+    background: 'var(--bg-elev)',
+    pointerEvents: 'auto'
+  },
+  '.cm-media-status': {
+    display: 'block',
+    marginTop: '6px',
+    color: 'var(--text-dim)',
+    fontSize: '12px',
+    lineHeight: 1.5
+  },
+  '.cm-media-status-error': {
+    color: 'var(--red)'
   },
 
   '.cm-footnote-ref': {

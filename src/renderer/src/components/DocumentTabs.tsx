@@ -37,10 +37,10 @@ export function DocumentTabs({ onActivate, onClose }: DocumentTabsProps): JSX.El
             )}
             <div
               className={[
-                'group flex h-[26px] max-w-[220px] min-w-[72px] items-center gap-1 rounded-md px-1.5 text-left transition-colors',
+                'group flex h-[26px] max-w-[220px] min-w-[72px] items-center gap-1 rounded-md px-1.5 text-left transition-all',
                 active
-                  ? 'text-foreground'
-                  : 'text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)] hover:text-foreground'
+                  ? 'text-foreground bg-[color:var(--bg-elev)] shadow-[0_1px_2px_rgba(0,0,0,0.12)] border border-[color:var(--border-soft)]'
+                  : 'text-[color:var(--text-dim)] border border-transparent hover:bg-[color:var(--bg-hover)] hover:text-foreground'
               ].join(' ')}
             >
               <button

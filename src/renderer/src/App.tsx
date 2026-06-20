@@ -617,7 +617,7 @@ export default function App(): JSX.Element {
         <header
           data-tauri-drag-region
           className={[
-            'flex h-[32px] shrink-0 items-center gap-2 bg-[color:var(--bg)] px-2 text-sm text-[color:var(--text-faint)]',
+            'flex h-[32px] shrink-0 items-center gap-2 bg-[color:var(--bg-panel)] px-2 text-sm text-[color:var(--text-faint)] border-b border-[color:var(--border-soft)] shadow-[0_1px_3px_rgba(0,0,0,0.08)]',
             sidebarOpen ? '' : 'pl-20'
           ].join(' ')}
         >

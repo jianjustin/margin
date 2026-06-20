@@ -193,7 +193,9 @@
 
 .cm-media-control {
   pointer-events: auto;
+  width: 100%;
   max-width: 100%;
+  min-height: 48px;
   border-radius: 8px;
   background: var(--bg-elev);
 }
@@ -201,7 +203,7 @@
 .cm-media-status {
   display: block;
   margin-top: 6px;
-  color: var(--text-muted);
+  color: var(--text-dim);
   font-size: 12px;
   line-height: 1.5;
 }

@@ -52,45 +52,44 @@ describe('rich content widgets', () => {
     expect(widget.ignoreEvent()).toBe(true)
   })
 
-  it('falls back to a cached local asset URL when remote media fails to load', async () => {
+  it('renders remote media with direct URL and falls back to cache on error', async () => {
     const dom = new MediaWidget('demo.mp4', 'video', 'https://example.test/demo.mp4').toDOM()
     document.body.appendChild(dom)
     const video = dom.querySelector('video')!
-    const source = video.querySelector('source')!
 
-    expect(source.src).toBe('https://example.test/demo.mp4')
-    expect(source.type).toBe('video/mp4')
+    // Direct URL is set immediately so controls bar is visible from the start.
+    expect(video.src).toBe('https://example.test/demo.mp4')
 
+    // Simulate direct load failure in WebView.
     video.dispatchEvent(new Event('error'))
     await Promise.resolve()
     await Promise.resolve()
 
+    // Error triggered cache fallback.
     expect(cacheRemoteMedia).toHaveBeenCalledWith('https://example.test/demo.mp4')
-    expect(source.src).toBe(
+    expect(video.src).toBe(
       'asset://localhost/%2FUsers%2Fme%2FLibrary%2FCaches%2FMargin%2Fremote-media%2Fdemo.mp4'
     )
-    expect(source.type).toBe('video/mp4')
     expect(dom.textContent).toContain('已缓存远程媒体')
   })
 
-  it('falls back to a remote data URL if the cached media URL still fails', async () => {
+  it('falls back to remote data URL when both direct load and cache fail', async () => {
+    cacheRemoteMedia.mockRejectedValueOnce(new Error('cache failed'))
     const dom = new MediaWidget('demo.mp4', 'video', 'https://example.test/demo.mp4').toDOM()
     document.body.appendChild(dom)
     const video = dom.querySelector('video')!
-    const source = video.querySelector('source')!
+
+    expect(video.src).toBe('https://example.test/demo.mp4')
 
     video.dispatchEvent(new Event('error'))
     await Promise.resolve()
     await Promise.resolve()
-
-    video.dispatchEvent(new Event('error'))
     await Promise.resolve()
     await Promise.resolve()
 
     expect(readRemoteDataUrl).toHaveBeenCalledWith('https://example.test/demo.mp4')
-    expect(source.src).toBe('data:video/mp4;base64,AAAA')
-    expect(source.type).toBe('video/mp4')
-    expect(dom.textContent).toContain('已切换到内存媒体')
+    expect(video.src).toBe('data:video/mp4;base64,AAAA')
+    expect(dom.textContent).toContain('已加载内存媒体')
   })
 
   it('shows a readable media error when all remote fallbacks fail', async () => {
@@ -98,9 +97,8 @@ describe('rich content widgets', () => {
     readRemoteDataUrl.mockRejectedValueOnce(new Error('data failed'))
     const dom = new MediaWidget('demo.mp3', 'audio', 'https://example.test/demo.mp3').toDOM()
     document.body.appendChild(dom)
-    const audio = dom.querySelector('audio')!
 
-    audio.dispatchEvent(new Event('error'))
+    dom.querySelector('audio')!.dispatchEvent(new Event('error'))
     await Promise.resolve()
     await Promise.resolve()
     await Promise.resolve()

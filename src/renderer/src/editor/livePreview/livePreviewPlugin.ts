@@ -131,7 +131,10 @@ function buildDecorations(state: EditorState): DecorationSet {
         const cfg = state.facet(richContentConfigFacet)
         const resolved = isExternal(src) ? src : resolveMarkdownAsset(src, dp, root, cfg.assetsDir)
         ranges.push(
-          Decoration.replace({ widget: new ImageWidget(src, s.info ?? '', resolved, s.width, s.height) }).range(s.from, s.to)
+          Decoration.replace({
+            widget: new ImageWidget(src, s.info ?? '', resolved, s.width, s.height),
+            block: true
+          }).range(s.from, s.to)
         )
         break
       }
@@ -142,7 +145,10 @@ function buildDecorations(state: EditorState): DecorationSet {
         const cfg = state.facet(richContentConfigFacet)
         const resolved = isExternal(src) ? src : resolveMarkdownAsset(src, dp, root, cfg.assetsDir)
         ranges.push(
-          Decoration.replace({ widget: new MediaWidget(src, s.info ?? '', resolved, s.width, s.height) }).range(s.from, s.to)
+          Decoration.replace({
+            widget: new MediaWidget(src, s.info ?? '', resolved, s.width, s.height),
+            block: true
+          }).range(s.from, s.to)
         )
         break
       }
