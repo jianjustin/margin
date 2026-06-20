@@ -1,5 +1,6 @@
 use crate::path_policy::assert_safe_path;
 use std::fs;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 /// Find a non-colliding path by appending `-1`, `-2`, ... before the extension.
@@ -114,6 +115,10 @@ pub fn trash_path(path: &str) -> Result<(), String> {
 
 /// Touch every file under `root` so the OS downloads any evicted stubs
 /// before we operate on the tree.  Best-effort — we never fail here.
+///
+/// `std::fs::metadata` on an iCloud-evicted file returns the stub metadata
+/// *without* triggering a download.  We must actually open the file and
+/// read at least one byte to force the system to materialize its content.
 fn materialize_tree(root: &Path) {
     if root.is_dir() {
         if let Ok(entries) = std::fs::read_dir(root) {
@@ -122,7 +127,7 @@ fn materialize_tree(root: &Path) {
                 if p.is_dir() {
                     materialize_tree(&p);
                 } else {
-                    let _ = std::fs::metadata(&p);
+                    materialize_file(&p);
                 }
             }
         }
@@ -132,7 +137,16 @@ fn materialize_tree(root: &Path) {
             materialize_tree(&target);
         }
     } else {
-        let _ = std::fs::metadata(root);
+        materialize_file(root);
+    }
+}
+
+/// Open `path` and read one byte to force iCloud (or similar lazy-fetch
+/// filesystems) to materialize the file content.
+fn materialize_file(path: &Path) {
+    if let Ok(mut f) = std::fs::File::open(path) {
+        let mut buf = [0u8; 1];
+        let _ = (&mut f).take(1).read(&mut buf);
     }
 }
 
