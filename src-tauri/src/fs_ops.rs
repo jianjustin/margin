@@ -1,18 +1,15 @@
 use crate::path_policy::assert_safe_path;
 use std::fs;
 use std::io::Read;
+use std::path::{Path, PathBuf};
 #[cfg(target_os = "macos")]
 use std::process::Command;
-use std::path::{Path, PathBuf};
 
 /// Find a non-colliding path by appending `-1`, `-2`, ... before the extension.
 fn unique_path(dir: &str, name: &str) -> PathBuf {
     let dir_path = Path::new(dir);
     let path = Path::new(name);
-    let stem = path
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or(name);
+    let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or(name);
     let ext = path.extension().and_then(|e| e.to_str());
 
     let mut candidate = dir_path.join(name);
@@ -98,48 +95,120 @@ pub fn rename_path(old_path: &str, new_name: &str) -> Result<String, String> {
     }
 
     let new_path = unique_path(&dir_str, &final_name);
-    fs::rename(old_path, &new_path)
-        .map_err(|e| format!("Could not rename: {}", e))?;
+    fs::rename(old_path, &new_path).map_err(|e| format!("Could not rename: {}", e))?;
     Ok(new_path.to_string_lossy().to_string())
 }
 
 /// Move a file/folder to the OS trash (never a hard delete).
 ///
-/// On macOS, `NSFileManager::trashItemAtURL` (used by the `trash` crate)
-/// is intercepted by File Provider extensions (OneDrive, iCloud).  Those
-/// extensions may refuse the request even when files are fully downloaded.
-///
-/// Strategy:
-/// 1. Recursively touch every file so evicted stubs are materialized.
-/// 2. Try `trash::delete`.
-/// 3. On macOS, fall back to telling Finder to delete the item — Finder
-///    has the entitlements to coordinate with File Provider extensions.
+/// On macOS with File Provider items (OneDrive, iCloud), the item may
+/// exist as an online-only stub.  Trash APIs cannot reliably
+/// act on a stub — we must fully download everything under `path` first.
+/// We read every file completely (up to 50 MiB) to force the File
+/// Provider to materialize it, then use NSFileManager directly so the
+/// normal path does not route through Finder AppleScript.
+#[cfg(target_os = "macos")]
 pub fn trash_path(path: &str) -> Result<(), String> {
     assert_safe_path(path)?;
-    materialize_tree(Path::new(path));
+    download_tree(Path::new(path));
+    trash_path_macos_with(path, trash_via_ns_file_manager, trash_via_finder)
+}
 
-    match trash::delete(path) {
+#[cfg(not(target_os = "macos"))]
+pub fn trash_path(path: &str) -> Result<(), String> {
+    assert_safe_path(path)?;
+    trash::delete(path).map_err(|e| format!("Could not trash: {}", e))
+}
+
+// ---------------------------------------------------------------------------
+// macOS: force-download helpers
+// ---------------------------------------------------------------------------
+
+#[cfg(target_os = "macos")]
+fn trash_path_macos_with<Primary, Finder>(
+    path: &str,
+    primary_trash: Primary,
+    finder_trash: Finder,
+) -> Result<(), String>
+where
+    Primary: FnOnce(&str) -> Result<(), String>,
+    Finder: FnOnce(&str) -> Result<(), String>,
+{
+    match primary_trash(path) {
         Ok(()) => Ok(()),
-        Err(e) => {
-            #[cfg(target_os = "macos")]
-            {
-                trash_via_finder(path)
-                    .map_err(|finder_err| format!("Could not trash: {} / Finder fallback: {}", e, finder_err))
-            }
-            #[cfg(not(target_os = "macos"))]
-            {
-                Err(format!("Could not trash: {}", e))
-            }
-        }
+        Err(primary_err) => finder_trash(path)
+            .map_err(|finder_err| format!("{primary_err} / Finder fallback: {finder_err}")),
     }
 }
 
-/// Ask Finder to move `path` to the Trash via AppleScript.  Finder has
-/// broader entitlements than a third-party app and can reliably handle
-/// File Provider items (OneDrive, iCloud).
+#[cfg(target_os = "macos")]
+fn trash_via_ns_file_manager(path: &str) -> Result<(), String> {
+    use trash::macos::{DeleteMethod, TrashContextExtMacos};
+
+    let mut ctx = trash::TrashContext::default();
+    ctx.set_delete_method(DeleteMethod::NsFileManager);
+    ctx.delete(path)
+        .map_err(|e| format!("Could not trash: {}", e))
+}
+
+#[cfg(target_os = "macos")]
+fn macos_primary_trash_uses_ns_file_manager() -> bool {
+    use trash::macos::{DeleteMethod, TrashContextExtMacos};
+
+    let mut ctx = trash::TrashContext::default();
+    ctx.set_delete_method(DeleteMethod::NsFileManager);
+    matches!(ctx.delete_method(), DeleteMethod::NsFileManager)
+}
+
+/// Max file size we will fully read to trigger a download (50 MiB).
+#[cfg(target_os = "macos")]
+const MAX_DOWNLOAD_BYTES: u64 = 50 * 1024 * 1024;
+
+/// Recursively read every file under `root` so the File Provider
+/// (OneDrive / iCloud) materializes its content.  Best-effort.
+#[cfg(target_os = "macos")]
+fn download_tree(root: &Path) {
+    if root.is_dir() {
+        if let Ok(entries) = std::fs::read_dir(root) {
+            for entry in entries.flatten() {
+                let p = entry.path();
+                if p.is_dir() {
+                    download_tree(&p);
+                } else {
+                    download_file(&p);
+                }
+            }
+        }
+    } else if root.is_symlink() {
+        if let Ok(target) = std::fs::read_link(root) {
+            download_tree(&target);
+        }
+    } else {
+        download_file(root);
+    }
+}
+
+/// Read `path` into memory to force a full download from the cloud
+/// provider.  Capped at `MAX_DOWNLOAD_BYTES` so we don't choke on
+/// videos or other large assets.
+#[cfg(target_os = "macos")]
+fn download_file(path: &Path) {
+    let Ok(meta) = std::fs::metadata(path) else {
+        return;
+    };
+    if meta.len() > MAX_DOWNLOAD_BYTES {
+        return; // skip huge files — they're unlikely to be stubs
+    }
+    let Ok(mut f) = std::fs::File::open(path) else {
+        return;
+    };
+    let mut buf = Vec::new();
+    let _ = (&mut f).take(MAX_DOWNLOAD_BYTES).read_to_end(&mut buf);
+}
+
+/// Ask Finder to move `path` to the Trash via AppleScript.
 #[cfg(target_os = "macos")]
 fn trash_via_finder(path: &str) -> Result<(), String> {
-    // Escape backslashes and double-quotes for AppleScript string literal.
     let escaped = path.replace('\\', "\\\\").replace('"', "\\\"");
     let script = format!(
         "tell application \"Finder\" to delete POSIX file \"{}\"",
@@ -155,45 +224,9 @@ fn trash_via_finder(path: &str) -> Result<(), String> {
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
         let stdout = String::from_utf8_lossy(&output.stdout);
-        Err(format!("{} {}", stderr.trim(), stdout.trim()).trim().to_string())
-    }
-}
-
-/// Touch every file under `root` so the OS downloads any evicted stubs
-/// before we operate on the tree.  Best-effort — we never fail here.
-///
-/// `std::fs::metadata` on an evicted stub (iCloud / OneDrive Files
-/// On-Demand) returns cached attributes *without* triggering a download.
-/// We must actually open the file and read at least one byte to force
-/// the File Provider to materialize its content.
-fn materialize_tree(root: &Path) {
-    if root.is_dir() {
-        if let Ok(entries) = std::fs::read_dir(root) {
-            for entry in entries.flatten() {
-                let p = entry.path();
-                if p.is_dir() {
-                    materialize_tree(&p);
-                } else {
-                    materialize_file(&p);
-                }
-            }
-        }
-    } else if root.is_symlink() {
-        // Resolve symlinks and materialize the target.
-        if let Ok(target) = std::fs::read_link(root) {
-            materialize_tree(&target);
-        }
-    } else {
-        materialize_file(root);
-    }
-}
-
-/// Open `path` and read one byte to force the File Provider (iCloud,
-/// OneDrive, etc.) to materialize the file content.
-fn materialize_file(path: &Path) {
-    if let Ok(mut f) = std::fs::File::open(path) {
-        let mut buf = [0u8; 1];
-        let _ = (&mut f).take(1).read(&mut buf);
+        Err(format!("{} {}", stderr.trim(), stdout.trim())
+            .trim()
+            .to_string())
     }
 }
 
@@ -220,8 +253,7 @@ pub fn move_path(src_path: &str, dest_dir: &str) -> Result<String, String> {
     }
 
     let new_path = unique_path(dest_dir, name);
-    fs::rename(src_path, &new_path)
-        .map_err(|e| format!("Could not move: {}", e))?;
+    fs::rename(src_path, &new_path).map_err(|e| format!("Could not move: {}", e))?;
     Ok(new_path.to_string_lossy().to_string())
 }
 
@@ -239,13 +271,11 @@ pub fn ensure_note(dir: &str, name: &str, template: &str) -> Result<String, Stri
         format!("{}.md", name)
     };
 
-    fs::create_dir_all(dir)
-        .map_err(|e| format!("Could not create directory: {}", e))?;
+    fs::create_dir_all(dir).map_err(|e| format!("Could not create directory: {}", e))?;
 
     let path = Path::new(dir).join(&file_name);
     if !path.exists() {
-        fs::write(&path, template)
-            .map_err(|e| format!("Could not create note: {}", e))?;
+        fs::write(&path, template).map_err(|e| format!("Could not create note: {}", e))?;
     }
     Ok(path.to_string_lossy().to_string())
 }
@@ -288,5 +318,66 @@ mod tests {
 
         // Cleanup
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_trash_uses_primary_trash_before_finder() {
+        use std::cell::RefCell;
+        use std::rc::Rc;
+
+        let calls = Rc::new(RefCell::new(Vec::new()));
+        let primary_calls = Rc::clone(&calls);
+        let finder_calls = Rc::clone(&calls);
+
+        let result = trash_path_macos_with(
+            "/vault/folder",
+            |path| {
+                primary_calls.borrow_mut().push(format!("primary:{path}"));
+                Ok(())
+            },
+            |path| {
+                finder_calls.borrow_mut().push(format!("finder:{path}"));
+                Ok(())
+            },
+        );
+
+        assert!(result.is_ok());
+        assert_eq!(calls.borrow().as_slice(), ["primary:/vault/folder"]);
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_trash_uses_finder_only_after_primary_fails() {
+        use std::cell::RefCell;
+        use std::rc::Rc;
+
+        let calls = Rc::new(RefCell::new(Vec::new()));
+        let primary_calls = Rc::clone(&calls);
+        let finder_calls = Rc::clone(&calls);
+
+        let result = trash_path_macos_with(
+            "/vault/folder",
+            |path| {
+                primary_calls.borrow_mut().push(format!("primary:{path}"));
+                Err("Could not trash: primary failed".to_string())
+            },
+            |path| {
+                finder_calls.borrow_mut().push(format!("finder:{path}"));
+                Ok(())
+            },
+        );
+
+        assert!(result.is_ok());
+        assert_eq!(
+            calls.borrow().as_slice(),
+            ["primary:/vault/folder", "finder:/vault/folder"]
+        );
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_primary_trash_uses_ns_file_manager_not_finder() {
+        assert!(macos_primary_trash_uses_ns_file_manager());
     }
 }
