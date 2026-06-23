@@ -36,6 +36,18 @@ export type { InlineMarkKind } from './commands/inlineMark'
 
 export { toggleTaskOnLine, isTaskLine } from './commands/checkbox'
 
+export { wrapLink } from './commands/link'
+
+export {
+  setHeading,
+  toggleBlockquote,
+  toggleBulletList,
+  toggleOrderedList,
+  toggleTaskList
+} from './commands/block'
+
+export { moveLines, duplicateLines } from './commands/lines'
+
 export {
   parseListLine,
   listEnterAction,
@@ -49,6 +61,10 @@ export {
   parseTable,
   serializeTable,
   deleteTableRow,
-  insertTableRow
+  insertTableRow,
+  insertTableColumn,
+  deleteTableColumn,
+  setColumnAlign,
+  createTable
 } from './commands/table'
 export type { TableModel, Align } from './commands/table'

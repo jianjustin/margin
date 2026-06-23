@@ -72,10 +72,16 @@ editor-core/
 ├── projection.ts         # parse → render model（re-export 解析层）
 └── commands/
     ├── inlineMark.ts      # toggleInlineMark — 粗/斜/删除线/行内代码/高亮（纯）
+    ├── link.ts           # wrapLink — 选区包裹为 [t](url)（纯）
+    ├── block.ts          # setHeading · toggleBlockquote/Bullet/Ordered/TaskList（纯）
+    ├── lines.ts          # moveLines · duplicateLines（纯）
+    ├── textLines.ts      # 内部行工具：selectedLines · rewriteLines（不对外）
     ├── checkbox.ts        # toggleTaskOnLine — 任务复选框（纯）
     ├── list.ts            # 列表延续/缩进（re-export 自 editor/listContinuation）
-    └── table.ts           # parse/serialize/delete/insert table row（纯）
+    └── table.ts           # 行/列增删 · 对齐 · 建表 · parse/serialize（纯）
 ```
+
+完整命令矩阵见 [EDITOR-FEATURES.md](EDITOR-FEATURES.md) §9。
 
 ### 两个半区
 
@@ -113,6 +119,7 @@ interface EditResult { changes: TextChange[]; selection?: TextRange }
 - `livePreview/widgets.ts` — 各类 block/inline widget（代码块、表格、图表、公式、图片…）。
 - `commands/applyEdit.ts` — 把 editor-core `EditResult` dispatch 成一次 transaction。
 - `commands/inlineMarkKeymap.ts` — ⌘B/⌘I/⌘E/⌘⇧X/⌘⇧H → `toggleInlineMark`。
+- `commands/blockKeymap.ts` — ⌘⌥1–6 标题、⌘⇧7/8/9 列表、⌘⇧. 引用、⌥↑/↓ 移动行、⇧⌥↓ 复制行。
 - `listContinuation.ts` — Enter/Tab/Shift-Tab keymap（纯逻辑已被 editor-core re-export）。
 - `slashTrigger.ts` — `/` 斜杠菜单触发（IME-safe）。
 - `components/Editor.tsx` — 装配 EditorState/extensions，桥接 React（slash 菜单、图片预览、

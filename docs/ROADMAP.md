@@ -25,10 +25,12 @@
 
 - [x] **建立 `editor-core` 边界** — 公共 barrel + 契约类型（`EditDoc` / `TextChange` /
       `EditResult`），projection 与 commands 两个半区分明。
-- [x] **纯编辑命令首批** — inline mark 切换（粗/斜/删除线/行内代码/高亮）、任务复选框切换、
-      列表延续/缩进、表格行增删，均为无 DOM 可单测的纯函数。
-- [x] **CM adapter 桥接** — `editor/commands/{applyEdit,inlineMarkKeymap}` 把 `EditResult`
-      适配为 transaction；⌘B/⌘I/⌘E/⌘⇧X/⌘⇧H 接入（此前完全未绑定）。
+- [x] **纯编辑命令层** — inline mark 切换、链接包裹、标题/引用/无序/有序/任务列表 toggle、
+      上移/下移/复制行、任务复选框、列表延续/缩进、表格行列增删 + 对齐 + 建表，均为无 DOM
+      可单测的纯函数（命令矩阵见 [EDITOR-FEATURES.md](EDITOR-FEATURES.md) §9）。
+- [x] **CM adapter 桥接** — `editor/commands/{applyEdit,inlineMarkKeymap,blockKeymap}` 把
+      `EditResult` 适配为 transaction；⌘B/⌘I/⌘E/⌘⇧X/⌘⇧H、⌘⌥1–6、⌘⇧7/8/9、⌘⇧.、⌥↑/↓、
+      ⇧⌥↓ 接入（此前多数完全未绑定）。
 - [ ] **projection 输入收敛** — `collectDecorations` 现以 CM `EditorState` 为入参（依赖 Lezer
       树，可接受）；进一步把输入抽象为 `{text, tree, selection}`，与 CM 解耦。
 - [ ] **命令迁移收口** — 把仍散落在 widget/插件里的语义（slash 插入、图片粘贴、callout 折叠等）

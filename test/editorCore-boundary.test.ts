@@ -25,6 +25,17 @@ describe('editor-core public surface', () => {
       // checkbox
       'toggleTaskOnLine',
       'isTaskLine',
+      // link
+      'wrapLink',
+      // block
+      'setHeading',
+      'toggleBlockquote',
+      'toggleBulletList',
+      'toggleOrderedList',
+      'toggleTaskList',
+      // line ops
+      'moveLines',
+      'duplicateLines',
       // list
       'parseListLine',
       'listEnterAction',
@@ -35,7 +46,11 @@ describe('editor-core public surface', () => {
       'parseTable',
       'serializeTable',
       'deleteTableRow',
-      'insertTableRow'
+      'insertTableRow',
+      'insertTableColumn',
+      'deleteTableColumn',
+      'setColumnAlign',
+      'createTable'
     ]
     for (const name of expected) {
       expect(editorCore, `missing export: ${name}`).toHaveProperty(name)
