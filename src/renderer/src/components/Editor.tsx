@@ -9,6 +9,7 @@ import { livePreview } from '@/editor/livePreview/livePreviewPlugin'
 import { linkUrlAt } from '@/editor/livePreview/linkAt'
 import { docPathFacet, vaultRootFacet } from '@/editor/docPathFacet'
 import { listContinuation } from '@/editor/listContinuation'
+import { inlineMarkCommands } from '@/editor/commands/inlineMarkKeymap'
 import { marginEditorTheme } from '@/editor/livePreview/theme'
 import { marginHighlightStyle } from '@/editor/livePreview/highlightStyle'
 import { SlashMenu, type SlashMenuItem } from './SlashMenu'
@@ -234,6 +235,8 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
             return true
           }
         }),
+        // Inline-formatting shortcuts (⌘B/⌘I/…) must outrank the default keymap.
+        inlineMarkCommands,
         // List continuation must outrank the default Enter (insertNewline).
         listContinuation,
         keymap.of([...defaultKeymap, ...historyKeymap]),
