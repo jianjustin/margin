@@ -1,26 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
+import { SLASH_COMMANDS, type SlashCommand } from '@/core/commands'
 
-export interface SlashMenuItem {
-  id: string
-  icon: string
-  name: string
-  desc: string
-  shortcut?: string
-  markdown: string
-}
+/** Slash-menu item shape. The catalog now lives in core/commands/slashCommands. */
+export type SlashMenuItem = SlashCommand
 
-const ITEMS: SlashMenuItem[] = [
-  { id: 'h1', icon: 'H1', name: '一级标题', desc: '章节大标题', shortcut: '#', markdown: '# ' },
-  { id: 'h2', icon: 'H2', name: '二级标题', desc: '小节标题', shortcut: '##', markdown: '## ' },
-  { id: 'h3', icon: 'H3', name: '三级标题', desc: '细分标题', shortcut: '###', markdown: '### ' },
-  { id: 'bullet', icon: '•', name: '无序列表', desc: '项目符号列表', shortcut: '-', markdown: '- ' },
-  { id: 'numbered', icon: '1.', name: '有序列表', desc: '编号列表', shortcut: '1.', markdown: '1. ' },
-  { id: 'todo', icon: '☐', name: '待办事项', desc: '可勾选的任务', shortcut: '- [ ]', markdown: '- [ ] ' },
-  { id: 'quote', icon: '❝', name: '引用', desc: '引用段落', shortcut: '>', markdown: '> ' },
-  { id: 'code', icon: '</>', name: '代码块', desc: '插入代码片段', shortcut: '```', markdown: '```\n\n```' },
-  { id: 'divider', icon: '—', name: '分隔线', desc: '水平分割线', shortcut: '---', markdown: '---' },
-  { id: 'table', icon: '⊞', name: '表格', desc: '插入表格', markdown: '| 列1 | 列2 | 列3 |\n| --- | --- | --- |\n| | | |' },
-]
+const ITEMS: SlashMenuItem[] = SLASH_COMMANDS
 
 interface SlashMenuProps {
   x: number

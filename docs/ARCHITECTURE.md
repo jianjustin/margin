@@ -28,6 +28,10 @@ Margin 是一款面向 Obsidian vault 的 **Markdown 所见即所得（WYSIWYG�
 │   │  editor-core  ——  平台无关编辑器内核（见 §3）            │    │
 │   │  projection（parse→render model） + commands（纯编辑）   │    │
 │   └──────────────────────────────────────────────────────┘    │
+│   ┌────────────┐ ┌────────────┐ ┌──────────────────────┐    │
+│   │ vault-core │ │core/commands│ │ plugin-api（见 §5）   │    │
+│   │（见 §5）   │ │（见 §5）    │ │ facade + host         │    │
+│   └────────────┘ └────────────┘ └──────────────────────┘    │
 │   ┌──────────────────────────────────────────────────────┐    │
 │   │  editor/  ——  CodeMirror 6 adapter（见 §4）             │    │
 │   │  livePreview 插件 · keymap · widgets · DOM 事件          │    │
@@ -40,6 +44,9 @@ Margin 是一款面向 Obsidian vault 的 **Markdown 所见即所得（WYSIWYG�
 | **App Shell (Rust)** | 文件系统、vault 模型、窗口/菜单/更新 | 不实现 Markdown 语义 |
 | **Renderer (React)** | UI、状态、面板、对话框 | 不直接拼 Markdown 决策逻辑 |
 | **editor-core** | Markdown 语义解析 + 纯编辑命令 | 不 import 任何具体渲染器（`@codemirror/view`） |
+| **vault-core** | vault/文件树纯派生 + 路径策略 + rename/move 规划 | 不做扫描/IO（留给 shell） |
+| **core/commands** | 命令注册表（菜单/快捷键/slash/面板/插件统一来源） | 不绑定具体键位（adapter 的事） |
+| **plugin-api** | 插件 facade + host + 权限门禁 | 不让插件直连 store/CM/Tauri/fs |
 | **editor/ (CM adapter)** | 输入、选区、decoration/widget 渲染、视口协调 | 不承载业务语义（应调用 editor-core） |
 
 ---
@@ -130,7 +137,32 @@ interface EditResult { changes: TextChange[]; selection?: TextRange }
 
 ---
 
-## 5. 状态与 IPC
+## 5. 其他内核边界（P0.2–P0.4）
+
+把核心能力从 UI/运行时剥离的三个边界，均为纯逻辑 + 有测试：
+
+### vault-core（`vault-core/`，P0.2）
+对 Rust 扫描出的 `TreeNode[]` 做纯派生，文件树 UI 消费它而非直连 store/IPC。
+- 契约：`VaultSnapshot` / `VaultOperation` / `VaultEvent` / `PathPlan`（`types.ts`）。
+- file-tree：`flattenTree`、`findNode`、`allPaths`、`sortNodes`、`siblingNames`、`filterTree`。
+- 路径：`isPathSafe`/`assertSafePath`（拒绝 `.obsidian`/`.trash`/`.git`，对齐 Rust pathPolicy）、
+  `uniqueName`、`renamePlan`/`movePlan`。
+
+### core/commands（`core/commands/`，P0.3）
+一个注册表统一命令来源（菜单/快捷键/slash/命令面板/插件）。
+- `CommandRegistry<Ctx>`（register/dedup/dispose/run/list）+ `filterCommands`（面板模糊匹配）。
+- `SLASH_COMMANDS` 斜杠命令数据（`SlashMenu` 仅渲染）。
+- 编辑器命令目录 `editor/commands/editorCommands.ts`（`Ctx = EditorView`，19 条，含键位提示）。
+
+### plugin-api（`plugin-api/`，P0.4）
+插件只能经 facade 触达应用；声明式权限由 host 把关。
+- `PluginContext`：`commands` / `vault`（只读快照）/ `events`。
+- `PluginHost`：activate/deactivate、权限门禁（未声明即用→抛错）、贡献物 dispose 收尾。
+- `EventBus` + 样例内置插件 `vaultInfoPlugin`。
+
+---
+
+## 6. 状态与 IPC
 
 - **Zustand stores**（`stores/`）：文档/标签状态、vault 状态、设置、主题。
 - **IPC**（`lib/api.ts` ↔ `src-tauri/src/commands.rs`）：文件读写、vault 扫描、asset 导入、
@@ -139,10 +171,11 @@ interface EditResult { changes: TextChange[]; selection?: TextRange }
 
 ---
 
-## 6. 测试
+## 7. 测试
 
-Vitest（`test/`，67 个文件 / 391 用例）：node 环境跑纯逻辑，jsdom 环境跑 widget/DOM 行为。
-editor-core 单元测试覆盖 inline mark、checkbox、table、公共 surface 与渲染器独立性边界。
+Vitest（`test/`，73 个文件 / 454 用例）：node 环境跑纯逻辑，jsdom 环境跑 widget/DOM 行为。
+内核单元测试覆盖 editor-core（命令 + projection + 边界）、vault-core（路径/文件树）、命令注册表、
+plugin host（含权限拒绝路径）。
 
 ```bash
 pnpm test          # 全量
@@ -151,7 +184,8 @@ pnpm typecheck     # tsc node + web
 
 ---
 
-## 7. 演进方向（摘要）
+## 8. 演进方向（摘要）
 
-把核心能力从具体 UI/运行时持续剥离：editor-core（进行中）→ vault-core / file-tree-core →
-command registry → 内部 plugin-api → 可选 Swift/TextKit 单文件原型。详见 [ROADMAP.md](ROADMAP.md)。
+P0 主线的四个边界已就位（editor-core / vault-core / core-commands / plugin-api，均纯逻辑 + 有
+测试）。剩余是把现有 UI 逐步切到这些边界消费、补命令面板与原生 App Shell、扩展插件贡献点，并按
+内置插件边界重构 Mermaid/KaTeX/outline/backlinks 等。详见 [ROADMAP.md](ROADMAP.md) P0。

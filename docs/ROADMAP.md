@@ -18,7 +18,7 @@
 > 内核 + Obsidian-compatible vault + App Shell + 插件平台」。短期保留 Tauri/React/CM6，长期把核心
 > 能力从具体 UI 和运行时剥离，为 Swift/TextKit、Web/WASM 等宿主预留路径。
 
-### P0.1 editor-core — 平台无关编辑器内核　🟡 进行中
+### P0.1 editor-core — 平台无关编辑器内核　🟢 基本完成
 
 `src/renderer/src/editor-core/`。编辑器**语义**集中于此，禁止依赖具体渲染器
 （`@codemirror/view`，由 boundary 测试守护）。
@@ -31,37 +31,51 @@
 - [x] **CM adapter 桥接** — `editor/commands/{applyEdit,inlineMarkKeymap,blockKeymap}` 把
       `EditResult` 适配为 transaction；⌘B/⌘I/⌘E/⌘⇧X/⌘⇧H、⌘⌥1–6、⌘⇧7/8/9、⌘⇧.、⌥↑/↓、
       ⇧⌥↓ 接入（此前多数完全未绑定）。
-- [ ] **projection 输入收敛** — `collectDecorations` 现以 CM `EditorState` 为入参（依赖 Lezer
-      树，可接受）；进一步把输入抽象为 `{text, tree, selection}`，与 CM 解耦。
-- [ ] **命令迁移收口** — 把仍散落在 widget/插件里的语义（slash 插入、图片粘贴、callout 折叠等）
-      逐步落到 editor-core 命令层，view 层只做 IO 与渲染。
+- [x] **slash 命令收口** — 斜杠菜单条目从 UI 抽到 `core/commands/slashCommands.ts`（`SLASH_COMMANDS`
+      数据），`SlashMenu` 仅渲染；为命令面板与插件贡献预留同一目录。
+- [~] **projection 输入收敛** — 决策：`collectDecorations` 保留 CM `EditorState` 入参，因为它依赖
+      Lezer 增量解析树（Lezer 是 parser 非 view，可接受）；**输出** `DecoSpec` 已是渲染器中立，
+      这是 adapter 真正需要的解耦。进一步把输入收敛为 `{text, tree, selection}` 留作后续。
+- [ ] **图片粘贴 / callout 折叠收口** — 剩余散落在 widget 的语义逐步落到命令层。
 - [ ] **预留 `editor-textkit` 原型路径** — 用 Swift/TextKit 验证同一 projection schema 可渲染为
       attributed ranges / attachments（仅验证单文件编辑窗口）。
 
 **验收标准**：现有 WYSIWYG 行为测试先冻结再抽 core；大文件增量解析不退化为全文重算；原始
 Markdown 始终是 source of truth，projection 不改变存储格式。
 
-### P0.2 vault-core / file-tree-core — Vault 与文件树内核　⬜
+### P0.2 vault-core / file-tree-core — Vault 与文件树内核　🟡 内核就绪
 
-- [ ] **`vault-core`** — 文件扫描、隐藏目录、路径安全、assets、project config、drafts、watcher
-      事件统一建模，输出稳定 `VaultSnapshot` / `VaultOperation` / `VaultEvent`。
-- [ ] **`file-tree-core`** — 树归一化、排序、过滤、虚拟目录、rename/move/trash plan 独立于 UI；
-      文件树 UI 只消费 view model。
+`src/renderer/src/vault-core/`。对 Rust 扫描出的 `TreeNode[]` 做纯派生，UI 不再直接拼树/路径逻辑。
+
+- [x] **契约类型** — `VaultSnapshot` / `VaultOperation` / `VaultEvent` / `PathPlan`（`types.ts`）。
+- [x] **file-tree 纯逻辑** — `flattenTree` · `findNode` · `allPaths` · `sortNodes`（folder-first）·
+      `siblingNames` · `filterTree`（`fileTree.ts`，有测试）。
+- [x] **路径策略 + 规划** — `isPathSafe`/`assertSafePath`（拒绝 `.obsidian`/`.trash`/`.git`，对齐
+      Rust pathPolicy）、`uniqueName`（冲突追加 `-1`）、`renamePlan`/`movePlan`（`path.ts`，有测试）。
+- [ ] **UI 改为消费 vault-core** — 文件树/移动对话框/搜索从 store/IPC 直连切到 view model（迁移中）。
+- [ ] **`vault-core` 扫描/事件侧** — 增量扫描、watcher 事件合并、drafts/project config 建模。
 - **验收**：大 vault 增量扫描 + 事件合并；rename/move/trash 与打开标签、草稿、跨窗口事件一致。
 
-### P0.3 App Shell + command registry　⬜
+### P0.3 App Shell + command registry　🟢 注册表就绪
 
+`src/renderer/src/core/commands/`。一个注册表统一命令来源。
+
+- [x] **command registry** — `CommandRegistry`（register/dedup/dispose/run）+ `filterCommands`
+      （命令面板模糊匹配）+ `SLASH_COMMANDS` 数据 + 编辑器命令目录 `editor/commands/editorCommands.ts`
+      （19 条，含快捷键提示），均有测试。
+- [ ] **命令面板 UI** — 消费 registry，提供 ⌘P 命令面板（编辑器键位已绑定，面板待建）。
 - [ ] **明确 App Shell 职责** — window/menu/快捷键/settings/layout/panels/dialogs/updater/native，
       通过 service 调用核心能力，不实现 Markdown 语义。
-- [ ] **command registry** — 同一命令注册表驱动菜单、快捷键、slash menu、命令面板与插件命令。
 - [ ] **macOS 原生体验** — 菜单、Preferences、Open Recent、Services、Finder 集成、窗口恢复。
 
-### P0.4 plugin platform — 插件优先架构　⬜
+### P0.4 plugin platform — 插件优先架构　🟢 骨架就绪
 
-- [ ] **`plugin-api` / `plugin-host`** — 插件通过 facade 访问 `editor`/`vault`/`workspace`/
-      `commands`/`ui`，不能直接碰 Zustand store、CM 实例、Tauri invoke 或底层 fs。
-- [ ] **权限与贡献点** — 权限如 `editor.decorate`、`vault.write`、`network`；贡献点如 syntax
-      extension、block renderer、slash item、command、sidebar panel、status item、file badge。
+`src/renderer/src/plugin-api/`。插件只能经 facade 触达应用，声明式权限由 host 把关。
+
+- [x] **`plugin-api` / `plugin-host`** — `PluginContext` facade（`commands` / `vault` 只读快照 /
+      `events`）、`PluginHost`（activate/deactivate、权限门禁、贡献物 dispose 收尾）、`EventBus`、
+      样例内置插件 `vaultInfoPlugin`，均有测试（含权限拒绝路径）。
+- [ ] **更多贡献点** — editor.decorate、block renderer、sidebar panel、status item、file badge。
 - [ ] **内置功能插件化** — Mermaid/KaTeX/outline/backlinks/calendar/templates/export 先按内置
       插件边界重构，内部稳定后再开放第三方。
 
