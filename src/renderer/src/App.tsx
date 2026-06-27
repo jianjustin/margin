@@ -521,6 +521,18 @@ export default function App(): JSX.Element {
   const handleOpenToday = useCallback(() => void openSchedule(new Date()), [scheduleDir])
   const handleCollapseSidebar = useCallback(() => setSidebarOpen(false), [])
   const handleNewWindow = useCallback(() => createPeerWindow(), [])
+  const handleNewNoteFromSidebar = useCallback(() => {
+    const root = useVaultStore.getState().root
+    const tree = useVaultStore.getState().tree
+    if (!root) return
+    const firstFolder = tree.find((node) => node.type === 'folder') ?? {
+      name: root.split('/').filter(Boolean).pop() ?? root,
+      path: root,
+      type: 'folder' as const,
+      children: tree
+    }
+    setDialog({ type: 'newNote', folder: firstFolder })
+  }, [])
 
   /* ── Title bar info ────────────────────────────────────────── */
 
@@ -601,6 +613,7 @@ export default function App(): JSX.Element {
             onOpenToday={handleOpenToday}
             onCollapse={handleCollapseSidebar}
             onNewWindow={handleNewWindow}
+            onNewNote={handleNewNoteFromSidebar}
             onOpenFile={handleOpenFile}
             onContextMenu={handleContextMenu}
           />

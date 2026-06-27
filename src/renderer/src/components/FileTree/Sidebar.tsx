@@ -1,5 +1,5 @@
 import { memo } from 'react'
-import { AppWindow, CalendarPlus, FolderOpen, PanelLeftClose, Search } from 'lucide-react'
+import { Plus, Search } from 'lucide-react'
 import type { TreeNode } from '../../../../shared/ipc'
 import { useVaultStore } from '@/stores/vaultStore'
 import { FileTree } from './FileTree'
@@ -12,6 +12,7 @@ interface SidebarProps {
   onOpenToday?: () => void
   onCollapse?: () => void
   onNewWindow?: () => void
+  onNewNote?: () => void
   onOpenFile: (node: TreeNode) => void
   onContextMenu: (node: TreeNode, x: number, y: number) => void
 }
@@ -27,91 +28,57 @@ function toolbarButton(active = false): string {
 
 function SidebarInner({
   width,
-  scheduleEnabled = false,
-  onOpenFolder,
   onOpenSearch,
-  onOpenToday,
-  onCollapse,
-  onNewWindow,
+  onNewNote,
   onOpenFile,
   onContextMenu
 }: SidebarProps): JSX.Element {
   const root = useVaultStore((s) => s.root)
-  const showToolbar = Boolean(
-    onOpenFolder &&
-      onOpenSearch &&
-      onCollapse &&
-      (!scheduleEnabled || onOpenToday)
-  )
+  const vaultName = root ? root.split('/').filter(Boolean).pop() ?? root : null
 
   return (
     <aside
       style={{ width }}
       className="flex h-full flex-none flex-col border-r border-[color:var(--border-soft)] bg-[color:var(--sidebar-bg)]"
     >
-      {showToolbar && (
-        <div
-          data-tauri-drag-region
-          className="flex h-[32px] shrink-0 items-center justify-end px-3"
+      <div
+        data-tauri-drag-region
+        className="flex h-[40px] shrink-0 items-center justify-between px-3"
+      >
+        <span
+          className="select-none truncate text-[13px] font-semibold text-foreground [-webkit-app-region:no-drag]"
+          title={root ?? undefined}
         >
-          <div className="flex gap-0.5 [-webkit-app-region:no-drag]">
+          {vaultName ?? 'Margin'}
+        </span>
+
+        <div className="flex items-center gap-0.5 [-webkit-app-region:no-drag]">
+          <button
+            onClick={onOpenSearch}
+            disabled={!root}
+            title="搜索文件 (⌘K)"
+            aria-label="搜索文件"
+            className={toolbarButton()}
+          >
+            <Search size={15} />
+          </button>
+          {onNewNote && (
             <button
-              onClick={onOpenFolder}
-              title="打开文件夹"
-              aria-label="打开文件夹"
-              className={toolbarButton()}
-            >
-              <FolderOpen size={16} />
-            </button>
-            <button
-              onClick={onOpenSearch}
+              onClick={onNewNote}
               disabled={!root}
-              title="搜索文件 (⌘K)"
-              aria-label="搜索文件"
+              title="新建笔记"
+              aria-label="新建笔记"
               className={toolbarButton()}
             >
-              <Search size={16} />
+              <Plus size={15} />
             </button>
-            {scheduleEnabled && onOpenToday && (
-              <button
-                onClick={onOpenToday}
-                title="今日日程"
-                aria-label="今日日程"
-                className={toolbarButton()}
-              >
-                <CalendarPlus size={16} />
-              </button>
-            )}
-            {onNewWindow && (
-              <button
-                onClick={onNewWindow}
-                title="新建窗口 (⇧⌘N)"
-                aria-label="新建窗口"
-                className={toolbarButton()}
-              >
-                <AppWindow size={16} />
-              </button>
-            )}
-            <button
-              onClick={onCollapse}
-              title="折叠文件树"
-              aria-label="折叠文件树"
-              className={toolbarButton()}
-            >
-              <PanelLeftClose size={16} />
-            </button>
-          </div>
+          )}
         </div>
-      )}
+      </div>
 
       {root ? (
         <>
-          <div
-            className={[
-              'px-4 pb-1 text-[10px] font-medium uppercase tracking-[.08em] text-[color:var(--text-dim)]',
-              showToolbar ? 'pt-1' : 'pt-2'
-            ].join(' ')}
-          >
+          <div className="px-4 pb-1 pt-0 text-[10px] font-medium uppercase tracking-[.08em] text-[color:var(--text-dim)]">
             文件库
           </div>
           <FileTree
