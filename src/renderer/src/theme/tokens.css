@@ -21,6 +21,12 @@
   --sidebar-selected: oklch(0.82 0.09 90 / 0.1);
   --sidebar-selected-line: oklch(0.82 0.09 90 / 0.18);
   --sidebar-icon: oklch(0.76 0.07 86 / 0.72);
+  --folder-icon: oklch(0.78 0.12 68);
+  --badge-md:    oklch(0.62 0.12 250);
+  --badge-img:   oklch(0.58 0.12 145);
+  --badge-pdf:   oklch(0.58 0.16 25);
+  --badge-txt:   oklch(0.55 0.02 70);
+  --badge-other: oklch(0.48 0.01 70);
 
   --tl-red: #ff5f57;
   --tl-yellow: #febc2e;
@@ -93,6 +99,12 @@
   --sidebar-selected: oklch(0.68 0.1 70 / 0.1);
   --sidebar-selected-line: oklch(0.58 0.12 68 / 0.18);
   --sidebar-icon: oklch(0.55 0.1 68 / 0.72);
+  --folder-icon: oklch(0.72 0.14 60);
+  --badge-md:    oklch(0.46 0.14 250);
+  --badge-img:   oklch(0.44 0.14 145);
+  --badge-pdf:   oklch(0.50 0.18 25);
+  --badge-txt:   oklch(0.42 0.02 70);
+  --badge-other: oklch(0.54 0.01 70);
 
   /* Code syntax token colors (light). */
   --code-keyword: #9c27b0;
