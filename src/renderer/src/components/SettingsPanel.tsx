@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { X, Search, Folder, Plus, Trash2 } from 'lucide-react'
 import { UpdateSection } from '@/components/UpdateSection'
+import { ThemeToggle } from '@/components/ThemeToggle'
+import { PluginMarket } from '@/components/PluginMarket'
 import { useUpdater } from '@/hooks/useUpdater'
 import { useSettingsStore } from '@/stores/settingsStore'
 import type { TreeNode } from '../../../shared/ipc'
@@ -138,9 +140,9 @@ function AppSwitch({ checked, onChange, label }: AppSwitchProps): JSX.Element {
   )
 }
 
-/* ── Main panel ─────────────────────────────────────────────────── */
+/* ── General tab ────────────────────────────────────────────────── */
 
-export function SettingsPanel({ tree, onClose }: SettingsPanelProps): JSX.Element {
+function GeneralTab({ tree }: { tree: TreeNode[] }): JSX.Element {
   const scheduleEnabled = useSettingsStore((s) => s.scheduleEnabled)
   const scheduleDir = useSettingsStore((s) => s.scheduleDir)
   const hiddenFolders = useSettingsStore((s) => s.hiddenFolders)
@@ -156,23 +158,14 @@ export function SettingsPanel({ tree, onClose }: SettingsPanelProps): JSX.Elemen
   const setPlantUmlServerUrl = useSettingsStore((s) => s.setPlantUmlServerUrl)
   const setDiagramFitWidth = useSettingsStore((s) => s.setDiagramFitWidth)
   const setMathEnabled = useSettingsStore((s) => s.setMathEnabled)
-  const [hiddenInput, setHiddenInput] = useState('')
   const updater = useUpdater()
-
+  const [hiddenInput, setHiddenInput] = useState('')
   const folders = useMemo(() => topFolders(tree), [tree])
 
-  useEffect(() => {
-    function handleKey(e: KeyboardEvent): void {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', handleKey)
-    return () => window.removeEventListener('keydown', handleKey)
-  }, [onClose])
-
-  const sectionTitle = 'mb-3 text-[11px] font-semibold uppercase tracking-[.08em] text-[color:var(--text-faint)]'
-  const rowClass = 'flex items-center justify-between gap-3 py-2'
+  const sectionTitle = 'mb-3 mt-5 text-[11px] font-semibold uppercase tracking-[.08em] text-[color:var(--text-faint)] first:mt-0'
+  const rowClass = 'flex items-center justify-between gap-3 py-2.5 border-b border-[color:var(--border-soft)] last:border-b-0'
   const labelClass = 'text-[13px] text-foreground'
-  const descClass = 'text-[11.5px] text-[color:var(--text-faint)]'
+  const descClass = 'mt-0.5 text-[11.5px] text-[color:var(--text-faint)]'
 
   function submitHiddenFolder(): void {
     const value = hiddenInput.trim()
@@ -182,162 +175,245 @@ export function SettingsPanel({ tree, onClose }: SettingsPanelProps): JSX.Elemen
   }
 
   return (
+    <div>
+      {/* ── APPEARANCE ── */}
+      <div className={sectionTitle}>Appearance</div>
+      <div className="space-y-0 divide-y divide-[color:var(--border-soft)]">
+        <div className={rowClass}>
+          <div>
+            <div className={labelClass}>Theme</div>
+            <div className={descClass}>Match the editor to your environment</div>
+          </div>
+          <ThemeToggle />
+        </div>
+      </div>
+
+      {/* ── 日程 ── */}
+      <div className={sectionTitle}>日程</div>
+      <div className={rowClass}>
+        <div>
+          <div className={labelClass}>启用日程功能</div>
+          <div className={descClass}>在标题栏显示日程入口和日历</div>
+        </div>
+        <AppSwitch checked={scheduleEnabled} onChange={setScheduleEnabled} label="启用日程功能" />
+      </div>
+      {scheduleEnabled && (
+        <div className="pb-2 pt-1">
+          <div className={`${labelClass} mb-1.5`}>日程目录</div>
+          <FolderPicker value={scheduleDir} folders={folders} onChange={setScheduleDir} />
+          <div className={`${descClass} mt-1.5`}>每日日程笔记保存在此文件夹中（不存在时自动创建）</div>
+        </div>
+      )}
+
+      {/* ── 文件库 ── */}
+      <div className={sectionTitle}>文件库</div>
+      <div className={`${labelClass} mb-1.5`}>隐藏文件夹</div>
+      <div className="flex items-center gap-2">
+        <input
+          value={hiddenInput}
+          onChange={(e) => setHiddenInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') submitHiddenFolder() }}
+          placeholder=".claude 或 Projects/archive"
+          className="min-w-0 flex-1 rounded-md border border-[color:var(--border-soft)] bg-[color:var(--bg)] px-2 py-1.5 text-[12px] text-foreground outline-none placeholder:text-[color:var(--text-faint)] focus:border-[color:var(--accent-line)]"
+        />
+        <button
+          onClick={submitHiddenFolder}
+          className="grid h-[30px] w-[30px] place-items-center rounded-md border border-[color:var(--border-soft)] text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)] hover:text-foreground"
+          aria-label="添加隐藏文件夹"
+        >
+          <Plus size={14} />
+        </button>
+      </div>
+      <div className={`${descClass} mt-1.5`}>不含斜杠按文件夹名隐藏；含斜杠按文件库相对路径隐藏。</div>
+      <div className="mt-2 flex flex-col gap-1">
+        {hiddenFolders.length === 0 ? (
+          <div className={descClass}>未配置隐藏文件夹</div>
+        ) : (
+          hiddenFolders.map((rule) => (
+            <div key={rule} className="flex items-center gap-2 rounded-md border border-[color:var(--border-soft)] bg-[color:var(--bg)] px-2 py-1.5">
+              <span className="min-w-0 flex-1 truncate font-[family-name:var(--mono)] text-[12px] text-[color:var(--text-dim)]">{rule}</span>
+              <button
+                onClick={() => removeHiddenFolder(rule)}
+                className="grid h-5 w-5 flex-none place-items-center rounded text-[color:var(--text-faint)] hover:bg-[color:var(--bg-hover)] hover:text-[color:var(--red)]"
+                aria-label={`移除隐藏规则 ${rule}`}
+              >
+                <Trash2 size={12} />
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* ── 富内容 ── */}
+      <div className={sectionTitle}>富内容</div>
+      <div className={`${labelClass} mb-1.5`}>图片资产目录</div>
+      <input
+        value={assetsDir}
+        onChange={(e) => setAssetsDir(e.target.value)}
+        placeholder="assets"
+        className="w-full rounded-md border border-[color:var(--border-soft)] bg-[color:var(--bg)] px-2 py-1.5 text-[12px] text-foreground outline-none placeholder:text-[color:var(--text-faint)] focus:border-[color:var(--accent-line)]"
+      />
+      <div className={`${descClass} mt-1.5`}>拖拽或粘贴图片时复制到此文件库相对目录。</div>
+      <div className="mt-3">
+        <div className={`${labelClass} mb-1.5`}>图表渲染服务</div>
+        <input
+          value={plantUmlServerUrl}
+          onChange={(e) => setPlantUmlServerUrl(e.target.value)}
+          placeholder="https://kroki.io"
+          className="w-full rounded-md border border-[color:var(--border-soft)] bg-[color:var(--bg)] px-2 py-1.5 text-[12px] text-foreground outline-none placeholder:text-[color:var(--text-faint)] focus:border-[color:var(--accent-line)]"
+        />
+        <div className={`${descClass} mt-1.5`}>PlantUML 和 DOT 使用 Kroki 兼容接口；Mermaid 本地渲染。</div>
+      </div>
+      <div className={rowClass}>
+        <div>
+          <div className={labelClass}>图表自适应宽度</div>
+          <div className={descClass}>关闭后保留原始尺寸并横向滚动</div>
+        </div>
+        <AppSwitch checked={diagramFitWidth} onChange={setDiagramFitWidth} label="图表自适应宽度" />
+      </div>
+      <div className={rowClass}>
+        <div>
+          <div className={labelClass}>数学公式</div>
+          <div className={descClass}>使用 KaTeX 渲染行内和块级 LaTeX</div>
+        </div>
+        <AppSwitch checked={mathEnabled} onChange={setMathEnabled} label="数学公式" />
+      </div>
+
+      {/* ── 关于 ── */}
+      <div className={sectionTitle}>关于</div>
+      <UpdateSection
+        status={updater.status}
+        busy={updater.busy}
+        onCheck={updater.check}
+        onInstall={updater.install}
+      />
+      <div className={`${descClass} mt-2`}>
+        本文件库的设置保存在 <code className="font-[family-name:var(--mono)]">.margin/config.json</code>，随文件库一起迁移。
+      </div>
+    </div>
+  )
+}
+
+/* ── Editor tab ─────────────────────────────────────────────────── */
+
+function EditorTab(): JSX.Element {
+  const [typwriterMode, setTypwriterMode] = useState(false)
+  const [showMarkdownSyntax, setShowMarkdownSyntax] = useState(true)
+  const [spellcheck, setSpellcheck] = useState(false)
+
+  const sectionTitle = 'mb-3 mt-5 text-[11px] font-semibold uppercase tracking-[.08em] text-[color:var(--text-faint)] first:mt-0'
+  const rowClass = 'flex items-center justify-between gap-3 py-2.5 border-b border-[color:var(--border-soft)] last:border-b-0'
+  const labelClass = 'text-[13px] text-foreground'
+  const descClass = 'mt-0.5 text-[11.5px] text-[color:var(--text-faint)]'
+
+  return (
+    <div>
+      <div className={sectionTitle}>Editor</div>
+      <div className={rowClass}>
+        <div>
+          <div className={labelClass}>Typewriter mode</div>
+          <div className={descClass}>Keep the current line centered</div>
+        </div>
+        <AppSwitch checked={typwriterMode} onChange={setTypwriterMode} label="Typewriter mode" />
+      </div>
+      <div className={rowClass}>
+        <div>
+          <div className={labelClass}>Show markdown syntax</div>
+          <div className={descClass}>Reveal # * {'>'} markers on the active line</div>
+        </div>
+        <AppSwitch checked={showMarkdownSyntax} onChange={setShowMarkdownSyntax} label="Show markdown syntax" />
+      </div>
+      <div className={rowClass}>
+        <div>
+          <div className={labelClass}>Spellcheck</div>
+          <div className={descClass}>Underline misspelled words</div>
+        </div>
+        <AppSwitch checked={spellcheck} onChange={setSpellcheck} label="Spellcheck" />
+      </div>
+    </div>
+  )
+}
+
+/* ── Main panel ─────────────────────────────────────────────────── */
+
+type SettingsTab = 'general' | 'editor' | 'sync' | 'shortcuts' | 'plugins' | 'advanced'
+
+export function SettingsPanel({ tree, onClose }: SettingsPanelProps): JSX.Element {
+  const [activeTab, setActiveTab] = useState<SettingsTab>('general')
+  const [pluginMarketOpen, setPluginMarketOpen] = useState(false)
+
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent): void {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [onClose])
+
+  return (
     <div
       className="fixed inset-0 z-50 grid place-items-center bg-[oklch(0_0_0/0.4)]"
       onClick={onClose}
     >
       <div
-        className="flex max-h-[80vh] w-[min(420px,calc(100vw-32px))] flex-col overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-elev)] shadow-[0_24px_64px_oklch(0_0_0/0.5)]"
+        className="flex h-[520px] w-[680px] max-w-[calc(100vw-32px)] overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-elev)] shadow-[0_24px_64px_oklch(0_0_0/0.5)]"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-[color:var(--border-soft)] px-5 py-3.5">
-          <span className="text-[14px] font-semibold">设置</span>
+        {/* Left nav */}
+        <div className="flex w-[160px] flex-none flex-col border-r border-[color:var(--border-soft)] bg-[color:var(--bg-panel)] py-3">
+          <div className="px-4 pb-2 text-[11px] font-semibold uppercase tracking-[.08em] text-[color:var(--text-faint)]">
+            设置
+          </div>
+          {(
+            [
+              { id: 'general',   label: 'General' },
+              { id: 'editor',    label: 'Editor' },
+              { id: 'sync',      label: 'Sync' },
+              { id: 'shortcuts', label: 'Shortcuts' },
+              { id: 'plugins',   label: 'Plugins' },
+              { id: 'advanced',  label: 'Advanced' },
+            ] as { id: SettingsTab; label: string }[]
+          ).map(({ id, label }) => (
+            <button
+              key={id}
+              onClick={() => {
+                if (id === 'plugins') { setPluginMarketOpen(true); return }
+                setActiveTab(id)
+              }}
+              className={[
+                'flex items-center gap-2 border-l-2 px-4 py-2 text-left text-[13px] transition-colors',
+                activeTab === id && id !== 'plugins'
+                  ? 'border-l-[color:var(--accent)] bg-[color:var(--accent-soft)] font-medium text-[color:var(--accent)]'
+                  : 'border-l-transparent text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)] hover:text-foreground',
+              ].join(' ')}
+            >
+              {label}
+            </button>
+          ))}
+          <div className="flex-1" />
           <button
             onClick={onClose}
-            className="grid h-6 w-6 place-items-center rounded-md text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)] hover:text-foreground"
+            className="mx-3 mt-2 rounded-md px-3 py-1.5 text-[12px] text-[color:var(--text-faint)] hover:bg-[color:var(--bg-hover)] hover:text-foreground"
           >
-            <X size={15} />
+            关闭
           </button>
         </div>
 
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto px-5 py-4">
-          {/* ── 日程 ────────────────── */}
-          <div className={sectionTitle}>日程</div>
-
-          <div className={rowClass}>
-            <div>
-              <div className={labelClass}>启用日程功能</div>
-              <div className={descClass}>在标题栏显示日程入口和日历</div>
-            </div>
-            <AppSwitch checked={scheduleEnabled} onChange={setScheduleEnabled} label="启用日程功能" />
-          </div>
-
-          {scheduleEnabled && (
-            <div className="mt-1 pb-1">
-              <div className={`${labelClass} mb-1.5`}>日程目录</div>
-              <FolderPicker
-                value={scheduleDir}
-                folders={folders}
-                onChange={setScheduleDir}
-              />
-              <div className={`${descClass} mt-1.5`}>
-                每日日程笔记保存在此文件夹中（不存在时自动创建）
-              </div>
+        {/* Right content */}
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-6 py-5">
+          {activeTab === 'general' && <GeneralTab tree={tree} />}
+          {activeTab === 'editor' && <EditorTab />}
+          {(activeTab === 'sync' || activeTab === 'shortcuts' || activeTab === 'advanced') && (
+            <div className="flex flex-1 items-center justify-center text-[13px] text-[color:var(--text-faint)]">
+              即将推出
             </div>
           )}
-
-          {/* ── 文件库 ───────────────── */}
-          <div className="mt-6 border-t border-[color:var(--border-soft)] pt-4">
-            <div className={sectionTitle}>文件库</div>
-            <div className={`${labelClass} mb-1.5`}>隐藏文件夹</div>
-            <div className="flex items-center gap-2">
-              <input
-                value={hiddenInput}
-                onChange={(e) => setHiddenInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') submitHiddenFolder()
-                }}
-                placeholder=".claude 或 Projects/archive"
-                className="min-w-0 flex-1 rounded-md border border-[color:var(--border-soft)] bg-[color:var(--bg)] px-2 py-1.5 text-[12px] text-foreground outline-none placeholder:text-[color:var(--text-faint)] focus:border-[color:var(--accent-line)]"
-              />
-              <button
-                onClick={submitHiddenFolder}
-                className="grid h-[30px] w-[30px] place-items-center rounded-md border border-[color:var(--border-soft)] text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)] hover:text-foreground"
-                aria-label="添加隐藏文件夹"
-              >
-                <Plus size={14} />
-              </button>
-            </div>
-            <div className={`${descClass} mt-1.5`}>
-              不含斜杠按文件夹名隐藏；含斜杠按文件库相对路径隐藏。
-            </div>
-            <div className="mt-2 flex flex-col gap-1">
-              {hiddenFolders.length === 0 ? (
-                <div className={descClass}>未配置隐藏文件夹</div>
-              ) : (
-                hiddenFolders.map((rule) => (
-                  <div
-                    key={rule}
-                    className="flex items-center gap-2 rounded-md border border-[color:var(--border-soft)] bg-[color:var(--bg)] px-2 py-1.5"
-                  >
-                    <span className="min-w-0 flex-1 truncate font-[family-name:var(--mono)] text-[12px] text-[color:var(--text-dim)]">
-                      {rule}
-                    </span>
-                    <button
-                      onClick={() => removeHiddenFolder(rule)}
-                      className="grid h-5 w-5 flex-none place-items-center rounded text-[color:var(--text-faint)] hover:bg-[color:var(--bg-hover)] hover:text-[color:var(--red)]"
-                      aria-label={`移除隐藏规则 ${rule}`}
-                    >
-                      <Trash2 size={12} />
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* ── 富内容 ───────────────── */}
-          <div className="mt-6 border-t border-[color:var(--border-soft)] pt-4">
-            <div className={sectionTitle}>富内容</div>
-
-            <div className={`${labelClass} mb-1.5`}>图片资产目录</div>
-            <input
-              value={assetsDir}
-              onChange={(e) => setAssetsDir(e.target.value)}
-              placeholder="assets"
-              className="w-full rounded-md border border-[color:var(--border-soft)] bg-[color:var(--bg)] px-2 py-1.5 text-[12px] text-foreground outline-none placeholder:text-[color:var(--text-faint)] focus:border-[color:var(--accent-line)]"
-            />
-            <div className={`${descClass} mt-1.5`}>
-              拖拽或粘贴图片时复制到此文件库相对目录。
-            </div>
-
-            <div className="mt-3">
-              <div className={`${labelClass} mb-1.5`}>图表渲染服务</div>
-              <input
-                value={plantUmlServerUrl}
-                onChange={(e) => setPlantUmlServerUrl(e.target.value)}
-                placeholder="https://kroki.io"
-                className="w-full rounded-md border border-[color:var(--border-soft)] bg-[color:var(--bg)] px-2 py-1.5 text-[12px] text-foreground outline-none placeholder:text-[color:var(--text-faint)] focus:border-[color:var(--accent-line)]"
-              />
-              <div className={`${descClass} mt-1.5`}>
-                PlantUML 和 DOT 使用 Kroki 兼容接口；Mermaid 本地渲染。
-              </div>
-            </div>
-
-            <div className={rowClass}>
-              <div>
-                <div className={labelClass}>图表自适应宽度</div>
-                <div className={descClass}>关闭后保留原始尺寸并横向滚动</div>
-              </div>
-              <AppSwitch checked={diagramFitWidth} onChange={setDiagramFitWidth} label="图表自适应宽度" />
-            </div>
-
-            <div className={rowClass}>
-              <div>
-                <div className={labelClass}>数学公式</div>
-                <div className={descClass}>使用 KaTeX 渲染行内和块级 LaTeX</div>
-              </div>
-              <AppSwitch checked={mathEnabled} onChange={setMathEnabled} label="数学公式" />
-            </div>
-          </div>
-
-          {/* ── 关于 ───────────────── */}
-          <div className="mt-6 border-t border-[color:var(--border-soft)] pt-4">
-            <div className={sectionTitle}>关于</div>
-            <UpdateSection
-              status={updater.status}
-              busy={updater.busy}
-              onCheck={updater.check}
-              onInstall={updater.install}
-            />
-            <div className={`${descClass} mt-2`}>
-              本文件库的设置保存在 <code className="font-[family-name:var(--mono)]">.margin/config.json</code>，随文件库一起迁移。
-            </div>
-          </div>
         </div>
       </div>
+
+      {pluginMarketOpen && (
+        <PluginMarket onBack={() => setPluginMarketOpen(false)} />
+      )}
     </div>
   )
 }
