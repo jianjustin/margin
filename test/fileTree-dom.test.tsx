@@ -72,125 +72,76 @@ describe('FileTree', () => {
   })
 })
 
-describe('Sidebar toolbar', () => {
+describe('Sidebar header', () => {
   function handlers(): {
-    onOpenFolder: ReturnType<typeof vi.fn>
     onOpenSearch: ReturnType<typeof vi.fn>
-    onOpenToday: ReturnType<typeof vi.fn>
-    onCollapse: ReturnType<typeof vi.fn>
+    onNewNote: ReturnType<typeof vi.fn>
   } {
     return {
-      onOpenFolder: vi.fn(),
       onOpenSearch: vi.fn(),
-      onOpenToday: vi.fn(),
-      onCollapse: vi.fn()
+      onNewNote: vi.fn()
     }
   }
 
-  it('renders toolbar actions in the approved order', () => {
+  it('renders the vault name with search and new-note actions', () => {
     const actions = handlers()
-    useVaultStore.setState({ root: '/v', tree, expanded: new Set(), selectedPath: null })
+    useVaultStore.setState({ root: '/Users/test/Writing', tree, expanded: new Set(), selectedPath: null })
     render(
       <Sidebar
         width={260}
-        scheduleEnabled
         {...actions}
         onOpenFile={() => {}}
         onContextMenu={() => {}}
       />
     )
 
+    expect(screen.getByText('Writing')).toBeTruthy()
     const buttons = screen.getAllByRole('button').map((button) => button.getAttribute('aria-label'))
-    expect(buttons.slice(0, 4)).toEqual(['打开文件夹', '搜索文件', '今日日程', '折叠文件树'])
+    expect(buttons.slice(0, 2)).toEqual(['搜索文件', '新建笔记'])
   })
 
-  it('right-aligns the sidebar toolbar with the traffic-light title row', () => {
+  it('right-aligns header actions opposite the vault name', () => {
     const actions = handlers()
     render(
       <Sidebar
         width={260}
-        scheduleEnabled
         {...actions}
         onOpenFile={() => {}}
         onContextMenu={() => {}}
       />
     )
 
-    const toolbarRow = screen.getByRole('button', { name: '打开文件夹' }).parentElement?.parentElement
-    expect(toolbarRow?.className).toContain('justify-end')
+    const headerRow = screen.getByRole('button', { name: '搜索文件' }).parentElement?.parentElement
+    expect(headerRow?.className).toContain('justify-between')
   })
 
-  it('does not render toolbar actions until every action handler is provided', () => {
+  it('omits the new-note action when no handler is provided', () => {
     const actions = handlers()
     render(
       <Sidebar
         width={260}
-        scheduleEnabled
-        onOpenFolder={actions.onOpenFolder}
         onOpenSearch={actions.onOpenSearch}
-        onCollapse={actions.onCollapse}
         onOpenFile={() => {}}
         onContextMenu={() => {}}
       />
     )
 
-    expect(screen.queryByRole('button', { name: '打开文件夹' })).toBeNull()
-    expect(screen.queryByRole('button', { name: '搜索文件' })).toBeNull()
-    expect(screen.queryByRole('button', { name: '今日日程' })).toBeNull()
-    expect(screen.queryByRole('button', { name: '折叠文件树' })).toBeNull()
+    expect(screen.getByRole('button', { name: '搜索文件' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: '新建笔记' })).toBeNull()
   })
 
-  it('renders core toolbar actions without today when schedule is disabled', () => {
+  it('does not render the old file library section label', () => {
     const actions = handlers()
     render(
       <Sidebar
         width={260}
-        scheduleEnabled={false}
-        onOpenFolder={actions.onOpenFolder}
-        onOpenSearch={actions.onOpenSearch}
-        onCollapse={actions.onCollapse}
-        onOpenFile={() => {}}
-        onContextMenu={() => {}}
-      />
-    )
-
-    const buttons = screen.getAllByRole('button').map((button) => button.getAttribute('aria-label'))
-    expect(buttons.slice(0, 3)).toEqual(['打开文件夹', '搜索文件', '折叠文件树'])
-    expect(screen.queryByRole('button', { name: '今日日程' })).toBeNull()
-  })
-
-  it('preserves file library label spacing when toolbar is hidden', () => {
-    const { rerender } = render(<Sidebar width={260} onOpenFile={() => {}} onContextMenu={() => {}} />)
-    expect(screen.getByText('文件库').className).toContain('pt-2')
-
-    const actions = handlers()
-    rerender(
-      <Sidebar
-        width={260}
-        scheduleEnabled
         {...actions}
         onOpenFile={() => {}}
         onContextMenu={() => {}}
       />
     )
 
-    expect(screen.getByText('文件库').className).toContain('pt-1')
-  })
-
-  it('calls onOpenFolder when open-folder is clicked', () => {
-    const actions = handlers()
-    render(
-      <Sidebar
-        width={260}
-        scheduleEnabled
-        {...actions}
-        onOpenFile={() => {}}
-        onContextMenu={() => {}}
-      />
-    )
-
-    fireEvent.click(screen.getByRole('button', { name: '打开文件夹' }))
-    expect(actions.onOpenFolder).toHaveBeenCalledOnce()
+    expect(screen.queryByText('文件库')).toBeNull()
   })
 
   it('calls onOpenSearch when enabled search is clicked', () => {
@@ -198,7 +149,6 @@ describe('Sidebar toolbar', () => {
     render(
       <Sidebar
         width={260}
-        scheduleEnabled
         {...actions}
         onOpenFile={() => {}}
         onContextMenu={() => {}}
@@ -209,39 +159,22 @@ describe('Sidebar toolbar', () => {
     expect(actions.onOpenSearch).toHaveBeenCalledOnce()
   })
 
-  it('calls onOpenToday when schedule is enabled and today is clicked', () => {
+  it('calls onNewNote when the plus action is clicked', () => {
     const actions = handlers()
     render(
       <Sidebar
         width={260}
-        scheduleEnabled
         {...actions}
         onOpenFile={() => {}}
         onContextMenu={() => {}}
       />
     )
 
-    fireEvent.click(screen.getByRole('button', { name: '今日日程' }))
-    expect(actions.onOpenToday).toHaveBeenCalledOnce()
+    fireEvent.click(screen.getByRole('button', { name: '新建笔记' }))
+    expect(actions.onNewNote).toHaveBeenCalledOnce()
   })
 
-  it('calls onCollapse when collapse is clicked', () => {
-    const actions = handlers()
-    render(
-      <Sidebar
-        width={260}
-        scheduleEnabled
-        {...actions}
-        onOpenFile={() => {}}
-        onContextMenu={() => {}}
-      />
-    )
-
-    fireEvent.click(screen.getByRole('button', { name: '折叠文件树' }))
-    expect(actions.onCollapse).toHaveBeenCalledOnce()
-  })
-
-  it('disables search when no vault is open but keeps open-folder and collapse enabled', () => {
+  it('disables search and new-note when no vault is open', () => {
     const actions = handlers()
     useVaultStore.setState({ root: null, tree: [], expanded: new Set(), selectedPath: null })
     render(
@@ -254,11 +187,13 @@ describe('Sidebar toolbar', () => {
       />
     )
 
-    expect(screen.getByRole('button', { name: '打开文件夹' })).toHaveProperty('disabled', false)
     const searchButton = screen.getByRole('button', { name: '搜索文件' })
+    const newNoteButton = screen.getByRole('button', { name: '新建笔记' })
     expect(searchButton).toHaveProperty('disabled', true)
-    expect(screen.getByRole('button', { name: '折叠文件树' })).toHaveProperty('disabled', false)
+    expect(newNoteButton).toHaveProperty('disabled', true)
     fireEvent.click(searchButton)
+    fireEvent.click(newNoteButton)
     expect(actions.onOpenSearch).not.toHaveBeenCalled()
+    expect(actions.onNewNote).not.toHaveBeenCalled()
   })
 })

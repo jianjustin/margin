@@ -77,16 +77,11 @@ function SidebarInner({
       </div>
 
       {root ? (
-        <>
-          <div className="px-4 pb-1 pt-0 text-[10px] font-medium uppercase tracking-[.08em] text-[color:var(--text-dim)]">
-            文件库
-          </div>
-          <FileTree
-            onOpenFile={onOpenFile}
-            onContextMenu={onContextMenu}
-            filteredTree={null}
-          />
-        </>
+        <FileTree
+          onOpenFile={onOpenFile}
+          onContextMenu={onContextMenu}
+          filteredTree={null}
+        />
       ) : (
         <div className="px-4 py-6 text-center text-xs text-[color:var(--text-dim)]">
           打开文件夹开始浏览笔记

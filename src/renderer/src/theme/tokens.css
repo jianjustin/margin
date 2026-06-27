@@ -1,49 +1,52 @@
-/* Semantic Bear palette — single source of truth (oklch). Dark is default. */
+/* Lettera palette — single source of truth (oklch). Light is default. */
 :root {
-  --bg: oklch(0.165 0.006 70);
-  --bg-panel: oklch(0.205 0.006 70);
-  --bg-elev: oklch(0.245 0.007 70);
-  --bg-hover: oklch(0.275 0.008 70);
-  --border: oklch(0.305 0.006 70);
-  --border-soft: oklch(0.255 0.006 70);
-  --text: oklch(0.905 0.01 85);
-  --text-dim: oklch(0.66 0.01 80);
-  --text-faint: oklch(0.49 0.01 80);
-  --accent: oklch(0.82 0.11 90);
-  --accent-ink: oklch(0.3 0.05 80);
-  --accent-soft: oklch(0.82 0.11 90 / 0.14);
-  --accent-line: oklch(0.82 0.11 90 / 0.32);
-  --sel: oklch(0.82 0.11 90 / 0.2);
+  --bg: oklch(0.995 0.001 86);
+  --bg-panel: oklch(0.985 0.003 86);
+  --bg-elev: oklch(1 0 0);
+  --bg-hover: oklch(0.955 0.006 86);
+  --app-bg: oklch(0.915 0.006 86);
+  --border: oklch(0.895 0.008 86);
+  --border-soft: oklch(0.925 0.006 86);
+  --shell-ring: oklch(0.9 0.008 86);
+  --shell-shadow: 0 30px 80px oklch(0.28 0.03 70 / 0.24), 0 0 0 1px oklch(0.32 0.02 70 / 0.05);
+  --text: oklch(0.26 0.012 80);
+  --text-dim: oklch(0.44 0.01 80);
+  --text-faint: oklch(0.66 0.008 80);
+  --accent: oklch(0.55 0.18 260);
+  --accent-ink: oklch(1 0 0);
+  --accent-soft: oklch(0.55 0.18 260 / 0.12);
+  --accent-line: oklch(0.55 0.18 260 / 0.34);
+  --sel: oklch(0.55 0.18 260 / 0.16);
   --red: oklch(0.62 0.18 25);
-  --sidebar-bg: oklch(0.185 0.005 70);
-  --sidebar-search-bg: oklch(0.215 0.006 70);
-  --sidebar-hover: oklch(0.245 0.006 70);
-  --sidebar-selected: oklch(0.82 0.09 90 / 0.1);
-  --sidebar-selected-line: oklch(0.82 0.09 90 / 0.18);
-  --sidebar-icon: oklch(0.76 0.07 86 / 0.72);
-  --folder-icon: oklch(0.78 0.12 68);
-  --badge-md:    oklch(0.62 0.12 250);
-  --badge-img:   oklch(0.58 0.12 145);
-  --badge-pdf:   oklch(0.58 0.16 25);
-  --badge-txt:   oklch(0.55 0.02 70);
-  --badge-other: oklch(0.48 0.01 70);
+  --sidebar-bg: oklch(1 0 0);
+  --sidebar-search-bg: oklch(0.985 0.003 86);
+  --sidebar-hover: oklch(0.96 0.006 86);
+  --sidebar-selected: oklch(0.55 0.18 260 / 0.11);
+  --sidebar-selected-line: oklch(0.55 0.18 260);
+  --sidebar-icon: oklch(0.62 0.01 80);
+  --folder-icon: oklch(0.78 0.15 75);
+  --badge-md:    oklch(0.55 0.18 260);
+  --badge-img:   oklch(0.56 0.14 150);
+  --badge-pdf:   oklch(0.58 0.17 25);
+  --badge-txt:   oklch(0.58 0.02 80);
+  --badge-other: oklch(0.58 0.01 80);
 
   --tl-red: #ff5f57;
   --tl-yellow: #febc2e;
   --tl-green: #28c840;
 
-  /* Code syntax token colors (dark). */
-  --code-keyword: #c792ea;
-  --code-variable: #e6e6e6;
-  --code-property: #82aaff;
-  --code-function: #82aaff;
-  --code-constant: #f78c6c;
-  --code-string: #c3e88d;
-  --code-number: #f78c6c;
-  --code-type: #ffcb6b;
-  --code-comment: #7a8499;
-  --code-operator: #89ddff;
-  --code-invalid: #ff5370;
+  /* Code syntax token colors (light). */
+  --code-keyword: #9c27b0;
+  --code-variable: #24292e;
+  --code-property: #1565c0;
+  --code-function: #1565c0;
+  --code-constant: #c25800;
+  --code-string: #2e7d32;
+  --code-number: #c25800;
+  --code-type: #b8860b;
+  --code-comment: #8a919e;
+  --code-operator: #0277bd;
+  --code-invalid: #d32f2f;
 
   /* Font stacks: Latin from bundled IBM Plex; CJK from system PingFang SC. */
   --ui: 'IBM Plex Sans', 'PingFang SC', system-ui, sans-serif;
@@ -54,8 +57,8 @@
 
   --r: 7px;
   --radius: 0.5rem;
-  --sidebar-w: 244px;
-  --drawer-w: 296px;
+  --sidebar-w: 262px;
+  --drawer-w: 280px;
 
   /* shadcn variable names mapped onto the semantic tokens. */
   --background: var(--bg);
@@ -78,44 +81,47 @@
   --ring: var(--accent);
 }
 
-[data-theme='light'] {
-  --bg: oklch(0.987 0.004 86);
-  --bg-panel: oklch(0.956 0.006 82);
-  --bg-elev: oklch(0.998 0.002 86);
-  --bg-hover: oklch(0.925 0.009 82);
-  --border: oklch(0.845 0.01 82);
-  --border-soft: oklch(0.895 0.008 82);
-  --text: oklch(0.31 0.012 72);
-  --text-dim: oklch(0.48 0.012 72);
-  --text-faint: oklch(0.64 0.01 72);
-  --accent: oklch(0.55 0.13 68);
-  --accent-ink: oklch(0.99 0.02 90);
-  --accent-soft: oklch(0.72 0.12 70 / 0.16);
-  --accent-line: oklch(0.58 0.13 68 / 0.36);
-  --sel: oklch(0.68 0.12 70 / 0.2);
-  --sidebar-bg: oklch(0.962 0.005 82);
-  --sidebar-search-bg: oklch(0.99 0.003 86);
-  --sidebar-hover: oklch(0.935 0.008 82);
-  --sidebar-selected: oklch(0.68 0.1 70 / 0.1);
-  --sidebar-selected-line: oklch(0.58 0.12 68 / 0.18);
-  --sidebar-icon: oklch(0.55 0.1 68 / 0.72);
-  --folder-icon: oklch(0.72 0.14 60);
-  --badge-md:    oklch(0.46 0.14 250);
-  --badge-img:   oklch(0.44 0.14 145);
-  --badge-pdf:   oklch(0.50 0.18 25);
-  --badge-txt:   oklch(0.42 0.02 70);
-  --badge-other: oklch(0.54 0.01 70);
+[data-theme='dark'] {
+  --bg: oklch(0.165 0.006 70);
+  --bg-panel: oklch(0.205 0.006 70);
+  --bg-elev: oklch(0.245 0.007 70);
+  --bg-hover: oklch(0.275 0.008 70);
+  --app-bg: oklch(0.125 0.006 70);
+  --border: oklch(0.305 0.006 70);
+  --border-soft: oklch(0.255 0.006 70);
+  --shell-ring: oklch(0.32 0.006 70);
+  --shell-shadow: 0 30px 80px oklch(0 0 0 / 0.42), 0 0 0 1px oklch(1 0 0 / 0.04);
+  --text: oklch(0.905 0.01 85);
+  --text-dim: oklch(0.66 0.01 80);
+  --text-faint: oklch(0.49 0.01 80);
+  --accent: oklch(0.62 0.17 260);
+  --accent-ink: oklch(1 0 0);
+  --accent-soft: oklch(0.62 0.17 260 / 0.16);
+  --accent-line: oklch(0.62 0.17 260 / 0.36);
+  --sel: oklch(0.62 0.17 260 / 0.2);
+  --sidebar-bg: oklch(0.185 0.005 70);
+  --sidebar-search-bg: oklch(0.215 0.006 70);
+  --sidebar-hover: oklch(0.245 0.006 70);
+  --sidebar-selected: oklch(0.62 0.17 260 / 0.14);
+  --sidebar-selected-line: oklch(0.62 0.17 260 / 0.6);
+  --sidebar-icon: oklch(0.76 0.02 80 / 0.72);
+  --folder-icon: oklch(0.78 0.12 68);
+  --badge-md:    oklch(0.68 0.15 260);
+  --badge-img:   oklch(0.58 0.12 145);
+  --badge-pdf:   oklch(0.58 0.16 25);
+  --badge-txt:   oklch(0.55 0.02 70);
+  --badge-other: oklch(0.48 0.01 70);
 
-  /* Code syntax token colors (light). */
-  --code-keyword: #9c27b0;
-  --code-variable: #24292e;
-  --code-property: #1565c0;
-  --code-function: #1565c0;
-  --code-constant: #c25800;
-  --code-string: #2e7d32;
-  --code-number: #c25800;
-  --code-type: #b8860b;
-  --code-comment: #8a919e;
-  --code-operator: #0277bd;
-  --code-invalid: #d32f2f;
+  /* Code syntax token colors (dark). */
+  --code-keyword: #c792ea;
+  --code-variable: #e6e6e6;
+  --code-property: #82aaff;
+  --code-function: #82aaff;
+  --code-constant: #f78c6c;
+  --code-string: #c3e88d;
+  --code-number: #f78c6c;
+  --code-type: #ffcb6b;
+  --code-comment: #7a8499;
+  --code-operator: #89ddff;
+  --code-invalid: #ff5370;
 }

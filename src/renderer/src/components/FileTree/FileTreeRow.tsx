@@ -22,7 +22,7 @@ function fileBadge(ext: string): FileBadge {
     case 'md':
     case 'mdx':
     case 'markdown':
-      return { label: 'ad', colorVar: '--badge-md' }
+      return { label: 'md', colorVar: '--badge-md' }
     case 'png':
     case 'jpg':
     case 'jpeg':

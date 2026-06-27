@@ -7,14 +7,14 @@ export interface PaneSpec {
 
 export const LEFT_PANE: PaneSpec = {
   storageKey: 'margin.layout.leftPaneWidth',
-  defaultValue: 244,
+  defaultValue: 262,
   min: 180,
   max: 420
 }
 
 export const RIGHT_PANE: PaneSpec = {
   storageKey: 'margin.layout.rightPaneWidth',
-  defaultValue: 296,
+  defaultValue: 280,
   min: 220,
   max: 520
 }

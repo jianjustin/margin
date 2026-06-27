@@ -21,7 +21,7 @@ function loadInitialMode(): ThemeMode {
   } catch {
     // localStorage unavailable — fall back to auto.
   }
-  return 'auto'
+  return 'light'
 }
 
 interface ThemeState {

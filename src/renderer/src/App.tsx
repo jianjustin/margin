@@ -146,7 +146,7 @@ export default function App(): JSX.Element {
   useEffect(() => {
     const effective = resolveTheme(themeMode, systemDark)
     const root = document.documentElement
-    if (effective === 'light') root.setAttribute('data-theme', 'light')
+    if (effective === 'dark') root.setAttribute('data-theme', 'dark')
     else root.removeAttribute('data-theme')
   }, [themeMode, systemDark])
 
@@ -605,7 +605,8 @@ export default function App(): JSX.Element {
   /* ── Render ────────────────────────────────────────────────── */
 
   return (
-    <div className="flex h-screen bg-background text-foreground">
+    <div className="grid h-screen overflow-hidden bg-[color:var(--app-bg)] p-0 text-foreground sm:place-items-center sm:p-7">
+      <div className="flex h-full min-h-0 w-full overflow-hidden bg-[color:var(--bg-elev)] shadow-[var(--shell-shadow)] sm:h-[min(900px,calc(100vh-56px))] sm:max-w-[1440px] sm:rounded-[13px] sm:border sm:border-[color:var(--shell-ring)]">
       {sidebarOpen && (
         <>
           <Sidebar
@@ -726,13 +727,13 @@ export default function App(): JSX.Element {
                 <div className="flex gap-3">
                   <button
                     onClick={() => void openFolder()}
-                    className="rounded-md bg-[color:var(--accent)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity"
+                    className="rounded-lg bg-[color:var(--accent)] px-4 py-2 text-sm font-medium text-[color:var(--accent-ink)] transition-opacity hover:opacity-90"
                   >
                     打开文件夹
                   </button>
                   <button
                     onClick={() => createPeerWindow()}
-                    className="rounded-md border border-[color:var(--border)] px-4 py-2 text-sm font-medium text-foreground hover:bg-[color:var(--bg-hover)] transition-colors"
+                    className="rounded-lg border border-[color:var(--border)] px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-[color:var(--bg-hover)]"
                   >
                     新建窗口 (⇧⌘N)
                   </button>
@@ -894,6 +895,7 @@ export default function App(): JSX.Element {
           onClose={() => setSearchOpen(false)}
         />
       )}
+      </div>
     </div>
   )
 }
