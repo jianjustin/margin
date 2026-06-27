@@ -1,23 +1,20 @@
-import { useEffect, useMemo, useRef, useState, useCallback, type PointerEvent as ReactPointerEvent } from 'react'
-import { AlignLeft, CalendarDays, Link2, PanelLeft, Settings } from 'lucide-react'
+import { useEffect, useRef, useState, useCallback, type PointerEvent as ReactPointerEvent } from 'react'
+import { PanelLeft, PanelRight, Settings } from 'lucide-react'
 import { SearchOverlay } from '@/components/SearchOverlay'
 import { Editor, type EditorHandle } from '@/components/Editor'
 import { saveDocument, waitForDocumentSaves } from '@/lib/saveDocument'
 import { useDocumentStore } from '@/stores/documentStore'
 import { useVaultStore, loadPersistedRoot } from '@/stores/vaultStore'
 import { useSettingsStore } from '@/stores/settingsStore'
-import { collectScheduleDates, normalizeScheduleDir, scheduleFileName, scheduleTemplate } from '@/lib/schedule'
+import { normalizeScheduleDir, scheduleFileName, scheduleTemplate } from '@/lib/schedule'
 import { scanVaultWithSettings } from '@/lib/scanVault'
 import { Sidebar } from '@/components/FileTree/Sidebar'
 import { RowContextMenu, type ContextMenuState } from '@/components/FileTree/RowContextMenu'
 import { MoveDialog } from '@/components/FileTree/MoveDialog'
-import { CalendarPopover } from '@/components/CalendarPopover'
 import { InputDialog } from '@/components/InputDialog'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { SettingsPanel } from '@/components/SettingsPanel'
-import { ThemeToggle } from '@/components/ThemeToggle'
 import { OutlineDrawer } from '@/components/OutlineDrawer'
-import { BacklinksPanel } from '@/components/BacklinksPanel'
 import { useThemeStore, resolveTheme } from '@/stores/themeStore'
 import { useSystemTheme } from '@/hooks/useSystemTheme'
 import { useVaultWatch } from '@/hooks/useVaultWatch'
@@ -27,6 +24,7 @@ import { DraftBanner } from '@/components/DraftBanner'
 import { ConflictBar } from '@/components/ConflictBar'
 import { StatusBar } from '@/components/StatusBar'
 import { DocumentTabs } from '@/components/DocumentTabs'
+import { useDocStats } from '@/hooks/useDocStats'
 import { open as shellOpen } from '@tauri-apps/plugin-shell'
 import { isExternal, resolveRelative } from '@/lib/resolvePath'
 import { resolveWikiLinkTarget } from '@/lib/wikiLinks'
@@ -85,6 +83,17 @@ function DirtyDot(): JSX.Element {
   )
 }
 
+function WordCountBadge(): JSX.Element {
+  const content = useDocumentStore((s) => s.content)
+  const { words } = useDocStats(content)
+  if (!words) return <></>
+  return (
+    <span className="grid h-[20px] min-w-[24px] place-items-center rounded-full bg-[color:var(--accent-soft)] px-1.5 font-[family-name:var(--mono)] text-[10.5px] font-semibold tabular-nums text-[color:var(--accent)]">
+      {words}
+    </span>
+  )
+}
+
 export default function App(): JSX.Element {
   // Only active-document identity and tab presence are subscribed here — a
   // keystroke changes active tab content, not these values, so App (and the
@@ -100,10 +109,8 @@ export default function App(): JSX.Element {
   const editorRef = useRef<EditorHandle>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const [backlinksOpen, setBacklinksOpen] = useState(false)
   const [menu, setMenu] = useState<ContextMenuState | null>(null)
   const [moveTarget, setMoveTarget] = useState<TreeNode | null>(null)
-  const [calendarOpen, setCalendarOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [dialog, setDialog] = useState<DialogState>(null)
@@ -122,10 +129,6 @@ export default function App(): JSX.Element {
   const plantUmlServerUrl = useSettingsStore((s) => s.plantUmlServerUrl)
   const diagramFitWidth = useSettingsStore((s) => s.diagramFitWidth)
   const mathEnabled = useSettingsStore((s) => s.mathEnabled)
-  const scheduleDates = useMemo(
-    () => (scheduleEnabled ? collectScheduleDates(vaultTree, scheduleDir) : new Set<string>()),
-    [vaultTree, scheduleDir, scheduleEnabled]
-  )
 
   useVaultWatch()
   useProjectConfig()
@@ -652,48 +655,7 @@ export default function App(): JSX.Element {
           )}
 
           <div className="relative flex gap-0.5 [-webkit-app-region:no-drag]">
-            <ThemeToggle />
-            {scheduleEnabled && (
-              <button
-                onClick={() => setCalendarOpen((v) => !v)}
-                title="日历"
-                aria-label="日历"
-                className={[
-                  'grid h-[24px] w-[28px] place-items-center rounded-md transition-colors',
-                  calendarOpen
-                    ? 'bg-[color:var(--accent-soft)] text-[color:var(--accent)] opacity-90'
-                    : 'text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)] hover:text-foreground'
-                ].join(' ')}
-              >
-                <CalendarDays size={16} />
-              </button>
-            )}
-            <button
-              onClick={() => setDrawerOpen((v) => !v)}
-              title="大纲 (⌘\)"
-              aria-label="Toggle outline"
-              className={[
-                'grid h-[24px] w-[28px] place-items-center rounded-md transition-colors',
-                drawerOpen
-                  ? 'bg-[color:var(--accent-soft)] text-[color:var(--accent)] opacity-90'
-                  : 'text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)] hover:text-foreground'
-              ].join(' ')}
-            >
-              <AlignLeft size={16} />
-            </button>
-            <button
-              onClick={() => setBacklinksOpen((v) => !v)}
-              title="双链面板"
-              aria-label="双链面板"
-              className={[
-                'grid h-[24px] w-[28px] place-items-center rounded-md transition-colors',
-                backlinksOpen
-                  ? 'bg-[color:var(--accent-soft)] text-[color:var(--accent)] opacity-90'
-                  : 'text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)] hover:text-foreground'
-              ].join(' ')}
-            >
-              <Link2 size={16} />
-            </button>
+            <WordCountBadge />
             <button
               onClick={() => setSettingsOpen(true)}
               title="设置 (⌘,)"
@@ -702,16 +664,19 @@ export default function App(): JSX.Element {
             >
               <Settings size={16} />
             </button>
-            {calendarOpen && scheduleEnabled && (
-              <CalendarPopover
-                scheduleDates={scheduleDates}
-                onPick={(date) => {
-                  setCalendarOpen(false)
-                  void openSchedule(date)
-                }}
-                onClose={() => setCalendarOpen(false)}
-              />
-            )}
+            <button
+              onClick={() => setDrawerOpen((v) => !v)}
+              title="大纲 (⌘\)"
+              aria-label="切换大纲"
+              className={[
+                'grid h-[24px] w-[28px] place-items-center rounded-md transition-colors',
+                drawerOpen
+                  ? 'bg-[color:var(--accent-soft)] text-[color:var(--accent)] opacity-90'
+                  : 'text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)] hover:text-foreground'
+              ].join(' ')}
+            >
+              <PanelRight size={16} />
+            </button>
           </div>
         </header>
 
@@ -785,9 +750,6 @@ export default function App(): JSX.Element {
               />
               <OutlineDrawer width={rightPaneWidth} onJumpToLine={handleJumpToLine} />
             </>
-          )}
-          {backlinksOpen && path && (
-            <BacklinksPanel width={rightPaneWidth} onOpenFile={handleOpenFile} />
           )}
         </div>
 
