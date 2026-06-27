@@ -12,31 +12,30 @@ interface FileTreeRowProps {
   onContextMenu: (node: TreeNode, x: number, y: number) => void
 }
 
-function fileIconLabel(ext: string): { label: string; color: string } {
+interface FileBadge {
+  label: string
+  colorVar: string
+}
+
+function fileBadge(ext: string): FileBadge {
   switch (ext) {
     case 'md':
     case 'mdx':
     case 'markdown':
-      return { label: 'M', color: 'var(--sidebar-icon)' }
-    case 'json':
-      return { label: '{}', color: 'var(--text-dim)' }
-    case 'canvas':
-      return { label: '◇', color: 'oklch(0.72 0.09 240)' }
+      return { label: 'ad', colorVar: '--badge-md' }
+    case 'png':
+    case 'jpg':
+    case 'jpeg':
+    case 'gif':
+    case 'webp':
+    case 'svg':
+      return { label: 'img', colorVar: '--badge-img' }
+    case 'pdf':
+      return { label: 'pdf', colorVar: '--badge-pdf' }
     case 'txt':
-      return { label: 'T', color: 'var(--text-dim)' }
-    case 'yaml':
-    case 'yml':
-      return { label: 'Y', color: 'var(--text-dim)' }
-    case 'css':
-    case 'scss':
-      return { label: '#', color: 'oklch(0.72 0.09 240)' }
-    case 'js':
-    case 'ts':
-    case 'tsx':
-    case 'jsx':
-      return { label: 'JS', color: 'oklch(0.72 0.11 50)' }
+      return { label: 'txt', colorVar: '--badge-txt' }
     default:
-      return { label: '·', color: 'var(--text-dim)' }
+      return { label: ext.slice(0, 3) || '···', colorVar: '--badge-other' }
   }
 }
 
@@ -56,7 +55,7 @@ export function FileTreeRow({
   const isFolder = node.type === 'folder'
   const canOpen = !isFolder && isMarkdownFile(node.name)
   const ext = isFolder ? '' : fileExt(node.name)
-  const icon = isFolder ? null : fileIconLabel(ext)
+  const badge = isFolder ? null : fileBadge(ext)
   const childCount = isFolder ? countChildren(node) : 0
 
   const handleClick = (): void => {
@@ -99,13 +98,16 @@ export function FileTreeRow({
       </span>
 
       {isFolder ? (
-        <Folder size={14} className="flex-none text-[color:var(--sidebar-icon)]" />
+        <Folder size={14} className="flex-none" style={{ color: 'var(--folder-icon)' }} />
       ) : (
         <span
-          className="grid h-[16px] w-[16px] flex-none place-items-center rounded font-[family-name:var(--mono)] text-[9px] font-semibold opacity-80"
-          style={{ color: icon?.color }}
+          className="grid h-[16px] w-[16px] flex-none place-items-center rounded-[3px] font-[family-name:var(--mono)] text-[8px] font-bold uppercase tracking-tight"
+          style={{
+            color: `var(${badge?.colorVar})`,
+            background: `color-mix(in oklch, var(${badge?.colorVar}) 14%, transparent)`
+          }}
         >
-          {icon?.label}
+          {badge?.label}
         </span>
       )}
 
