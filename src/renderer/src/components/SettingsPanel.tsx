@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { X, Search, Folder, Plus, Trash2 } from 'lucide-react'
-import { UpdateSection } from '@/components/UpdateSection'
-import { ThemeToggle } from '@/components/ThemeToggle'
+import { Folder, Plus, Search, Trash2 } from 'lucide-react'
 import { PluginMarket } from '@/components/PluginMarket'
+import { ThemeToggle } from '@/components/ThemeToggle'
+import { UpdateSection } from '@/components/UpdateSection'
 import { useUpdater } from '@/hooks/useUpdater'
 import { useSettingsStore } from '@/stores/settingsStore'
 import type { TreeNode } from '../../../shared/ipc'
@@ -11,8 +11,6 @@ interface SettingsPanelProps {
   tree: TreeNode[]
   onClose: () => void
 }
-
-/* ── Folder picker with search ─────────────────────────────────── */
 
 interface FolderPickerProps {
   value: string
@@ -47,20 +45,20 @@ function FolderPicker({ value, folders, onChange }: FolderPickerProps): JSX.Elem
           setOpen((v) => !v)
           setQuery('')
         }}
-        className="flex w-full items-center gap-2 rounded-md border border-[color:var(--border-soft)] bg-[color:var(--bg)] px-2.5 py-1.5 text-left text-[12.5px] text-foreground hover:border-[color:var(--accent-line)]"
+        className="flex w-full items-center gap-2 rounded-lg border border-[color:var(--border-soft)] bg-[color:var(--bg-elev)] px-2.5 py-1.5 text-left text-[12.5px] text-foreground hover:border-[color:var(--accent-line)]"
       >
         <Folder size={13} className="flex-none text-[color:var(--text-faint)]" />
         <span className="flex-1 truncate">{value}</span>
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-10 mt-1 w-full overflow-hidden rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-elev)] shadow-lg">
+        <div className="absolute left-0 top-full z-10 mt-1 w-full overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-elev)] shadow-[0_16px_36px_oklch(0_0_0/0.14)]">
           <div className="flex items-center gap-1.5 border-b border-[color:var(--border-soft)] px-2 py-1.5">
             <Search size={12} className="flex-none text-[color:var(--text-faint)]" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="搜索文件夹…"
+              placeholder="搜索文件夹..."
               autoFocus
               className="min-w-0 flex-1 border-none bg-transparent text-[12px] text-foreground outline-none placeholder:text-[color:var(--text-faint)]"
             />
@@ -79,7 +77,7 @@ function FolderPicker({ value, folders, onChange }: FolderPickerProps): JSX.Elem
                     setOpen(false)
                   }}
                   className={[
-                    'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12.5px] transition-colors',
+                    'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[12.5px] transition-colors',
                     f === value
                       ? 'bg-[color:var(--accent-soft)] text-[color:var(--accent)]'
                       : 'text-foreground hover:bg-[color:var(--bg-hover)]'
@@ -102,8 +100,8 @@ function FolderPicker({ value, folders, onChange }: FolderPickerProps): JSX.Elem
                   setOpen(false)
                 }
               }}
-              placeholder="输入新文件夹名…"
-              className="w-full rounded-md border border-[color:var(--border-soft)] bg-[color:var(--bg)] px-2 py-1 text-[12px] text-foreground outline-none placeholder:text-[color:var(--text-faint)] focus:border-[color:var(--accent-line)]"
+              placeholder="输入新文件夹名..."
+              className="w-full rounded-lg border border-[color:var(--border-soft)] bg-[color:var(--bg)] px-2 py-1 text-[12px] text-foreground outline-none placeholder:text-[color:var(--text-faint)] focus:border-[color:var(--accent-line)]"
             />
           </div>
         </div>
@@ -112,9 +110,6 @@ function FolderPicker({ value, folders, onChange }: FolderPickerProps): JSX.Elem
   )
 }
 
-/* ── Helpers ────────────────────────────────────────────────────── */
-
-/** Extract top-level folder names from the vault tree. */
 function topFolders(tree: TreeNode[]): string[] {
   return tree.filter((n) => n.type === 'folder').map((n) => n.name)
 }
@@ -140,7 +135,89 @@ function AppSwitch({ checked, onChange, label }: AppSwitchProps): JSX.Element {
   )
 }
 
-/* ── General tab ────────────────────────────────────────────────── */
+type SettingsTab = 'general' | 'editor' | 'sync' | 'shortcuts' | 'advanced'
+
+const NAV_ITEMS: { id: SettingsTab | 'plugins'; label: string }[] = [
+  { id: 'general', label: 'General' },
+  { id: 'editor', label: 'Editor' },
+  { id: 'sync', label: 'Sync' },
+  { id: 'shortcuts', label: 'Shortcuts' },
+  { id: 'plugins', label: 'Plugins' },
+  { id: 'advanced', label: 'Advanced' }
+]
+
+export function SettingsPanel({ tree, onClose }: SettingsPanelProps): JSX.Element {
+  const [activeTab, setActiveTab] = useState<SettingsTab>('general')
+  const [pluginMarketOpen, setPluginMarketOpen] = useState(false)
+
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent): void {
+      if (e.key === 'Escape') {
+        if (pluginMarketOpen) setPluginMarketOpen(false)
+        else onClose()
+      }
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [onClose, pluginMarketOpen])
+
+  return (
+    <div
+      className="fixed inset-0 z-50 grid place-items-center bg-[oklch(0_0_0/0.24)]"
+      onClick={onClose}
+    >
+      <div
+        className="flex h-[520px] w-[680px] max-w-[calc(100vw-32px)] overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[color:var(--bg-elev)] shadow-[0_24px_64px_oklch(0_0_0/0.18)]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex w-[160px] flex-none flex-col border-r border-[color:var(--border-soft)] bg-[color:var(--bg-panel)] py-3">
+          <div className="px-4 pb-2 text-[11px] font-semibold uppercase tracking-[.08em] text-[color:var(--text-faint)]">
+            设置
+          </div>
+          {NAV_ITEMS.map(({ id, label }) => (
+            <button
+              key={id}
+              onClick={() => {
+                if (id === 'plugins') {
+                  setPluginMarketOpen(true)
+                  return
+                }
+                setActiveTab(id)
+              }}
+              className={[
+                'mx-2 flex items-center rounded-xl px-3 py-2 text-left text-[13px] transition-colors',
+                activeTab === id
+                  ? 'bg-[color:var(--accent-soft)] font-semibold text-[color:var(--accent)]'
+                  : 'text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)] hover:text-foreground'
+              ].join(' ')}
+            >
+              {label}
+            </button>
+          ))}
+          <div className="flex-1" />
+          <button
+            onClick={onClose}
+            className="mx-3 mt-2 rounded-xl px-3 py-1.5 text-[12px] text-[color:var(--text-faint)] hover:bg-[color:var(--bg-hover)] hover:text-foreground"
+          >
+            关闭
+          </button>
+        </div>
+
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-6 py-5">
+          {activeTab === 'general' && <GeneralTab tree={tree} />}
+          {activeTab === 'editor' && <EditorTab />}
+          {(activeTab === 'sync' || activeTab === 'shortcuts' || activeTab === 'advanced') && (
+            <div className="flex flex-1 items-center justify-center text-[13px] text-[color:var(--text-faint)]">
+              即将推出
+            </div>
+          )}
+        </div>
+      </div>
+
+      {pluginMarketOpen && <PluginMarket onBack={() => setPluginMarketOpen(false)} />}
+    </div>
+  )
+}
 
 function GeneralTab({ tree }: { tree: TreeNode[] }): JSX.Element {
   const scheduleEnabled = useSettingsStore((s) => s.scheduleEnabled)
@@ -163,7 +240,7 @@ function GeneralTab({ tree }: { tree: TreeNode[] }): JSX.Element {
   const folders = useMemo(() => topFolders(tree), [tree])
 
   const sectionTitle = 'mb-3 mt-5 text-[11px] font-semibold uppercase tracking-[.08em] text-[color:var(--text-faint)] first:mt-0'
-  const rowClass = 'flex items-center justify-between gap-3 py-2.5 border-b border-[color:var(--border-soft)] last:border-b-0'
+  const rowClass = 'flex items-center justify-between gap-3 border-b border-[color:var(--border-soft)] py-2.5 last:border-b-0'
   const labelClass = 'text-[13px] text-foreground'
   const descClass = 'mt-0.5 text-[11.5px] text-[color:var(--text-faint)]'
 
@@ -176,24 +253,20 @@ function GeneralTab({ tree }: { tree: TreeNode[] }): JSX.Element {
 
   return (
     <div>
-      {/* ── APPEARANCE ── */}
       <div className={sectionTitle}>Appearance</div>
-      <div className="space-y-0 divide-y divide-[color:var(--border-soft)]">
-        <div className={rowClass}>
-          <div>
-            <div className={labelClass}>Theme</div>
-            <div className={descClass}>Match the editor to your environment</div>
-          </div>
-          <ThemeToggle />
+      <div className={rowClass}>
+        <div>
+          <div className={labelClass}>Theme</div>
+          <div className={descClass}>Match the editor to your environment</div>
         </div>
+        <ThemeToggle />
       </div>
 
-      {/* ── 日程 ── */}
       <div className={sectionTitle}>日程</div>
       <div className={rowClass}>
         <div>
           <div className={labelClass}>启用日程功能</div>
-          <div className={descClass}>在标题栏显示日程入口和日历</div>
+          <div className={descClass}>在设置中管理日程入口和日历</div>
         </div>
         <AppSwitch checked={scheduleEnabled} onChange={setScheduleEnabled} label="启用日程功能" />
       </div>
@@ -205,20 +278,21 @@ function GeneralTab({ tree }: { tree: TreeNode[] }): JSX.Element {
         </div>
       )}
 
-      {/* ── 文件库 ── */}
       <div className={sectionTitle}>文件库</div>
       <div className={`${labelClass} mb-1.5`}>隐藏文件夹</div>
       <div className="flex items-center gap-2">
         <input
           value={hiddenInput}
           onChange={(e) => setHiddenInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') submitHiddenFolder() }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') submitHiddenFolder()
+          }}
           placeholder=".claude 或 Projects/archive"
-          className="min-w-0 flex-1 rounded-md border border-[color:var(--border-soft)] bg-[color:var(--bg)] px-2 py-1.5 text-[12px] text-foreground outline-none placeholder:text-[color:var(--text-faint)] focus:border-[color:var(--accent-line)]"
+          className="min-w-0 flex-1 rounded-lg border border-[color:var(--border-soft)] bg-[color:var(--bg)] px-2 py-1.5 text-[12px] text-foreground outline-none placeholder:text-[color:var(--text-faint)] focus:border-[color:var(--accent-line)]"
         />
         <button
           onClick={submitHiddenFolder}
-          className="grid h-[30px] w-[30px] place-items-center rounded-md border border-[color:var(--border-soft)] text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)] hover:text-foreground"
+          className="grid h-[30px] w-[30px] place-items-center rounded-lg border border-[color:var(--border-soft)] text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)] hover:text-foreground"
           aria-label="添加隐藏文件夹"
         >
           <Plus size={14} />
@@ -230,11 +304,11 @@ function GeneralTab({ tree }: { tree: TreeNode[] }): JSX.Element {
           <div className={descClass}>未配置隐藏文件夹</div>
         ) : (
           hiddenFolders.map((rule) => (
-            <div key={rule} className="flex items-center gap-2 rounded-md border border-[color:var(--border-soft)] bg-[color:var(--bg)] px-2 py-1.5">
+            <div key={rule} className="flex items-center gap-2 rounded-lg border border-[color:var(--border-soft)] bg-[color:var(--bg)] px-2 py-1.5">
               <span className="min-w-0 flex-1 truncate font-[family-name:var(--mono)] text-[12px] text-[color:var(--text-dim)]">{rule}</span>
               <button
                 onClick={() => removeHiddenFolder(rule)}
-                className="grid h-5 w-5 flex-none place-items-center rounded text-[color:var(--text-faint)] hover:bg-[color:var(--bg-hover)] hover:text-[color:var(--red)]"
+                className="grid h-5 w-5 flex-none place-items-center rounded-md text-[color:var(--text-faint)] hover:bg-[color:var(--bg-hover)] hover:text-[color:var(--red)]"
                 aria-label={`移除隐藏规则 ${rule}`}
               >
                 <Trash2 size={12} />
@@ -244,14 +318,13 @@ function GeneralTab({ tree }: { tree: TreeNode[] }): JSX.Element {
         )}
       </div>
 
-      {/* ── 富内容 ── */}
       <div className={sectionTitle}>富内容</div>
       <div className={`${labelClass} mb-1.5`}>图片资产目录</div>
       <input
         value={assetsDir}
         onChange={(e) => setAssetsDir(e.target.value)}
         placeholder="assets"
-        className="w-full rounded-md border border-[color:var(--border-soft)] bg-[color:var(--bg)] px-2 py-1.5 text-[12px] text-foreground outline-none placeholder:text-[color:var(--text-faint)] focus:border-[color:var(--accent-line)]"
+        className="w-full rounded-lg border border-[color:var(--border-soft)] bg-[color:var(--bg)] px-2 py-1.5 text-[12px] text-foreground outline-none placeholder:text-[color:var(--text-faint)] focus:border-[color:var(--accent-line)]"
       />
       <div className={`${descClass} mt-1.5`}>拖拽或粘贴图片时复制到此文件库相对目录。</div>
       <div className="mt-3">
@@ -260,7 +333,7 @@ function GeneralTab({ tree }: { tree: TreeNode[] }): JSX.Element {
           value={plantUmlServerUrl}
           onChange={(e) => setPlantUmlServerUrl(e.target.value)}
           placeholder="https://kroki.io"
-          className="w-full rounded-md border border-[color:var(--border-soft)] bg-[color:var(--bg)] px-2 py-1.5 text-[12px] text-foreground outline-none placeholder:text-[color:var(--text-faint)] focus:border-[color:var(--accent-line)]"
+          className="w-full rounded-lg border border-[color:var(--border-soft)] bg-[color:var(--bg)] px-2 py-1.5 text-[12px] text-foreground outline-none placeholder:text-[color:var(--text-faint)] focus:border-[color:var(--accent-line)]"
         />
         <div className={`${descClass} mt-1.5`}>PlantUML 和 DOT 使用 Kroki 兼容接口；Mermaid 本地渲染。</div>
       </div>
@@ -279,7 +352,6 @@ function GeneralTab({ tree }: { tree: TreeNode[] }): JSX.Element {
         <AppSwitch checked={mathEnabled} onChange={setMathEnabled} label="数学公式" />
       </div>
 
-      {/* ── 关于 ── */}
       <div className={sectionTitle}>关于</div>
       <UpdateSection
         status={updater.status}
@@ -294,15 +366,13 @@ function GeneralTab({ tree }: { tree: TreeNode[] }): JSX.Element {
   )
 }
 
-/* ── Editor tab ─────────────────────────────────────────────────── */
-
 function EditorTab(): JSX.Element {
-  const [typwriterMode, setTypwriterMode] = useState(false)
+  const [typewriterMode, setTypewriterMode] = useState(false)
   const [showMarkdownSyntax, setShowMarkdownSyntax] = useState(true)
   const [spellcheck, setSpellcheck] = useState(false)
 
   const sectionTitle = 'mb-3 mt-5 text-[11px] font-semibold uppercase tracking-[.08em] text-[color:var(--text-faint)] first:mt-0'
-  const rowClass = 'flex items-center justify-between gap-3 py-2.5 border-b border-[color:var(--border-soft)] last:border-b-0'
+  const rowClass = 'flex items-center justify-between gap-3 border-b border-[color:var(--border-soft)] py-2.5 last:border-b-0'
   const labelClass = 'text-[13px] text-foreground'
   const descClass = 'mt-0.5 text-[11.5px] text-[color:var(--text-faint)]'
 
@@ -314,12 +384,12 @@ function EditorTab(): JSX.Element {
           <div className={labelClass}>Typewriter mode</div>
           <div className={descClass}>Keep the current line centered</div>
         </div>
-        <AppSwitch checked={typwriterMode} onChange={setTypwriterMode} label="Typewriter mode" />
+        <AppSwitch checked={typewriterMode} onChange={setTypewriterMode} label="Typewriter mode" />
       </div>
       <div className={rowClass}>
         <div>
           <div className={labelClass}>Show markdown syntax</div>
-          <div className={descClass}>Reveal # * {'>'} markers on the active line</div>
+          <div className={descClass}>Reveal markdown markers on the active line</div>
         </div>
         <AppSwitch checked={showMarkdownSyntax} onChange={setShowMarkdownSyntax} label="Show markdown syntax" />
       </div>
@@ -330,90 +400,6 @@ function EditorTab(): JSX.Element {
         </div>
         <AppSwitch checked={spellcheck} onChange={setSpellcheck} label="Spellcheck" />
       </div>
-    </div>
-  )
-}
-
-/* ── Main panel ─────────────────────────────────────────────────── */
-
-type SettingsTab = 'general' | 'editor' | 'sync' | 'shortcuts' | 'plugins' | 'advanced'
-
-export function SettingsPanel({ tree, onClose }: SettingsPanelProps): JSX.Element {
-  const [activeTab, setActiveTab] = useState<SettingsTab>('general')
-  const [pluginMarketOpen, setPluginMarketOpen] = useState(false)
-
-  useEffect(() => {
-    function handleKey(e: KeyboardEvent): void {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', handleKey)
-    return () => window.removeEventListener('keydown', handleKey)
-  }, [onClose])
-
-  return (
-    <div
-      className="fixed inset-0 z-50 grid place-items-center bg-[oklch(0_0_0/0.4)]"
-      onClick={onClose}
-    >
-      <div
-        className="flex h-[520px] w-[680px] max-w-[calc(100vw-32px)] overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-elev)] shadow-[0_24px_64px_oklch(0_0_0/0.5)]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Left nav */}
-        <div className="flex w-[160px] flex-none flex-col border-r border-[color:var(--border-soft)] bg-[color:var(--bg-panel)] py-3">
-          <div className="px-4 pb-2 text-[11px] font-semibold uppercase tracking-[.08em] text-[color:var(--text-faint)]">
-            设置
-          </div>
-          {(
-            [
-              { id: 'general',   label: 'General' },
-              { id: 'editor',    label: 'Editor' },
-              { id: 'sync',      label: 'Sync' },
-              { id: 'shortcuts', label: 'Shortcuts' },
-              { id: 'plugins',   label: 'Plugins' },
-              { id: 'advanced',  label: 'Advanced' },
-            ] as { id: SettingsTab; label: string }[]
-          ).map(({ id, label }) => (
-            <button
-              key={id}
-              onClick={() => {
-                if (id === 'plugins') { setPluginMarketOpen(true); return }
-                setActiveTab(id)
-              }}
-              className={[
-                'flex items-center gap-2 border-l-2 px-4 py-2 text-left text-[13px] transition-colors',
-                activeTab === id && id !== 'plugins'
-                  ? 'border-l-[color:var(--accent)] bg-[color:var(--accent-soft)] font-medium text-[color:var(--accent)]'
-                  : 'border-l-transparent text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)] hover:text-foreground',
-              ].join(' ')}
-            >
-              {label}
-            </button>
-          ))}
-          <div className="flex-1" />
-          <button
-            onClick={onClose}
-            className="mx-3 mt-2 rounded-md px-3 py-1.5 text-[12px] text-[color:var(--text-faint)] hover:bg-[color:var(--bg-hover)] hover:text-foreground"
-          >
-            关闭
-          </button>
-        </div>
-
-        {/* Right content */}
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-6 py-5">
-          {activeTab === 'general' && <GeneralTab tree={tree} />}
-          {activeTab === 'editor' && <EditorTab />}
-          {(activeTab === 'sync' || activeTab === 'shortcuts' || activeTab === 'advanced') && (
-            <div className="flex flex-1 items-center justify-center text-[13px] text-[color:var(--text-faint)]">
-              即将推出
-            </div>
-          )}
-        </div>
-      </div>
-
-      {pluginMarketOpen && (
-        <PluginMarket onBack={() => setPluginMarketOpen(false)} />
-      )}
     </div>
   )
 }

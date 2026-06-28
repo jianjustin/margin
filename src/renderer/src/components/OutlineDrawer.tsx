@@ -69,18 +69,18 @@ export function OutlineDrawer({ width, onJumpToLine }: OutlineDrawerProps): JSX.
   return (
     <aside
       style={{ width }}
-      className="flex h-full flex-none flex-col border-l border-[color:var(--border-soft)] bg-[color:var(--bg-panel)]"
+      className="flex h-full flex-none flex-col border-l border-[color:var(--border-soft)] bg-[color:var(--bg-elev)] px-3.5 py-3.5 shadow-[-1px_0_4px_oklch(0_0_0/0.04)]"
     >
-      <div className="flex shrink-0 border-b border-[color:var(--border-soft)]">
+      <div className="mb-[18px] flex shrink-0 rounded-lg bg-[color:var(--bg-hover)] p-[3px]">
         {(['outline', 'schedule'] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={[
-              'flex-1 py-2.5 text-[12px] font-medium transition-colors',
+              'flex-1 rounded-md py-[7px] text-[12.5px] transition-colors',
               tab === t
-                ? 'border-b-2 border-[color:var(--accent)] text-foreground'
-                : 'text-[color:var(--text-faint)] hover:text-[color:var(--text-dim)]'
+                ? 'bg-[color:var(--bg-elev)] font-semibold text-foreground shadow-[0_1px_2px_oklch(0_0_0/0.08)]'
+                : 'font-medium text-[color:var(--text-faint)] hover:text-[color:var(--text-dim)]'
             ].join(' ')}
           >
             {t === 'outline' ? 'Outline' : 'Schedule'}
@@ -88,8 +88,8 @@ export function OutlineDrawer({ width, onJumpToLine }: OutlineDrawerProps): JSX.
         ))}
       </div>
       {tab === 'outline' ? (
-        <div className="flex-1 overflow-y-auto px-2.5 pb-4">
-          <div className="px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-[.08em] text-[color:var(--text-faint)]">
+        <div className="flex-1 overflow-y-auto pb-4">
+          <div className="px-1 pb-2 text-[10.5px] font-semibold uppercase tracking-[.08em] text-[color:var(--text-faint)]">
             Table of Contents
           </div>
           {headings.length === 0 ? (
@@ -110,22 +110,13 @@ export function OutlineDrawer({ width, onJumpToLine }: OutlineDrawerProps): JSX.
                   key={`${h.line}-${h.text}`}
                   onClick={() => handleClick(h, i)}
                   className={[
-                    'flex cursor-pointer items-center gap-[9px] overflow-hidden whitespace-nowrap rounded-md px-[9px] py-[5px] text-[12.5px] leading-[1.45] text-[color:var(--text-dim)] transition-colors',
+                    'flex cursor-pointer items-center gap-[9px] overflow-hidden whitespace-nowrap rounded-md px-[10px] py-[6px] text-[13px] leading-[1.45] text-[color:var(--text-dim)] transition-colors',
                     activeIdx === i
-                      ? 'bg-[color:var(--accent-soft)] text-[color:var(--text)]'
+                      ? 'bg-[color:var(--accent-soft)] font-semibold text-[color:var(--accent)] shadow-[inset_2px_0_0_var(--accent)]'
                       : 'hover:bg-[color:var(--bg-hover)] hover:text-[color:var(--text)]',
                     lvlClass(h.level)
                   ].join(' ')}
                 >
-                  <span
-                    className="flex-none rounded-sm transition-colors"
-                    style={{
-                      width: 2,
-                      height: h.level === 1 ? 15 : 13,
-                      borderRadius: 2,
-                      background: activeIdx === i ? 'var(--accent)' : 'var(--border)'
-                    }}
-                  />
                   <span className="overflow-hidden text-ellipsis">{h.text}</span>
                 </div>
               ))}

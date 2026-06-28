@@ -83,7 +83,39 @@ describe('Sidebar header', () => {
     }
   }
 
-  it('renders sidebar header with vault name and search button', () => {
+  it('renders the vault name with search and new-note actions', () => {
+    const actions = handlers()
+    useVaultStore.setState({ root: '/Users/test/Writing', tree, expanded: new Set(), selectedPath: null })
+    render(
+      <Sidebar
+        width={260}
+        {...actions}
+        onOpenFile={() => {}}
+        onContextMenu={() => {}}
+      />
+    )
+
+    expect(screen.getByText('Writing')).toBeTruthy()
+    const buttons = screen.getAllByRole('button').map((button) => button.getAttribute('aria-label'))
+    expect(buttons.slice(0, 2)).toEqual(['搜索文件', '新建笔记'])
+  })
+
+  it('right-aligns header actions opposite the vault name', () => {
+    const actions = handlers()
+    render(
+      <Sidebar
+        width={260}
+        {...actions}
+        onOpenFile={() => {}}
+        onContextMenu={() => {}}
+      />
+    )
+
+    const headerRow = screen.getByRole('button', { name: '搜索文件' }).parentElement?.parentElement
+    expect(headerRow?.className).toContain('justify-between')
+  })
+
+  it('omits the new-note action when no handler is provided', () => {
     const actions = handlers()
     render(
       <Sidebar
@@ -94,84 +126,30 @@ describe('Sidebar header', () => {
       />
     )
 
-    // Vault name is the last segment of the root path
-    expect(screen.getByText('v')).toBeTruthy()
-    // Search button is always present
     expect(screen.getByRole('button', { name: '搜索文件' })).toBeTruthy()
-  })
-
-  it('renders new-note plus button when onNewNote is provided', () => {
-    const actions = handlers()
-    render(
-      <Sidebar
-        width={260}
-        onOpenSearch={actions.onOpenSearch}
-        onNewNote={actions.onNewNote}
-        onOpenFile={() => {}}
-        onContextMenu={() => {}}
-      />
-    )
-
-    expect(screen.getByRole('button', { name: '新建笔记' })).toBeTruthy()
-  })
-
-  it('does not render new-note button when onNewNote is not provided', () => {
-    const actions = handlers()
-    render(
-      <Sidebar
-        width={260}
-        onOpenSearch={actions.onOpenSearch}
-        onOpenFile={() => {}}
-        onContextMenu={() => {}}
-      />
-    )
-
     expect(screen.queryByRole('button', { name: '新建笔记' })).toBeNull()
   })
 
-  it('disables search and new-note buttons when no vault is open', () => {
-    useVaultStore.setState({ root: null, tree: [], expanded: new Set(), selectedPath: null })
+  it('does not render the old file library section label', () => {
     const actions = handlers()
     render(
       <Sidebar
         width={260}
-        onOpenSearch={actions.onOpenSearch}
-        onNewNote={actions.onNewNote}
+        {...actions}
         onOpenFile={() => {}}
         onContextMenu={() => {}}
       />
     )
 
-    const searchButton = screen.getByRole('button', { name: '搜索文件' })
-    expect(searchButton).toHaveProperty('disabled', true)
-    fireEvent.click(searchButton)
-    expect(actions.onOpenSearch).not.toHaveBeenCalled()
-
-    const newNoteButton = screen.getByRole('button', { name: '新建笔记' })
-    expect(newNoteButton).toHaveProperty('disabled', true)
-    fireEvent.click(newNoteButton)
-    expect(actions.onNewNote).not.toHaveBeenCalled()
+    expect(screen.queryByText('文件库')).toBeNull()
   })
 
-  it('shows "Margin" as fallback vault name when no root', () => {
-    useVaultStore.setState({ root: null, tree: [], expanded: new Set(), selectedPath: null })
-    render(
-      <Sidebar
-        width={260}
-        onOpenFile={() => {}}
-        onContextMenu={() => {}}
-      />
-    )
-
-    expect(screen.getByText('Margin')).toBeTruthy()
-  })
-
-  it('calls onOpenSearch when search button is clicked', () => {
+  it('calls onOpenSearch when enabled search is clicked', () => {
     const actions = handlers()
     render(
       <Sidebar
         width={260}
-        onOpenSearch={actions.onOpenSearch}
+        {...actions}
         onOpenFile={() => {}}
         onContextMenu={() => {}}
       />
@@ -181,13 +159,12 @@ describe('Sidebar header', () => {
     expect(actions.onOpenSearch).toHaveBeenCalledOnce()
   })
 
-  it('calls onNewNote when new-note button is clicked', () => {
+  it('calls onNewNote when the plus action is clicked', () => {
     const actions = handlers()
     render(
       <Sidebar
         width={260}
-        onOpenSearch={actions.onOpenSearch}
-        onNewNote={actions.onNewNote}
+        {...actions}
         onOpenFile={() => {}}
         onContextMenu={() => {}}
       />
@@ -197,8 +174,26 @@ describe('Sidebar header', () => {
     expect(actions.onNewNote).toHaveBeenCalledOnce()
   })
 
-  it('always uses pt-0 spacing for the file library label', () => {
-    render(<Sidebar width={260} onOpenFile={() => {}} onContextMenu={() => {}} />)
-    expect(screen.getByText('文件库').className).toContain('pt-0')
+  it('disables search and new-note when no vault is open', () => {
+    const actions = handlers()
+    useVaultStore.setState({ root: null, tree: [], expanded: new Set(), selectedPath: null })
+    render(
+      <Sidebar
+        width={260}
+        scheduleEnabled={false}
+        {...actions}
+        onOpenFile={() => {}}
+        onContextMenu={() => {}}
+      />
+    )
+
+    const searchButton = screen.getByRole('button', { name: '搜索文件' })
+    const newNoteButton = screen.getByRole('button', { name: '新建笔记' })
+    expect(searchButton).toHaveProperty('disabled', true)
+    expect(newNoteButton).toHaveProperty('disabled', true)
+    fireEvent.click(searchButton)
+    fireEvent.click(newNoteButton)
+    expect(actions.onOpenSearch).not.toHaveBeenCalled()
+    expect(actions.onNewNote).not.toHaveBeenCalled()
   })
 })
