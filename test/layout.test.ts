@@ -28,4 +28,12 @@ describe('layout pane widths', () => {
     persistPaneWidth(LEFT_PANE, 9999)
     expect(loadPaneWidth(LEFT_PANE)).toBe(LEFT_PANE.max)
   })
+
+  it('drops stale pre-Lettera persisted widths once', () => {
+    localStorage.setItem(LEFT_PANE.storageKey, '420')
+    localStorage.setItem(RIGHT_PANE.storageKey, '520')
+
+    expect(loadPaneWidth(LEFT_PANE)).toBe(LEFT_PANE.defaultValue)
+    expect(loadPaneWidth(RIGHT_PANE)).toBe(RIGHT_PANE.defaultValue)
+  })
 })

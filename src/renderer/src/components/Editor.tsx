@@ -253,13 +253,13 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           }
         }),
         EditorView.theme({
-          '&': { height: '100%', fontSize: '15.5px' },
+          '&': { height: '100%', fontSize: '14px' },
           '.cm-content': {
-            maxWidth: '960px',
+            maxWidth: '600px',
             margin: '0 auto',
-            padding: 'clamp(30px, 6vh, 42px) clamp(22px, 5vw, 36px) 168px',
+            padding: 'clamp(78px, 9vh, 92px) 0 168px',
             fontFamily: 'var(--editor)',
-            lineHeight: '1.62'
+            lineHeight: '1.68'
           }
         })
       ]

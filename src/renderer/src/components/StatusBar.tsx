@@ -23,12 +23,12 @@ export function StatusBar({ hasFile }: StatusBarProps): JSX.Element {
   const stats = useDocStats(content)
   return (
     <footer
-      className="flex h-7 shrink-0 items-center gap-4 border-t border-[color:var(--border-soft)] bg-[color:var(--bg-panel)] px-4 text-[11.5px] text-[color:var(--text-faint)]"
+      className="flex h-7 shrink-0 items-center gap-4 border-t border-[color:var(--status-border)] bg-[color:var(--status-bg)] px-4 font-[family-name:var(--mono)] text-[11px] font-medium text-[color:var(--text-faint)]"
       style={{ fontVariantNumeric: 'tabular-nums' }}
     >
       {hasFile && (
-        <span className="font-medium text-[color:var(--text-dim)] before:mr-[7px] before:align-[2px] before:text-[7px] before:text-[color:var(--accent)] before:content-['◆']">
-          正文
+        <span>
+          Markdown · UTF-8 · LF
         </span>
       )}
       <span className="flex-1" />

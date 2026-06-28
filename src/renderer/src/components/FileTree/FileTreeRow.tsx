@@ -1,5 +1,6 @@
-import { ChevronRight, Folder } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
 import type { TreeNode } from '../../../../shared/ipc'
+import { FolderGlyph } from '@/components/icons/FolderGlyph'
 import { fileExt, isMarkdownFile } from '@/lib/fileKinds'
 
 interface FileTreeRowProps {
@@ -79,13 +80,13 @@ export function FileTreeRow({
         if (e.button === 2) handleRightClick(e)
       }}
       title={node.name}
-      style={{ paddingLeft: `${8 + depth * 14}px` }}
+      style={{ paddingLeft: `${8 + depth * 16}px` }}
       className={[
-        'group flex h-[25px] select-none items-center gap-1.5 rounded-md pr-2 text-[12.5px]',
+        'group flex h-[27px] select-none items-center gap-2 rounded-md pr-2 text-[13px]',
         isFolder || canOpen ? 'cursor-pointer' : 'cursor-default',
         selected
-          ? 'border border-[color:var(--sidebar-selected-line)] bg-[color:var(--sidebar-selected)]'
-          : 'border border-transparent hover:bg-[color:var(--sidebar-hover)]'
+          ? 'bg-[color:var(--sidebar-selected)] shadow-[inset_2px_0_0_var(--sidebar-selected-line)]'
+          : 'hover:bg-[color:var(--sidebar-hover)]'
       ].join(' ')}
     >
       <span className="grid w-3 flex-none place-items-center text-[color:var(--text-dim)]">
@@ -98,13 +99,15 @@ export function FileTreeRow({
       </span>
 
       {isFolder ? (
-        <Folder size={14} className="flex-none" style={{ color: 'var(--folder-icon)' }} />
+        <FolderGlyph open={expanded} />
       ) : (
         <span
-          className="grid h-[16px] w-[16px] flex-none place-items-center rounded-[3px] font-[family-name:var(--mono)] text-[8px] font-bold uppercase tracking-tight"
+          className="grid h-[17px] w-[17px] flex-none place-items-center rounded-[4px] font-[family-name:var(--mono)] text-[8px] font-bold uppercase tracking-tight"
           style={{
-            color: `var(${badge?.colorVar})`,
-            background: `color-mix(in oklch, var(${badge?.colorVar}) 14%, transparent)`
+            color: selected ? 'var(--accent-ink)' : `var(${badge?.colorVar})`,
+            background: selected
+              ? `var(${badge?.colorVar})`
+              : `color-mix(in oklch, var(${badge?.colorVar}) 14%, transparent)`
           }}
         >
           {badge?.label}
@@ -114,7 +117,7 @@ export function FileTreeRow({
       <span
         className={[
           'flex-1 truncate',
-          selected ? 'text-foreground font-medium' : 'text-[color:var(--text-dim)]'
+          selected ? 'font-semibold text-[color:var(--accent)]' : 'text-[color:var(--text-dim)]'
         ].join(' ')}
       >
         {node.name}

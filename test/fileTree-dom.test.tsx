@@ -58,6 +58,14 @@ describe('FileTree', () => {
     expect(screen.getByText('inner.md')).toBeTruthy()
   })
 
+  it('uses distinct Lettera folder glyphs for closed and open folders', () => {
+    render(<FileTree onOpenFile={() => {}} onContextMenu={() => {}} />)
+    expect(screen.getAllByTestId('folder-icon-closed')).toHaveLength(1)
+
+    fireEvent.click(screen.getByText('folderA'))
+    expect(screen.getAllByTestId('folder-icon-open')).toHaveLength(1)
+  })
+
   it('fires onContextMenu with node and coordinates on right-click', () => {
     const onContextMenu = vi.fn()
     render(<FileTree onOpenFile={() => {}} onContextMenu={onContextMenu} />)
@@ -83,7 +91,7 @@ describe('Sidebar header', () => {
     }
   }
 
-  it('renders the vault name with search and new-note actions', () => {
+  it('renders search and new-note actions without a vault title', () => {
     const actions = handlers()
     useVaultStore.setState({ root: '/Users/test/Writing', tree, expanded: new Set(), selectedPath: null })
     render(
@@ -95,12 +103,12 @@ describe('Sidebar header', () => {
       />
     )
 
-    expect(screen.getByText('Writing')).toBeTruthy()
+    expect(screen.queryByText('Writing')).toBeNull()
     const buttons = screen.getAllByRole('button').map((button) => button.getAttribute('aria-label'))
     expect(buttons.slice(0, 2)).toEqual(['搜索文件', '新建笔记'])
   })
 
-  it('right-aligns header actions opposite the vault name', () => {
+  it('right-aligns header actions on the toolbar row', () => {
     const actions = handlers()
     render(
       <Sidebar
@@ -112,7 +120,8 @@ describe('Sidebar header', () => {
     )
 
     const headerRow = screen.getByRole('button', { name: '搜索文件' }).parentElement?.parentElement
-    expect(headerRow?.className).toContain('justify-between')
+    expect(headerRow?.className).toContain('justify-end')
+    expect(headerRow?.className).toContain('h-[46px]')
   })
 
   it('omits the new-note action when no handler is provided', () => {

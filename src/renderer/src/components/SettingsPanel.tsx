@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Folder, Plus, Search, Trash2 } from 'lucide-react'
+import { Plus, Search, Trash2 } from 'lucide-react'
+import { FolderGlyph } from '@/components/icons/FolderGlyph'
 import { PluginMarket } from '@/components/PluginMarket'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { UpdateSection } from '@/components/UpdateSection'
@@ -47,7 +48,7 @@ function FolderPicker({ value, folders, onChange }: FolderPickerProps): JSX.Elem
         }}
         className="flex w-full items-center gap-2 rounded-lg border border-[color:var(--border-soft)] bg-[color:var(--bg-elev)] px-2.5 py-1.5 text-left text-[12.5px] text-foreground hover:border-[color:var(--accent-line)]"
       >
-        <Folder size={13} className="flex-none text-[color:var(--text-faint)]" />
+        <FolderGlyph size={16} />
         <span className="flex-1 truncate">{value}</span>
       </button>
 
@@ -83,7 +84,7 @@ function FolderPicker({ value, folders, onChange }: FolderPickerProps): JSX.Elem
                       : 'text-foreground hover:bg-[color:var(--bg-hover)]'
                   ].join(' ')}
                 >
-                  <Folder size={13} className="flex-none" />
+                  <FolderGlyph size={16} />
                   <span className="truncate">{f}</span>
                 </button>
               ))

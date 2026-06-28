@@ -29,14 +29,14 @@ describe('StatusBar', () => {
   it('shows context label and save status when a file is open', () => {
     seed('x', 'saving')
     render(<StatusBar hasFile />)
-    expect(screen.getByText('正文')).toBeTruthy()
+    expect(screen.getByText('Markdown · UTF-8 · LF')).toBeTruthy()
     expect(screen.getByText('保存中…')).toBeTruthy()
   })
 
   it('hides context label and save status when no file is open', () => {
     useDocumentStore.getState().reset()
     render(<StatusBar hasFile={false} />)
-    expect(screen.queryByText('正文')).toBeNull()
+    expect(screen.queryByText('Markdown · UTF-8 · LF')).toBeNull()
     expect(screen.queryByText('已保存')).toBeNull()
   })
 })

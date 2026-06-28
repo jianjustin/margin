@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Folder, FolderOpen, ChevronRight, ChevronDown } from 'lucide-react'
+import { ChevronRight, ChevronDown } from 'lucide-react'
 import type { TreeNode } from '../../../../shared/ipc'
+import { FolderGlyph } from '@/components/icons/FolderGlyph'
 
 interface MoveDialogProps {
   node: TreeNode
@@ -70,7 +71,7 @@ export function MoveDialog({ node, root, rootName, tree, onMove, onClose }: Move
 
   const rowBase =
     'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] transition-colors'
-  const folderIconClass = 'move-folder-icon flex-none'
+  const folderIconClass = 'move-folder-icon'
 
   const renderFolder = (folderNode: TreeNode, depth: number, parentPath: string): JSX.Element[] => {
     if (folderNode.path === node.path) return []
@@ -109,11 +110,7 @@ export function MoveDialog({ node, root, rootName, tree, onMove, onClose }: Move
               : 'text-foreground hover:bg-[color:var(--bg-hover)]'
           ].join(' ')}
         >
-          {isSel ? (
-            <FolderOpen size={14} className={folderIconClass} />
-          ) : (
-            <Folder size={14} className={folderIconClass} />
-          )}
+          <FolderGlyph open={open || isSel} size={17} className={folderIconClass} />
           <span className="truncate">{folderNode.name}</span>
           {isCurrent && (
             <span className="ml-auto text-[10.5px] text-[color:var(--text-faint)]">当前位置</span>
@@ -167,11 +164,7 @@ export function MoveDialog({ node, root, rootName, tree, onMove, onClose }: Move
                 : 'text-foreground hover:bg-[color:var(--bg-hover)]'
             ].join(' ')}
           >
-            {selected === root ? (
-              <FolderOpen size={14} className="flex-none" />
-            ) : (
-              <Folder size={14} className="flex-none" />
-            )}
+            <FolderGlyph open={selected === root} size={17} />
             <span className="truncate">{rootName || '文件库'}</span>
             {root === currentParent && (
               <span className="ml-auto text-[10.5px] text-[color:var(--text-faint)]">当前位置</span>

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback, type PointerEvent as ReactPointerEvent } from 'react'
-import { PanelLeft, PanelRight, Settings } from 'lucide-react'
+import { FolderOpen, PanelLeft, PanelRight, SlidersHorizontal } from 'lucide-react'
+import { CalendarDayIcon } from '@/components/icons/CalendarDayIcon'
 import { SearchOverlay } from '@/components/SearchOverlay'
 import { Editor, type EditorHandle } from '@/components/Editor'
 import { saveDocument, waitForDocumentSaves } from '@/lib/saveDocument'
@@ -23,8 +24,6 @@ import { useDraft } from '@/hooks/useDraft'
 import { DraftBanner } from '@/components/DraftBanner'
 import { ConflictBar } from '@/components/ConflictBar'
 import { StatusBar } from '@/components/StatusBar'
-import { DocumentTabs } from '@/components/DocumentTabs'
-import { useDocStats } from '@/hooks/useDocStats'
 import { open as shellOpen } from '@tauri-apps/plugin-shell'
 import { isExternal, resolveRelative } from '@/lib/resolvePath'
 import { resolveWikiLinkTarget } from '@/lib/wikiLinks'
@@ -83,17 +82,6 @@ function DirtyDot(): JSX.Element {
   )
 }
 
-function WordCountBadge(): JSX.Element {
-  const content = useDocumentStore((s) => s.content)
-  const { words } = useDocStats(content)
-  if (!words) return <></>
-  return (
-    <span className="grid h-[20px] min-w-[24px] place-items-center rounded-full bg-[color:var(--accent-soft)] px-1.5 font-[family-name:var(--mono)] text-[10.5px] font-semibold tabular-nums text-[color:var(--accent)]">
-      {words}
-    </span>
-  )
-}
-
 export default function App(): JSX.Element {
   // Only active-document identity and tab presence are subscribed here — a
   // keystroke changes active tab content, not these values, so App (and the
@@ -102,13 +90,12 @@ export default function App(): JSX.Element {
   // (re)mount, the dirty dot and status bar subscribe to it themselves.
   const path = useDocumentStore((s) => s.path)
   const epoch = useDocumentStore((s) => s.epoch)
-  const hasTabs = useDocumentStore((s) => s.tabs.length > 0)
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const saveTimerPaths = useRef<string[]>([])
   const editorRef = useRef<EditorHandle>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [drawerOpen, setDrawerOpen] = useState(true)
   const [menu, setMenu] = useState<ContextMenuState | null>(null)
   const [moveTarget, setMoveTarget] = useState<TreeNode | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -537,41 +524,9 @@ export default function App(): JSX.Element {
     setDialog({ type: 'newNote', folder: firstFolder })
   }, [])
 
-  /* ── Title bar info ────────────────────────────────────────── */
-
-  const parts = path ? path.split('/') : []
-  const fileName = parts.length > 0 ? parts[parts.length - 1] : ''
-  const parentName = parts.length > 1 ? parts[parts.length - 2] : ''
-
   function handleJumpToLine(line: number): void {
     editorRef.current?.jumpToLine(line)
   }
-
-  const handleActivateTab = useCallback((filePath: string): void => {
-    useDocumentStore.getState().setActivePath(filePath)
-    useVaultStore.getState().select(filePath)
-  }, [])
-
-  const handleCloseTab = useCallback(async (filePath: string): Promise<void> => {
-    const tab = useDocumentStore.getState().tabForPath(filePath)
-    if (!tab) return
-    if (tab.conflict != null) {
-      useDocumentStore.getState().setActivePath(filePath)
-      useVaultStore.getState().select(filePath)
-      return
-    }
-    if (tab.content !== tab.savedContent) {
-      await saveDocument(api.writeFile, api.readFile, filePath)
-      const after = useDocumentStore.getState().tabForPath(filePath)
-      if (!after || after.content !== after.savedContent || after.saveStatus === 'error' || after.conflict != null) {
-        useDocumentStore.getState().setActivePath(filePath)
-        useVaultStore.getState().select(filePath)
-        return
-      }
-    }
-    useDocumentStore.getState().closeTab(filePath)
-    useVaultStore.getState().select(useDocumentStore.getState().activePath)
-  }, [])
 
   function startPaneResize(
     e: ReactPointerEvent,
@@ -605,8 +560,8 @@ export default function App(): JSX.Element {
   /* ── Render ────────────────────────────────────────────────── */
 
   return (
-    <div className="grid h-screen overflow-hidden bg-[color:var(--app-bg)] p-0 text-foreground sm:place-items-center sm:p-7">
-      <div className="flex h-full min-h-0 w-full overflow-hidden bg-[color:var(--bg-elev)] shadow-[var(--shell-shadow)] sm:h-[min(900px,calc(100vh-56px))] sm:max-w-[1440px] sm:rounded-[13px] sm:border sm:border-[color:var(--shell-ring)]">
+    <div className="grid h-screen overflow-hidden bg-[color:var(--app-bg)] p-0 text-foreground">
+      <div className="flex h-full min-h-0 w-full overflow-hidden bg-[color:var(--bg-elev)] shadow-[var(--shell-shadow)]">
       {sidebarOpen && (
         <>
           <Sidebar
@@ -634,43 +589,61 @@ export default function App(): JSX.Element {
         <header
           data-tauri-drag-region
           className={[
-            'flex h-[32px] shrink-0 items-center gap-2 bg-[color:var(--bg-panel)] px-2 text-sm text-[color:var(--text-faint)] border-b border-[color:var(--border-soft)] shadow-[0_1px_3px_rgba(0,0,0,0.08)]',
+            'flex h-[46px] shrink-0 items-center justify-between border-b border-[color:var(--toolbar-border)] bg-[color:var(--bg-elev)] px-[10px] text-sm text-[color:var(--text-faint)]',
             sidebarOpen ? '' : 'pl-20'
           ].join(' ')}
         >
-          {!sidebarOpen && (
+          <div className="flex min-w-0 flex-1 items-center gap-1 [-webkit-app-region:no-drag]">
             <button
-              onClick={() => setSidebarOpen(true)}
-              title="显示文件树 (⌘B)"
-              aria-label="显示文件树"
-              className="grid h-[24px] w-[28px] place-items-center rounded-md text-[color:var(--text-dim)] transition-colors hover:bg-[color:var(--bg-hover)] hover:text-foreground [-webkit-app-region:no-drag]"
+              onClick={() => setSidebarOpen((v) => !v)}
+              title={sidebarOpen ? '隐藏文件树 (⌘B)' : '显示文件树 (⌘B)'}
+              aria-label={sidebarOpen ? '隐藏文件树' : '显示文件树'}
+              className={[
+                'grid h-[27px] w-[28px] place-items-center rounded-[7px] transition-colors',
+                sidebarOpen
+                  ? 'text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)] hover:text-foreground'
+                  : 'bg-[color:var(--accent-soft)] text-[color:var(--accent)]'
+              ].join(' ')}
             >
               <PanelLeft size={16} />
             </button>
-          )}
+            <button
+              onClick={handleOpenFolder}
+              title="打开文件夹"
+              aria-label="打开文件夹"
+              className="grid h-[27px] w-[28px] place-items-center rounded-[7px] text-[color:var(--text-dim)] transition-colors hover:bg-[color:var(--bg-hover)] hover:text-foreground"
+            >
+              <FolderOpen size={16} />
+            </button>
+          </div>
 
-          {hasTabs ? (
-            <DocumentTabs onActivate={handleActivateTab} onClose={handleCloseTab} />
-          ) : (
-            <div data-tauri-drag-region className="min-w-0 flex-1" />
-          )}
+          <div data-tauri-drag-region className="min-w-0 flex-1" />
 
-          <div className="relative flex gap-0.5 [-webkit-app-region:no-drag]">
-            <WordCountBadge />
+          <div className="relative flex flex-1 justify-end gap-1 [-webkit-app-region:no-drag]">
+            {scheduleEnabled && (
+              <button
+                onClick={handleOpenToday}
+                title="今日日程"
+                aria-label="今日日程"
+                className="relative grid h-[27px] w-[28px] place-items-center rounded-[7px] text-[color:var(--text-dim)] transition-colors hover:bg-[color:var(--bg-hover)] hover:text-foreground"
+              >
+                <CalendarDayIcon day={new Date().getDate()} />
+              </button>
+            )}
             <button
               onClick={() => setSettingsOpen(true)}
               title="设置 (⌘,)"
               aria-label="设置"
-              className="grid h-[24px] w-[28px] place-items-center rounded-md text-[color:var(--text-dim)] transition-colors hover:bg-[color:var(--bg-hover)] hover:text-foreground"
+              className="grid h-[27px] w-[28px] place-items-center rounded-[7px] text-[color:var(--text-dim)] transition-colors hover:bg-[color:var(--bg-hover)] hover:text-foreground"
             >
-              <Settings size={16} />
+              <SlidersHorizontal size={16} />
             </button>
             <button
               onClick={() => setDrawerOpen((v) => !v)}
               title="大纲 (⌘\)"
               aria-label="切换大纲"
               className={[
-                'grid h-[24px] w-[28px] place-items-center rounded-md transition-colors',
+                'grid h-[27px] w-[28px] place-items-center rounded-[7px] transition-colors',
                 drawerOpen
                   ? 'bg-[color:var(--accent-soft)] text-[color:var(--accent)] opacity-90'
                   : 'text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)] hover:text-foreground'
@@ -680,18 +653,6 @@ export default function App(): JSX.Element {
             </button>
           </div>
         </header>
-
-        {path && (
-          <div
-            data-tauri-drag-region
-            className="flex h-[22px] shrink-0 items-center justify-center gap-2 border-b border-[color:var(--border-soft)] bg-[color:var(--bg)] px-3 text-[11.5px] font-medium text-[color:var(--text-faint)]"
-          >
-            {parentName && <span>{parentName}</span>}
-            {parentName && <span>/</span>}
-            <span id="title-name" className="truncate">{fileName}</span>
-            <DirtyDot />
-          </div>
-        )}
 
         <div className="flex min-h-0 flex-1">
           <main className="min-h-0 min-w-0 flex-1">
@@ -749,7 +710,13 @@ export default function App(): JSX.Element {
                 onPointerDown={(e) => startPaneResize(e, RIGHT_PANE, rightPaneWidth, setRightPaneWidth, -1)}
                 className="relative z-20 w-[5px] flex-none cursor-col-resize bg-transparent after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-transparent hover:after:bg-[color:var(--accent-line)] [-webkit-app-region:no-drag]"
               />
-              <OutlineDrawer width={rightPaneWidth} onJumpToLine={handleJumpToLine} />
+              <OutlineDrawer
+                width={rightPaneWidth}
+                tree={vaultTree}
+                scheduleDir={scheduleDir}
+                onJumpToLine={handleJumpToLine}
+                onOpenSchedule={(date) => void openSchedule(date)}
+              />
             </>
           )}
         </div>

@@ -4,11 +4,17 @@
   --bg-panel: oklch(0.985 0.003 86);
   --bg-elev: oklch(1 0 0);
   --bg-hover: oklch(0.955 0.006 86);
-  --app-bg: oklch(0.915 0.006 86);
+  --app-bg: oklch(1 0 0);
   --border: oklch(0.895 0.008 86);
-  --border-soft: oklch(0.925 0.006 86);
+  --border-soft: #e9e7e0;
+  --toolbar-border: #f1efe9;
+  --status-border: #ececec;
+  --status-bg: #faf9f5;
+  --checkbox-border: #cdcabf;
   --shell-ring: oklch(0.9 0.008 86);
-  --shell-shadow: 0 30px 80px oklch(0.28 0.03 70 / 0.24), 0 0 0 1px oklch(0.32 0.02 70 / 0.05);
+  --shell-shadow: none;
+  --sidebar-shadow: 1px 0 4px rgba(40, 38, 32, 0.05);
+  --drawer-shadow: -1px 0 4px rgba(40, 38, 32, 0.05);
   --text: oklch(0.26 0.012 80);
   --text-dim: oklch(0.44 0.01 80);
   --text-faint: oklch(0.66 0.008 80);
@@ -18,13 +24,19 @@
   --accent-line: oklch(0.55 0.18 260 / 0.34);
   --sel: oklch(0.55 0.18 260 / 0.16);
   --red: oklch(0.62 0.18 25);
+  --icon-stroke: 1.75;
   --sidebar-bg: oklch(1 0 0);
   --sidebar-search-bg: oklch(0.985 0.003 86);
-  --sidebar-hover: oklch(0.96 0.006 86);
-  --sidebar-selected: oklch(0.55 0.18 260 / 0.11);
+  --sidebar-hover: #f5f3ee;
+  --sidebar-selected: #eef2fb;
   --sidebar-selected-line: oklch(0.55 0.18 260);
   --sidebar-icon: oklch(0.62 0.01 80);
-  --folder-icon: oklch(0.78 0.15 75);
+  --folder-icon: #d9a43c;
+  --folder-stroke: #d79f34;
+  --folder-closed-fill: #fff4d8;
+  --folder-open-back: #fff0c7;
+  --folder-open-front: #ffe5aa;
+  --calendar-icon-fill: oklch(1 0 0);
   --badge-md:    oklch(0.55 0.18 260);
   --badge-img:   oklch(0.56 0.14 150);
   --badge-pdf:   oklch(0.58 0.17 25);
@@ -89,8 +101,14 @@
   --app-bg: oklch(0.125 0.006 70);
   --border: oklch(0.305 0.006 70);
   --border-soft: oklch(0.255 0.006 70);
+  --toolbar-border: oklch(0.255 0.006 70);
+  --status-border: oklch(0.255 0.006 70);
+  --status-bg: oklch(0.185 0.005 70);
+  --checkbox-border: oklch(0.42 0.006 70);
   --shell-ring: oklch(0.32 0.006 70);
   --shell-shadow: 0 30px 80px oklch(0 0 0 / 0.42), 0 0 0 1px oklch(1 0 0 / 0.04);
+  --sidebar-shadow: 1px 0 4px oklch(0 0 0 / 0.18);
+  --drawer-shadow: -1px 0 4px oklch(0 0 0 / 0.18);
   --text: oklch(0.905 0.01 85);
   --text-dim: oklch(0.66 0.01 80);
   --text-faint: oklch(0.49 0.01 80);
@@ -99,6 +117,7 @@
   --accent-soft: oklch(0.62 0.17 260 / 0.16);
   --accent-line: oklch(0.62 0.17 260 / 0.36);
   --sel: oklch(0.62 0.17 260 / 0.2);
+  --icon-stroke: 1.75;
   --sidebar-bg: oklch(0.185 0.005 70);
   --sidebar-search-bg: oklch(0.215 0.006 70);
   --sidebar-hover: oklch(0.245 0.006 70);
@@ -106,6 +125,11 @@
   --sidebar-selected-line: oklch(0.62 0.17 260 / 0.6);
   --sidebar-icon: oklch(0.76 0.02 80 / 0.72);
   --folder-icon: oklch(0.78 0.12 68);
+  --folder-stroke: oklch(0.74 0.11 74);
+  --folder-closed-fill: oklch(0.28 0.04 78);
+  --folder-open-back: oklch(0.25 0.04 76);
+  --folder-open-front: oklch(0.34 0.06 78);
+  --calendar-icon-fill: oklch(0.19 0.005 70);
   --badge-md:    oklch(0.68 0.15 260);
   --badge-img:   oklch(0.58 0.12 145);
   --badge-pdf:   oklch(0.58 0.16 25);
@@ -124,4 +148,8 @@
   --code-comment: #7a8499;
   --code-operator: #89ddff;
   --code-invalid: #ff5370;
+}
+
+svg.lucide {
+  stroke-width: var(--icon-stroke);
 }

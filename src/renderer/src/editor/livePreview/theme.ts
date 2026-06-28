@@ -20,7 +20,7 @@ export const marginEditorTheme = EditorView.theme({
     lineHeight: '1.28',
     color: 'var(--text)'
   },
-  '.cm-h1': { fontSize: '1.44em', fontWeight: '650', lineHeight: '1.28', paddingTop: '6px' },
+  '.cm-h1': { fontSize: '1.42em', fontWeight: '650', lineHeight: '1.28', paddingTop: '6px' },
   '.cm-h2': { fontSize: '1.22em', fontWeight: '635', lineHeight: '1.32', paddingTop: '4px' },
   '.cm-h3': { fontSize: '1.07em', fontWeight: '620', lineHeight: '1.38', paddingTop: '2px' },
   '.cm-h4': { fontSize: '1em', fontWeight: '610' },

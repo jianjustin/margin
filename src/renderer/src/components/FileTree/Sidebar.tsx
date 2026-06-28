@@ -34,25 +34,17 @@ function SidebarInner({
   onContextMenu
 }: SidebarProps): JSX.Element {
   const root = useVaultStore((s) => s.root)
-  const vaultName = root ? root.split('/').filter(Boolean).pop() ?? root : null
 
   return (
     <aside
       style={{ width }}
-      className="flex h-full flex-none flex-col border-r border-[color:var(--border-soft)] bg-[color:var(--sidebar-bg)]"
+      className="flex h-full flex-none flex-col border-r border-[color:var(--border-soft)] bg-[color:var(--sidebar-bg)] shadow-[var(--sidebar-shadow)]"
     >
       <div
         data-tauri-drag-region
-        className="flex h-[40px] shrink-0 items-center justify-between px-3"
+        className="flex h-[46px] shrink-0 items-center justify-end px-[14px] pb-2 pt-[14px]"
       >
-        <span
-          className="select-none truncate text-[13px] font-semibold text-foreground [-webkit-app-region:no-drag]"
-          title={root ?? undefined}
-        >
-          {vaultName ?? 'Margin'}
-        </span>
-
-        <div className="flex items-center gap-0.5 [-webkit-app-region:no-drag]">
+        <div className="flex items-center gap-[13px] [-webkit-app-region:no-drag]">
           <button
             onClick={onOpenSearch}
             disabled={!root}

@@ -13,6 +13,7 @@ import { useVaultStore } from '@/stores/vaultStore'
 const apiMock = vi.hoisted(() => ({
   readFile: vi.fn(),
   writeFile: vi.fn(),
+  ensureNote: vi.fn(),
   renamePath: vi.fn(),
   movePath: vi.fn(),
   trashPath: vi.fn(),
@@ -34,6 +35,7 @@ vi.mock('@/lib/api', () => ({
     scanVault: apiMock.scanVault,
     readFile: apiMock.readFile,
     writeFile: apiMock.writeFile,
+    ensureNote: apiMock.ensureNote,
     renamePath: apiMock.renamePath,
     movePath: apiMock.movePath,
     trashPath: apiMock.trashPath,
@@ -191,6 +193,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   apiMock.readFile.mockResolvedValue('hello')
   apiMock.writeFile.mockResolvedValue(undefined)
+  apiMock.ensureNote.mockResolvedValue('/v/日程/today.md')
   apiMock.renamePath.mockResolvedValue('/v/renamed.md')
   apiMock.movePath.mockResolvedValue('/v/folder/a.md')
   apiMock.trashPath.mockResolvedValue(undefined)
@@ -254,35 +257,31 @@ describe('App re-render isolation', () => {
     expect(fileTreeRenders).toBe(baseline)
   })
 
-  it('renders document tabs and tab activation selects the active file', async () => {
+  it('does not render document tabs in the Lettera app shell', async () => {
     useDocumentStore.getState().openOrActivate('/v/b.md', 'second')
 
     await act(async () => {
       render(<App />)
     })
 
-    expect(screen.getByRole('tablist', { name: '打开的文档' })).toBeTruthy()
-    fireEvent.click(screen.getByRole('tab', { name: /a.md/ }))
-
-    expect(useDocumentStore.getState().activePath).toBe('/v/a.md')
-    expect(useVaultStore.getState().selectedPath).toBe('/v/a.md')
+    expect(screen.queryByRole('tablist', { name: '打开的文档' })).toBeNull()
+    expect(screen.queryByRole('button', { name: '关闭 a.md' })).toBeNull()
   })
 
-  it('saves a dirty tab before closing it', async () => {
-    const store = useDocumentStore.getState()
-    store.setActiveContent('edited')
-
+  it('opens today schedule from the toolbar', async () => {
     await act(async () => {
       render(<App />)
     })
 
-    fireEvent.click(screen.getByRole('button', { name: '关闭 a.md' }))
+    const todayButton = screen.getByRole('button', { name: '今日日程' })
+    expect(todayButton.textContent).toContain(String(new Date().getDate()))
+    fireEvent.click(todayButton)
 
     await waitFor(() => {
-      expect(apiMock.writeFile).toHaveBeenCalledWith('/v/a.md', 'edited')
+      expect(apiMock.ensureNote).toHaveBeenCalled()
     })
     await waitFor(() => {
-      expect(useDocumentStore.getState().tabForPath('/v/a.md')).toBeNull()
+      expect(useDocumentStore.getState().path).toBe('/v/日程/today.md')
     })
   })
 
