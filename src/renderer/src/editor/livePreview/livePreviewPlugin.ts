@@ -245,8 +245,8 @@ interface LivePreviewValue {
  * ViewPlugin) because block-level replacing decorations that cross line breaks
  * — our fenced-code / table / properties widgets — may only be provided through
  * the editor state, not a plugin. Rebuilds when the document changes, or when the
- * selection moves to a different set of lines (which changes Typora-style reveal);
- * a selection change that stays on the same lines reuses the prior decorations.
+ * selection offsets change (marker-level reveal is column-sensitive, see
+ * `revealSignature`); identical-selection transactions reuse the prior decorations.
  */
 export const livePreview = StateField.define<LivePreviewValue>({
   create(state) {
