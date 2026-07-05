@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Plus, Search, Trash2 } from 'lucide-react'
 import { FolderGlyph } from '@/components/icons/FolderGlyph'
 import { PluginMarket } from '@/components/PluginMarket'
@@ -6,6 +6,8 @@ import { ThemeToggle } from '@/components/ThemeToggle'
 import { UpdateSection } from '@/components/UpdateSection'
 import { useUpdater } from '@/hooks/useUpdater'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { Modal } from '@/components/ui/Modal'
+import { ICON_SM, ICON_MD } from '@/components/ui/icon'
 import type { TreeNode } from '../../../shared/ipc'
 
 interface SettingsPanelProps {
@@ -48,14 +50,14 @@ function FolderPicker({ value, folders, onChange }: FolderPickerProps): JSX.Elem
         }}
         className="flex w-full items-center gap-2 rounded-lg border border-[color:var(--border-soft)] bg-[color:var(--bg-elev)] px-2.5 py-1.5 text-left text-[12.5px] text-foreground hover:border-[color:var(--accent-line)]"
       >
-        <FolderGlyph size={16} />
+        <FolderGlyph size={ICON_MD} />
         <span className="flex-1 truncate">{value}</span>
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-10 mt-1 w-full overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-elev)] shadow-[0_16px_36px_oklch(0_0_0/0.14)]">
+        <div className="absolute left-0 top-full z-10 mt-1 w-full overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-elev)] shadow-[var(--shadow-dropdown)]">
           <div className="flex items-center gap-1.5 border-b border-[color:var(--border-soft)] px-2 py-1.5">
-            <Search size={12} className="flex-none text-[color:var(--text-faint)]" />
+            <Search size={ICON_SM} className="flex-none text-[color:var(--text-faint)]" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -84,7 +86,7 @@ function FolderPicker({ value, folders, onChange }: FolderPickerProps): JSX.Elem
                       : 'text-foreground hover:bg-[color:var(--bg-hover)]'
                   ].join(' ')}
                 >
-                  <FolderGlyph size={16} />
+                  <FolderGlyph size={ICON_MD} />
                   <span className="truncate">{f}</span>
                 </button>
               ))
@@ -151,25 +153,19 @@ export function SettingsPanel({ tree, onClose }: SettingsPanelProps): JSX.Elemen
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
   const [pluginMarketOpen, setPluginMarketOpen] = useState(false)
 
-  useEffect(() => {
-    function handleKey(e: KeyboardEvent): void {
-      if (e.key === 'Escape') {
-        if (pluginMarketOpen) setPluginMarketOpen(false)
-        else onClose()
-      }
+  // Modal 的 Esc/遮罩点击都走这里；pluginMarket 打开时优先关 pluginMarket
+  const handleClose = useCallback(() => {
+    if (pluginMarketOpen) {
+      setPluginMarketOpen(false)
+    } else {
+      onClose()
     }
-    window.addEventListener('keydown', handleKey)
-    return () => window.removeEventListener('keydown', handleKey)
-  }, [onClose, pluginMarketOpen])
+  }, [pluginMarketOpen, onClose])
 
   return (
-    <div
-      className="fixed inset-0 z-50 grid place-items-center bg-[oklch(0_0_0/0.24)]"
-      onClick={onClose}
-    >
+    <Modal open onClose={handleClose}>
       <div
-        className="flex h-[520px] w-[680px] max-w-[calc(100vw-32px)] overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[color:var(--bg-elev)] shadow-[0_24px_64px_oklch(0_0_0/0.18)]"
-        onClick={(e) => e.stopPropagation()}
+        className="flex h-[520px] w-[680px] max-w-[calc(100vw-32px)] overflow-hidden"
       >
         <div className="flex w-[160px] flex-none flex-col border-r border-[color:var(--border-soft)] bg-[color:var(--bg-panel)] py-3">
           <div className="px-4 pb-2 text-[11px] font-semibold uppercase tracking-[.08em] text-[color:var(--text-faint)]">
@@ -216,7 +212,7 @@ export function SettingsPanel({ tree, onClose }: SettingsPanelProps): JSX.Elemen
       </div>
 
       {pluginMarketOpen && <PluginMarket onBack={() => setPluginMarketOpen(false)} />}
-    </div>
+    </Modal>
   )
 }
 
@@ -296,7 +292,7 @@ function GeneralTab({ tree }: { tree: TreeNode[] }): JSX.Element {
           className="grid h-[30px] w-[30px] place-items-center rounded-lg border border-[color:var(--border-soft)] text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)] hover:text-foreground"
           aria-label="添加隐藏文件夹"
         >
-          <Plus size={14} />
+          <Plus size={ICON_SM} />
         </button>
       </div>
       <div className={`${descClass} mt-1.5`}>不含斜杠按文件夹名隐藏；含斜杠按文件库相对路径隐藏。</div>
@@ -312,7 +308,7 @@ function GeneralTab({ tree }: { tree: TreeNode[] }): JSX.Element {
                 className="grid h-5 w-5 flex-none place-items-center rounded-md text-[color:var(--text-faint)] hover:bg-[color:var(--bg-hover)] hover:text-[color:var(--red)]"
                 aria-label={`移除隐藏规则 ${rule}`}
               >
-                <Trash2 size={12} />
+                <Trash2 size={ICON_SM} />
               </button>
             </div>
           ))
