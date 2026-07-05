@@ -173,9 +173,11 @@ function revealSignature(state: EditorState): string {
   return sig
 }
 
-function buildInlineDecorations(view: EditorView): { deco: DecorationSet; atomic: DecorationSet } {
-  const state = view.state
-  const specs = collectInlineDecorations(state, view.viewport.from, view.viewport.to)
+export function buildInlineDecorations(
+  state: EditorState,
+  viewport: { from: number; to: number }
+): { deco: DecorationSet; atomic: DecorationSet } {
+  const specs = collectInlineDecorations(state, viewport.from, viewport.to)
   const ranges: Range<Decoration>[] = []
   const atomic: Range<Decoration>[] = []
 
@@ -318,7 +320,7 @@ export const livePreviewInline = ViewPlugin.fromClass(
 
     constructor(view: EditorView) {
       this.sig = revealSignature(view.state)
-      const built = buildInlineDecorations(view)
+      const built = buildInlineDecorations(view.state, view.viewport)
       this.deco = built.deco
       this.atomic = built.atomic
     }
@@ -327,7 +329,7 @@ export const livePreviewInline = ViewPlugin.fromClass(
       const sig = revealSignature(update.state)
       if (!update.docChanged && !update.viewportChanged && sig === this.sig) return
       this.sig = sig
-      const built = buildInlineDecorations(update.view)
+      const built = buildInlineDecorations(update.view.state, update.view.viewport)
       this.deco = built.deco
       this.atomic = built.atomic
     }
@@ -335,7 +337,13 @@ export const livePreviewInline = ViewPlugin.fromClass(
   { decorations: (v) => v.deco }
 )
 
-/** Inline replace 注册为 atomicRanges，光标不落进被隐藏的语法序列（同旧行为，来源改为 plugin）。 */
+/**
+ * Inline replace 注册为 atomicRanges，光标不落进被隐藏的语法序列（同旧行为，来源改为 plugin）。
+ *
+ * 语义收窄说明：atomic 集合现仅覆盖当前 viewport（由 ViewPlugin 的 viewport 限定）。
+ * 当 selection 跳到 viewport 外时，落点行随即被 CM 滚入视图（reveal），下一帧 ViewPlugin
+ * update 触发后 atomic 自动补全该行，整体行为自愈，不影响键盘导航的正确性。
+ */
 export const livePreviewAtomicRanges = EditorView.atomicRanges.of(
   (view) => view.plugin(livePreviewInline)?.atomic ?? Decoration.none
 )
