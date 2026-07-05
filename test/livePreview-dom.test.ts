@@ -4,7 +4,7 @@ import { EditorState } from '@codemirror/state'
 import { EditorView, Decoration } from '@codemirror/view'
 import { cursorCharRight } from '@codemirror/commands'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
-import { livePreview, livePreviewAtomicRanges } from '@/editor/livePreview/livePreviewPlugin'
+import { livePreview, livePreviewAtomicRanges, livePreviewBlock, livePreviewInline } from '@/editor/livePreview/livePreviewPlugin'
 import { marginEditorTheme } from '@/editor/livePreview/theme'
 
 const ALL_FEATURES = [
@@ -56,7 +56,7 @@ const bodyPos = ALL_FEATURES.indexOf('italic') // in prose, away from rich block
 const codePos = ALL_FEATURES.indexOf('const x') // inside the fenced code block
 const fmPos = ALL_FEATURES.indexOf('title:') // inside the frontmatter
 
-describe('livePreview StateField — DOM smoke', () => {
+describe('livePreview (block StateField + inline ViewPlugin) — DOM smoke', () => {
   it('mounts an all-features document without throwing', () => {
     expect(() => {
       view = mount(ALL_FEATURES, 0)
@@ -127,7 +127,7 @@ describe('livePreview image decoration model', () => {
       selection: { anchor: 0 },
       extensions: [markdown({ base: markdownLanguage }), livePreview, marginEditorTheme]
     })
-    const deco = imgState.field(livePreview).deco
+    const deco = imgState.field(livePreviewBlock).deco
     const imgLine = imgState.doc.lineAt(imgPos)
 
     let hasBlockReplaceCoveringImageLine = false
@@ -162,7 +162,7 @@ describe('livePreview image decoration model', () => {
       selection: { anchor: 0 },
       extensions: [markdown({ base: markdownLanguage }), livePreview, marginEditorTheme]
     })
-    const deco = imgState.field(livePreview).deco
+    const deco = imgState.field(livePreviewBlock).deco
     const imgLine = imgState.doc.lineAt(imgPos)
 
     let hasBlockReplaceCoveringImageLine = false
@@ -217,13 +217,8 @@ describe('livePreview atomicRanges — Task 1.5', () => {
   // Cursor is placed on a third line so both bold markers and task marker are hidden.
   it('atomic DecorationSet is non-empty for a doc with bold and task line', () => {
     const doc = 'Some **bold** text.\n- [ ] a task\ncursor here\n'
-    const cursorPos = doc.indexOf('cursor here')
-    const state = EditorState.create({
-      doc,
-      selection: { anchor: cursorPos },
-      extensions: [markdown({ base: markdownLanguage }), livePreview, marginEditorTheme]
-    })
-    const { atomic } = state.field(livePreview)
+    atomicView = mount(doc, doc.indexOf('cursor here'))
+    const atomic = atomicView.plugin(livePreviewInline)!.atomic
     expect(atomic.size).toBeGreaterThan(0)
   })
 
@@ -234,12 +229,8 @@ describe('livePreview atomicRanges — Task 1.5', () => {
     const boldLine = doc.indexOf('Some')
     // cursor on line 2, away from the bold markers
     const cursorOnLine2 = doc.indexOf('Cursor here')
-    const state = EditorState.create({
-      doc,
-      selection: { anchor: cursorOnLine2 },
-      extensions: [markdown({ base: markdownLanguage }), livePreview, marginEditorTheme]
-    })
-    const { atomic } = state.field(livePreview)
+    atomicView = mount(doc, cursorOnLine2)
+    const atomic = atomicView.plugin(livePreviewInline)!.atomic
 
     // Find the positions of the two ** markers in the doc
     const openMarkerFrom = doc.indexOf('**', boldLine)

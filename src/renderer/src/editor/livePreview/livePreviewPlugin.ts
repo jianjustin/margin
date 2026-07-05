@@ -1,6 +1,11 @@
-import { Decoration, type DecorationSet, EditorView } from '@codemirror/view'
-import { StateField, type EditorState, type Range } from '@codemirror/state'
-import { collectDecorations } from './decorationSpecs'
+import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate } from '@codemirror/view'
+import { StateField, type EditorState, type Extension, type Range } from '@codemirror/state'
+import {
+  collectBlockDecorations,
+  collectInlineDecorations,
+  type BlockRegion
+} from './decorationSpecs'
+import { rangeRevealed } from './reveal'
 import {
   CheckboxWidget,
   HrWidget,
@@ -37,12 +42,137 @@ const quoteLine = Decoration.line({ class: 'cm-blockquote' })
 const codeLine = Decoration.line({ class: 'cm-code-block' })
 const frontmatterLine = Decoration.line({ class: 'cm-frontmatter' })
 
-function buildDecorations(state: EditorState): { deco: DecorationSet; atomic: DecorationSet } {
-  const specs = collectDecorations(state)
+function resolveAsset(state: EditorState, src: string): string | null {
+  const dp = state.facet(docPathFacet)
+  const root = state.facet(vaultRootFacet)
+  const cfg = state.facet(richContentConfigFacet)
+  return isExternal(src) ? src : resolveMarkdownAsset(src, dp, root, cfg.assetsDir)
+}
+
+export interface LivePreviewBlockValue {
+  deco: DecorationSet
+  regions: readonly BlockRegion[]
+  /** 每个 region 一位：当前 selection 是否 reveal 它。Task 5 用于短路。 */
+  bits: string
+}
+
+function revealBits(state: EditorState, regions: readonly BlockRegion[]): string {
+  let bits = ''
+  for (const r of regions) bits += rangeRevealed(state, r.from, r.to) ? '1' : '0'
+  return bits
+}
+
+function buildBlockValue(state: EditorState): LivePreviewBlockValue {
+  const { specs, regions } = collectBlockDecorations(state)
+  const ranges: Range<Decoration>[] = []
+  for (const s of specs) {
+    switch (s.kind) {
+      case 'frontmatter':
+        ranges.push(frontmatterLine.range(s.from))
+        break
+      case 'codeLine':
+        ranges.push(codeLine.range(s.from))
+        break
+      case 'properties':
+        ranges.push(
+          Decoration.replace({
+            widget: new PropertiesWidget(s.source ?? '', s.from, s.to),
+            block: true
+          }).range(s.from, s.to)
+        )
+        break
+      case 'codeBlock':
+        ranges.push(
+          Decoration.replace({
+            widget: new CodeBlockWidget(s.source ?? '', s.info ?? ''),
+            block: true
+          }).range(s.from, s.to)
+        )
+        break
+      case 'diagramBlock': {
+        const cfg = state.facet(richContentConfigFacet)
+        ranges.push(
+          Decoration.replace({
+            widget: new DiagramWidget(s.source ?? '', s.info ?? 'mermaid', cfg.plantUmlServerUrl, cfg.diagramFitWidth),
+            block: true
+          }).range(s.from, s.to)
+        )
+        break
+      }
+      case 'table':
+        ranges.push(
+          Decoration.replace({
+            widget: new TableWidget(s.source ?? '', s.from, s.to),
+            block: true
+          }).range(s.from, s.to)
+        )
+        break
+      case 'mathBlock': {
+        const cfg = state.facet(richContentConfigFacet)
+        if (cfg.mathEnabled) {
+          ranges.push(
+            Decoration.replace({ widget: new MathWidget(s.source ?? '', true), block: true }).range(s.from, s.to)
+          )
+        }
+        break
+      }
+      case 'callout':
+        ranges.push(
+          Decoration.replace({
+            widget: new CalloutWidget(s.info ?? 'note', s.title ?? '', s.source ?? '', s.folded ?? false),
+            block: true
+          }).range(s.from, s.to)
+        )
+        break
+      case 'image':
+      case 'media': {
+        if (s.placement !== 'block') break
+        const src = s.source ?? ''
+        const resolved = resolveAsset(state, src)
+        const widget =
+          s.kind === 'media'
+            ? new MediaBlockWidget(src, s.info ?? '', resolved, s.width, s.height)
+            : new ImageBlockWidget(src, s.info ?? '', resolved, s.width, s.height)
+        ranges.push(
+          Decoration.widget({ widget, block: true, side: 1 }).range(state.doc.lineAt(s.to).to)
+        )
+        break
+      }
+    }
+  }
+  return { deco: Decoration.set(ranges, true), regions, bits: revealBits(state, regions) }
+}
+
+export const livePreviewBlock = StateField.define<LivePreviewBlockValue>({
+  create: (state) => buildBlockValue(state),
+  update(value, tr) {
+    // Task 4 阶段：doc 或 selection 变化即重建（与旧行为一致）；Task 5 加短路
+    if (tr.docChanged || tr.selection) return buildBlockValue(tr.state)
+    return value
+  },
+  provide: (f) => EditorView.decorations.from(f, (v) => v.deco)
+})
+
+/**
+ * Fingerprint of the exact selection offsets. Marker-level reveal (see
+ * `markerRevealed`) depends on cursor *columns*, not just lines, so any
+ * selection change may flip a marker — rebuild whenever offsets change.
+ * Identical-selection transactions (e.g. focus events) still skip rebuilds.
+ */
+function revealSignature(state: EditorState): string {
+  let sig = ''
+  for (const r of state.selection.ranges) {
+    sig += r.from + '-' + r.to + ','
+  }
+  return sig
+}
+
+function buildInlineDecorations(view: EditorView): { deco: DecorationSet; atomic: DecorationSet } {
+  const state = view.state
+  const specs = collectInlineDecorations(state, view.viewport.from, view.viewport.to)
   const ranges: Range<Decoration>[] = []
   const atomic: Range<Decoration>[] = []
 
-  /** Push an inline replace decoration into both ranges and atomic. */
   function pushInlineReplace(deco: Decoration, from: number, to: number): void {
     ranges.push(deco.range(from, to))
     atomic.push(deco.range(from, to))
@@ -87,12 +217,6 @@ function buildDecorations(state: EditorState): { deco: DecorationSet; atomic: De
       case 'quoteLine':
         ranges.push(quoteLine.range(s.from))
         break
-      case 'codeLine':
-        ranges.push(codeLine.range(s.from))
-        break
-      case 'frontmatter':
-        ranges.push(frontmatterLine.range(s.from))
-        break
       case 'hr':
         if (!s.revealed) {
           pushInlineReplace(Decoration.replace({ widget: new HrWidget(), block: false }), s.from, s.to)
@@ -112,104 +236,6 @@ function buildDecorations(state: EditorState): { deco: DecorationSet; atomic: De
       case 'taskDoneText':
         if (!s.revealed) ranges.push(taskDoneMark.range(s.from, s.to))
         break
-      case 'codeBlock':
-        ranges.push(
-          Decoration.replace({
-            widget: new CodeBlockWidget(s.source ?? '', s.info ?? ''),
-            block: true
-          }).range(s.from, s.to)
-        )
-        break
-      case 'diagramBlock': {
-        const cfg = state.facet(richContentConfigFacet)
-        ranges.push(
-          Decoration.replace({
-            widget: new DiagramWidget(s.source ?? '', s.info ?? 'mermaid', cfg.plantUmlServerUrl, cfg.diagramFitWidth),
-            block: true
-          }).range(s.from, s.to)
-        )
-        break
-      }
-      case 'table':
-        ranges.push(
-          Decoration.replace({
-            widget: new TableWidget(s.source ?? '', s.from, s.to),
-            block: true
-          }).range(s.from, s.to)
-        )
-        break
-      case 'properties':
-        ranges.push(
-          Decoration.replace({
-            widget: new PropertiesWidget(s.source ?? '', s.from, s.to),
-            block: true
-          }).range(s.from, s.to)
-        )
-        break
-      case 'image': {
-        const src = s.source ?? ''
-        const dp = state.facet(docPathFacet)
-        const root = state.facet(vaultRootFacet)
-        const cfg = state.facet(richContentConfigFacet)
-        const resolved = isExternal(src) ? src : resolveMarkdownAsset(src, dp, root, cfg.assetsDir)
-        if (s.placement === 'block') {
-          // Preview lives BELOW the line as a side widget — the source line itself
-          // is never block-replaced, so vertical cursor motion can land on it.
-          ranges.push(
-            Decoration.widget({
-              widget: new ImageBlockWidget(src, s.info ?? '', resolved, s.width, s.height),
-              block: true,
-              side: 1
-            }).range(state.doc.lineAt(s.to).to)
-          )
-          if (!s.revealed) {
-            // hideMark on a standalone image source line is an inline replace
-            pushInlineReplace(hideMark, s.from, s.to)
-          } else {
-            ranges.push(imageSrcMark.range(s.from, s.to))
-          }
-        } else if (!s.revealed) {
-          pushInlineReplace(
-            Decoration.replace({ widget: new ImageWidget(src, s.info ?? '', resolved, s.width, s.height) }),
-            s.from,
-            s.to
-          )
-        } else {
-          ranges.push(imageSrcMark.range(s.from, s.to))
-        }
-        break
-      }
-      case 'media': {
-        const src = s.source ?? ''
-        const dp = state.facet(docPathFacet)
-        const root = state.facet(vaultRootFacet)
-        const cfg = state.facet(richContentConfigFacet)
-        const resolved = isExternal(src) ? src : resolveMarkdownAsset(src, dp, root, cfg.assetsDir)
-        if (s.placement === 'block') {
-          ranges.push(
-            Decoration.widget({
-              widget: new MediaBlockWidget(src, s.info ?? '', resolved, s.width, s.height),
-              block: true,
-              side: 1
-            }).range(state.doc.lineAt(s.to).to)
-          )
-          if (!s.revealed) {
-            // hideMark on a standalone media source line is an inline replace
-            pushInlineReplace(hideMark, s.from, s.to)
-          } else {
-            ranges.push(imageSrcMark.range(s.from, s.to))
-          }
-        } else if (!s.revealed) {
-          pushInlineReplace(
-            Decoration.replace({ widget: new MediaWidget(src, s.info ?? '', resolved, s.width, s.height) }),
-            s.from,
-            s.to
-          )
-        } else {
-          ranges.push(imageSrcMark.range(s.from, s.to))
-        }
-        break
-      }
       case 'footnoteRef':
         pushInlineReplace(
           Decoration.replace({ widget: new FootnoteWidget(s.source ?? '', s.info ?? '') }),
@@ -233,23 +259,6 @@ function buildDecorations(state: EditorState): { deco: DecorationSet; atomic: De
         }
         break
       }
-      case 'mathBlock': {
-        const cfg = state.facet(richContentConfigFacet)
-        if (cfg.mathEnabled) {
-          ranges.push(
-            Decoration.replace({ widget: new MathWidget(s.source ?? '', true), block: true }).range(s.from, s.to)
-          )
-        }
-        break
-      }
-      case 'callout':
-        ranges.push(
-          Decoration.replace({
-            widget: new CalloutWidget(s.info ?? 'note', s.title ?? '', s.source ?? '', s.folded ?? false),
-            block: true
-          }).range(s.from, s.to)
-        )
-        break
       case 'listBullet':
         if (!s.revealed) {
           pushInlineReplace(
@@ -268,68 +277,65 @@ function buildDecorations(state: EditorState): { deco: DecorationSet; atomic: De
           )
         }
         break
+      case 'image':
+      case 'media': {
+        const src = s.source ?? ''
+        if (s.placement === 'block') {
+          // block widget 由 StateField 提供；这里只管源行的隐藏/标注
+          if (!s.revealed) {
+            pushInlineReplace(hideMark, s.from, s.to)
+          } else {
+            ranges.push(imageSrcMark.range(s.from, s.to))
+          }
+        } else if (!s.revealed) {
+          const resolved = resolveAsset(state, src)
+          const widget =
+            s.kind === 'media'
+              ? new MediaWidget(src, s.info ?? '', resolved, s.width, s.height)
+              : new ImageWidget(src, s.info ?? '', resolved, s.width, s.height)
+          pushInlineReplace(Decoration.replace({ widget }), s.from, s.to)
+        } else {
+          ranges.push(imageSrcMark.range(s.from, s.to))
+        }
+        break
+      }
     }
   }
-
-  // sort=true lets CodeMirror order the mixed point/range decorations correctly.
-  return {
-    deco: Decoration.set(ranges, true),
-    atomic: Decoration.set(atomic, true)
-  }
+  return { deco: Decoration.set(ranges, true), atomic: Decoration.set(atomic, true) }
 }
 
-/**
- * Fingerprint of the exact selection offsets. Marker-level reveal (see
- * `markerRevealed`) depends on cursor *columns*, not just lines, so any
- * selection change may flip a marker — rebuild whenever offsets change.
- * Identical-selection transactions (e.g. focus events) still skip rebuilds.
- */
-function revealSignature(state: EditorState): string {
-  let sig = ''
-  for (const r of state.selection.ranges) {
-    sig += r.from + '-' + r.to + ','
-  }
-  return sig
-}
+export const livePreviewInline = ViewPlugin.fromClass(
+  class {
+    deco: DecorationSet
+    atomic: DecorationSet
+    sig: string
 
-interface LivePreviewValue {
-  deco: DecorationSet
-  /** Inline replace decorations only — registered as atomicRanges so the cursor
-   *  cannot stop inside a hidden syntax sequence. */
-  atomic: DecorationSet
-  /** revealSignature of the state this `deco` was built from. */
-  sig: string
-}
+    constructor(view: EditorView) {
+      this.sig = revealSignature(view.state)
+      const built = buildInlineDecorations(view)
+      this.deco = built.deco
+      this.atomic = built.atomic
+    }
 
-/**
- * The live-preview decoration layer. Implemented as a StateField (not a
- * ViewPlugin) because block-level replacing decorations that cross line breaks
- * — our fenced-code / table / properties widgets — may only be provided through
- * the editor state, not a plugin. Rebuilds when the document changes, or when the
- * selection offsets change (marker-level reveal is column-sensitive, see
- * `revealSignature`); identical-selection transactions reuse the prior decorations.
- */
-export const livePreview = StateField.define<LivePreviewValue>({
-  create(state) {
-    const { deco, atomic } = buildDecorations(state)
-    return { deco, atomic, sig: revealSignature(state) }
+    update(update: ViewUpdate): void {
+      const sig = revealSignature(update.state)
+      if (!update.docChanged && !update.viewportChanged && sig === this.sig) return
+      this.sig = sig
+      const built = buildInlineDecorations(update.view)
+      this.deco = built.deco
+      this.atomic = built.atomic
+    }
   },
-  update(value, tr) {
-    if (tr.docChanged) {
-      const { deco, atomic } = buildDecorations(tr.state)
-      return { deco, atomic, sig: revealSignature(tr.state) }
-    }
-    if (tr.selection) {
-      const sig = revealSignature(tr.state)
-      if (sig === value.sig) return value
-      const { deco, atomic } = buildDecorations(tr.state)
-      return { deco, atomic, sig }
-    }
-    return value
-  },
-  provide: (f) => EditorView.decorations.from(f, (v) => v.deco)
-})
-
-export const livePreviewAtomicRanges = EditorView.atomicRanges.of(
-  (view) => view.state.field(livePreview).atomic
+  { decorations: (v) => v.deco }
 )
+
+/** Inline replace 注册为 atomicRanges，光标不落进被隐藏的语法序列（同旧行为，来源改为 plugin）。 */
+export const livePreviewAtomicRanges = EditorView.atomicRanges.of(
+  (view) => view.plugin(livePreviewInline)?.atomic ?? Decoration.none
+)
+
+/**
+ * live-preview 装饰层入口：block 级来自 StateField（CM 要求），inline 级来自
+ * viewport 限定的 ViewPlugin。
+ */
+export const livePreview: Extension = [livePreviewBlock, livePreviewInline]
