@@ -68,7 +68,7 @@ export const marginEditorTheme = EditorView.theme({
     margin: '7px 0',
     overflowX: 'auto',
     whiteSpace: 'pre',
-    boxShadow: 'inset 0 1px 0 oklch(1 0 0 / 0.03)'
+    boxShadow: 'inset 0 1px 0 var(--code-inset-highlight)'
   },
   '.cm-code-render code': { display: 'block', paddingRight: '60px', whiteSpace: 'pre', fontFamily: MONO },
   '.cm-code-lang': {

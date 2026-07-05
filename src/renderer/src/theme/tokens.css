@@ -72,6 +72,17 @@
   --sidebar-w: 262px;
   --drawer-w: 280px;
 
+  /* Overlay & layer tokens */
+  --overlay: oklch(0 0 0 / 0.4);
+  --shadow-modal: 0 24px 64px oklch(0 0 0 / 0.5);
+  --shadow-popover: 0 18px 48px oklch(0 0 0 / 0.45);
+  --shadow-dropdown: 0 16px 36px oklch(0 0 0 / 0.14);
+  --radius-modal: 12px;
+  --radius-popover: 10px;
+  --radius-control: 8px;
+  --mark-highlight: oklch(0.89 0.12 92 / 0.62);
+  --code-inset-highlight: oklch(1 0 0 / 0.03);
+
   /* shadcn variable names mapped onto the semantic tokens. */
   --background: var(--bg);
   --foreground: var(--text);
@@ -109,6 +120,9 @@
   --shell-shadow: 0 30px 80px oklch(0 0 0 / 0.42), 0 0 0 1px oklch(1 0 0 / 0.04);
   --sidebar-shadow: 1px 0 4px oklch(0 0 0 / 0.18);
   --drawer-shadow: -1px 0 4px oklch(0 0 0 / 0.18);
+  --shadow-modal: 0 24px 64px oklch(0 0 0 / 0.6);
+  --shadow-popover: 0 18px 48px oklch(0 0 0 / 0.55);
+  --shadow-dropdown: 0 16px 36px oklch(0 0 0 / 0.4);
   --text: oklch(0.905 0.01 85);
   --text-dim: oklch(0.66 0.01 80);
   --text-faint: oklch(0.49 0.01 80);

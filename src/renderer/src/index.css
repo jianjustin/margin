@@ -111,7 +111,7 @@
 
 .cm-highlight {
   border-radius: 3px;
-  background: oklch(0.89 0.12 92 / 0.62);
+  background: var(--mark-highlight);
   padding: 0 1px;
 }
 
