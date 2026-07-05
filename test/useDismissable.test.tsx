@@ -85,4 +85,13 @@ describe('useDismissable', () => {
     fireEvent.mouseDown(getByTestId('outside'))
     expect(onClose).not.toHaveBeenCalled()
   })
+
+  it('非 Escape 键不触发 onClose', () => {
+    const onClose = vi.fn()
+    render(<NoOutsideRef onClose={onClose} enabled={true} />)
+    fireEvent.keyDown(window, { key: 'a' })
+    expect(onClose).not.toHaveBeenCalled()
+    fireEvent.keyDown(window, { key: 'Enter' })
+    expect(onClose).not.toHaveBeenCalled()
+  })
 })

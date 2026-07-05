@@ -200,7 +200,7 @@ export function SettingsPanel({ tree, onClose }: SettingsPanelProps): JSX.Elemen
           </button>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-6 py-5">
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-[color:var(--bg-elev)] px-6 py-5">
           {activeTab === 'general' && <GeneralTab tree={tree} />}
           {activeTab === 'editor' && <EditorTab />}
           {(activeTab === 'sync' || activeTab === 'shortcuts' || activeTab === 'advanced') && (
