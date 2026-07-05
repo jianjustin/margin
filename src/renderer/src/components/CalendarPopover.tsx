@@ -1,12 +1,16 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { formatDateKey } from '@/lib/schedule'
+import { Popover } from '@/components/ui/Popover'
+import { ICON_MD } from '@/components/ui/icon'
 
 interface CalendarPopoverProps {
   /** `YYYY-MM-DD` keys that already have a schedule note (rendered with a dot). */
   scheduleDates: Set<string>
   onPick: (date: Date) => void
   onClose: () => void
+  /** 浮层锚点坐标（由触发按钮传入）。 */
+  anchor: { x: number; y: number }
 }
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
@@ -28,43 +32,25 @@ function monthGrid(view: Date): Date[] {
 export function CalendarPopover({
   scheduleDates,
   onPick,
-  onClose
+  onClose,
+  anchor
 }: CalendarPopoverProps): JSX.Element {
   const today = new Date()
   const [view, setView] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1))
-  const rootRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    function handle(e: MouseEvent): void {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) onClose()
-    }
-    function handleKey(e: KeyboardEvent): void {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('mousedown', handle)
-    window.addEventListener('keydown', handleKey)
-    return () => {
-      window.removeEventListener('mousedown', handle)
-      window.removeEventListener('keydown', handleKey)
-    }
-  }, [onClose])
 
   const cells = monthGrid(view)
   const todayKey = formatDateKey(today)
   const viewMonth = view.getMonth()
 
   return (
-    <div
-      ref={rootRef}
-      className="absolute right-0 top-[34px] z-50 w-[268px] rounded-[10px] border border-[color:var(--border)] bg-[color:var(--bg-elev)] p-3 shadow-[0_18px_48px_oklch(0_0_0/0.45)]"
-    >
+    <Popover anchor={anchor} onClose={onClose} className="w-[268px] p-3">
       <div className="mb-2 flex items-center justify-between">
         <button
           onClick={() => setView((v) => new Date(v.getFullYear(), v.getMonth() - 1, 1))}
           aria-label="上个月"
           className="grid h-6 w-6 place-items-center rounded-md text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)] hover:text-foreground"
         >
-          <ChevronLeft size={15} />
+          <ChevronLeft size={ICON_MD} />
         </button>
         <span className="text-[12.5px] font-semibold tracking-wide">
           {MONTH_LABEL(view.getFullYear(), view.getMonth())}
@@ -74,7 +60,7 @@ export function CalendarPopover({
           aria-label="下个月"
           className="grid h-6 w-6 place-items-center rounded-md text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)] hover:text-foreground"
         >
-          <ChevronRight size={15} />
+          <ChevronRight size={ICON_MD} />
         </button>
       </div>
 
@@ -113,6 +99,6 @@ export function CalendarPopover({
           )
         })}
       </div>
-    </div>
+    </Popover>
   )
 }
