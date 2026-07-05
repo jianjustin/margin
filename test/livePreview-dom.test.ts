@@ -264,7 +264,7 @@ describe('livePreview atomicRanges — Task 1.5', () => {
   // jsdom (no real layout engine). This test is therefore skipped to avoid a flaky
   // environment error. Assertions ① and ② above already prove the atomic set is
   // correctly populated; the actual skip-in-one-step behaviour is verified by the
-  // atomicRanges extension contract at runtime in the Electron shell.
+  // atomicRanges extension contract at runtime in the Tauri webview.
   it.skip('cursorCharRight skips over hidden ** markers (requires real layout — skipped in jsdom)', () => {
     // Kept as documentation. To verify manually:
     // 1. Open the app with a doc containing `**bold**`.
