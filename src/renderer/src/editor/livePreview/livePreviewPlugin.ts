@@ -129,12 +129,14 @@ function buildBlockValue(state: EditorState): LivePreviewBlockValue {
         if (s.placement !== 'block') break
         const src = s.source ?? ''
         const resolved = resolveAsset(state, src)
+        const line = state.doc.lineAt(s.to)
+        const lineKey = `${state.facet(docPathFacet) ?? ''}:${line.number}`
         const widget =
           s.kind === 'media'
             ? new MediaBlockWidget(src, s.info ?? '', resolved, s.width, s.height)
-            : new ImageBlockWidget(src, s.info ?? '', resolved, s.width, s.height)
+            : new ImageBlockWidget(src, s.info ?? '', resolved, s.width, s.height, lineKey)
         ranges.push(
-          Decoration.widget({ widget, block: true, side: 1 }).range(state.doc.lineAt(s.to).to)
+          Decoration.widget({ widget, block: true, side: 1 }).range(line.to)
         )
         break
       }

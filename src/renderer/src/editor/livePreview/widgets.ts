@@ -715,6 +715,16 @@ export class PropertiesWidget extends WidgetType {
 /** Natural-size cache so decoration rebuilds don't cause layout jumps. */
 const imageDims = new Map<string, { w: number; h: number }>()
 
+/** 每个「文档:行号」上次成功显示的 URL —— URL 编辑期间旧图兜底显示用。 */
+const lastGoodByKey = new Map<string, string>()
+
+export const IMAGE_RETRY_DEBOUNCE_MS = 300
+
+export function __resetImageWidgetCachesForTests(): void {
+  imageDims.clear()
+  lastGoodByKey.clear()
+}
+
 function toDisplayUrl(p: string): string {
   if (/^(https?:|data:|asset:)/i.test(p)) return p
   try {
@@ -762,7 +772,8 @@ export class ImageWidget extends WidgetType {
     /** Absolute path or external URL; null when unresolvable (no doc path). */
     readonly resolved: string | null,
     readonly width?: number,
-    readonly height?: number
+    readonly height?: number,
+    readonly lineKey?: string
   ) {
     super()
   }
@@ -773,7 +784,8 @@ export class ImageWidget extends WidgetType {
       other.alt === this.alt &&
       other.resolved === this.resolved &&
       other.width === this.width &&
-      other.height === this.height
+      other.height === this.height &&
+      other.lineKey === this.lineKey
     )
   }
 
@@ -783,6 +795,8 @@ export class ImageWidget extends WidgetType {
     if (!this.resolved) return this.renderError(wrap)
 
     let currentUrl = toDisplayUrl(this.resolved)
+    let displayedUrl = ''
+    let usedLastGood = false
     let triedLocalBytes = false
     let remoteFallbackUsed = false
     const img = document.createElement('img')
@@ -791,26 +805,51 @@ export class ImageWidget extends WidgetType {
     if (this.height) img.style.height = `${this.height}px`
     const dims = imageDims.get(currentUrl)
     if (dims) img.style.aspectRatio = `${dims.w} / ${dims.h}`
+
+    const show = (url: string): void => {
+      displayedUrl = url
+      img.src = url
+    }
+
+    /** 最终失败：有 last-good 就回退旧图（编辑期不闪错误），否则错误占位。 */
+    const showFailure = (failedUrl: string): void => {
+      const lastGood = this.lineKey ? lastGoodByKey.get(this.lineKey) : undefined
+      if (lastGood && !usedLastGood) {
+        usedLastGood = true
+        show(lastGood)
+      } else {
+        wrap.textContent = ''
+        this.renderError(wrap, failedUrl)
+      }
+      view.requestMeasure()
+    }
+
     img.addEventListener('mousedown', (event) => {
       if (!(event.metaKey || event.ctrlKey)) return
       event.preventDefault()
       wrap.dispatchEvent(
         new CustomEvent('margin-open-image-preview', {
-          detail: { src: currentUrl, alt: this.alt },
+          detail: { src: displayedUrl, alt: this.alt },
           bubbles: true,
           composed: true
         })
       )
     })
+
     img.addEventListener('load', () => {
       if (!wrap.isConnected) return
+      // 只有目标 URL（而非 last-good 兜底）加载成功才登记
+      if (displayedUrl !== currentUrl) return
+      if (this.lineKey) lastGoodByKey.set(this.lineKey, currentUrl)
       if (!imageDims.has(currentUrl)) {
         imageDims.set(currentUrl, { w: img.naturalWidth, h: img.naturalHeight })
         view.requestMeasure()
       }
     })
+
     img.addEventListener('error', () => {
       if (!wrap.isConnected) return
+      if (displayedUrl !== currentUrl) return // last-good 兜底图失败：不进回退链
 
       // Local file fallback: try reading as a data URL (handles Tauri asset:// quirks).
       if (!triedLocalBytes && this.resolved && canReadLocalImage(this.resolved)) {
@@ -821,14 +860,12 @@ export class ImageWidget extends WidgetType {
           .then((dataUrl) => {
             if (!wrap.isConnected) return
             currentUrl = dataUrl
-            img.src = currentUrl
+            show(currentUrl)
             view.requestMeasure()
           })
           .catch(() => {
             if (!wrap.isConnected) return
-            wrap.textContent = ''
-            this.renderError(wrap, failedUrl)
-            view.requestMeasure()
+            showFailure(failedUrl)
           })
         return
       }
@@ -842,7 +879,7 @@ export class ImageWidget extends WidgetType {
           .then((cachedPath) => {
             if (!wrap.isConnected) return
             currentUrl = toDisplayUrl(cachedPath)
-            img.src = currentUrl
+            show(currentUrl)
             view.requestMeasure()
           })
           .catch(() => {
@@ -852,24 +889,32 @@ export class ImageWidget extends WidgetType {
               .then((dataUrl) => {
                 if (!wrap.isConnected) return
                 currentUrl = dataUrl
-                img.src = currentUrl
+                show(currentUrl)
                 view.requestMeasure()
               })
               .catch(() => {
                 if (!wrap.isConnected) return
-                wrap.textContent = ''
-                this.renderError(wrap, failedUrl)
-                view.requestMeasure()
+                showFailure(failedUrl)
               })
           })
         return
       }
 
-      wrap.textContent = ''
-      this.renderError(wrap, currentUrl)
-      view.requestMeasure()
+      showFailure(currentUrl)
     })
-    img.src = currentUrl
+
+    const lastGood = this.lineKey ? lastGoodByKey.get(this.lineKey) : undefined
+    if (!imageDims.has(currentUrl) && lastGood && lastGood !== currentUrl) {
+      // URL 尚不知好坏且有旧图：先显示旧图，等编辑间隙再试新 URL。
+      // 打字过程中本 widget 会先被销毁（isConnected=false），失败加载自然不发生。
+      show(lastGood)
+      window.setTimeout(() => {
+        if (!wrap.isConnected) return
+        show(currentUrl)
+      }, IMAGE_RETRY_DEBOUNCE_MS)
+    } else {
+      show(currentUrl)
+    }
     wrap.appendChild(img)
     return wrap
   }
