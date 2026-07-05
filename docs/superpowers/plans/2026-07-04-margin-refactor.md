@@ -681,6 +681,17 @@ export function Button({ className, variant, size, ...props }: ButtonProps): JSX
 
 # P3 分层重构（任务分解 + 接口契约）
 
+## Task 3.0: 原语层补课（P2 终审产出，2026-07-05 追加）
+
+P2 签收时挂账的原语层完善项，开工 P3 时先做或与 3.1 并行：
+- Popover：视口防溢出（clamp/翻转，惠及 SlashMenu/RowContextMenu）+ forwardRef 暴露内层 ref（修复 RowContextMenu 菜单内右键误关的迁移回归）。
+- Modal/Popover 无障碍：`role="dialog"`/`aria-modal`、焦点陷阱、关闭后焦点归还。
+- Esc 栈式分层：挂载序 LIFO 注册表，后开先关（useDismissable 现状为多浮层同关，JSDoc 已声明限制）。
+- SettingsPanel FolderPicker 收编 `useDismissable` + `--radius-popover`（消灭第 9 份手写 click-outside）。
+- 清理：删除 index.css 的 `slash-in` 死 keyframes；CalendarPopover 零调用方——接入 OutlineDrawer 或删除；PluginMarket 容器收敛到 Modal 原语。
+- Modal `width` 改为 `min(width, calc(100vw - 32px))` 钳制。
+- 图标尺寸全局归一（DocumentTabs/FileTreeRow/Sidebar/OutlineDrawer/UpdateSection/BacklinksPanel 仍有 11/12/13/15 残留）；`--shadow-sm` 与图片预览阴影 token 在出现第二处用例时一并抽取。
+
 ## Task 3.1: `stores/uiStore.ts` — UI 布局状态收口
 
 **Files:** Create: `src/renderer/src/stores/uiStore.ts`；Test: `test/uiStore.test.ts`；Modify: `App.tsx:97-105`
