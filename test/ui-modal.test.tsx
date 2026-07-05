@@ -82,6 +82,27 @@ describe('Modal', () => {
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(onClose).not.toHaveBeenCalled()
   })
+
+  it('align=top 时容器应包含 items-start 和 pt-[15vh]', () => {
+    const { container } = render(
+      <Modal open={true} onClose={() => {}} align="top">
+        <div>内容</div>
+      </Modal>
+    )
+    const backdrop = container.querySelector('.fixed.inset-0')!
+    expect(backdrop.className).toContain('items-start')
+    expect(backdrop.className).toContain('pt-[15vh]')
+  })
+
+  it('align=center（默认）时容器应包含 items-center', () => {
+    const { container } = render(
+      <Modal open={true} onClose={() => {}}>
+        <div>内容</div>
+      </Modal>
+    )
+    const backdrop = container.querySelector('.fixed.inset-0')!
+    expect(backdrop.className).toContain('items-center')
+  })
 })
 
 describe('Popover', () => {
