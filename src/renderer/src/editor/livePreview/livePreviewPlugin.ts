@@ -221,18 +221,15 @@ function buildDecorations(state: EditorState): DecorationSet {
 }
 
 /**
- * A cheap fingerprint of which lines the selection touches. Typora-style reveal
- * is line-based (see `rangeRevealed`): a node is revealed iff a selection range
- * touches its line span. So two selections that touch the same set of lines
- * produce byte-identical decorations. Cursor movement *within* a line (left/right
- * arrows, intra-line clicks/selection) keeps this signature constant, letting us
- * skip a full rebuild — the common case during editing.
+ * Fingerprint of the exact selection offsets. Marker-level reveal (see
+ * `markerRevealed`) depends on cursor *columns*, not just lines, so any
+ * selection change may flip a marker — rebuild whenever offsets change.
+ * Identical-selection transactions (e.g. focus events) still skip rebuilds.
  */
 function revealSignature(state: EditorState): string {
-  const doc = state.doc
   let sig = ''
   for (const r of state.selection.ranges) {
-    sig += doc.lineAt(r.from).number + ':' + doc.lineAt(r.to).number + ','
+    sig += r.from + '-' + r.to + ','
   }
   return sig
 }
