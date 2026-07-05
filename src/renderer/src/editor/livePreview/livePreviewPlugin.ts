@@ -22,6 +22,8 @@ import { isExternal, resolveMarkdownAsset } from '@/lib/resolvePath'
 import { richContentConfigFacet } from './richContent'
 
 const hideMark = Decoration.replace({})
+const taskSrcMark = Decoration.mark({ class: 'cm-task-src' })
+const taskDoneMark = Decoration.mark({ class: 'cm-task-done' })
 const boldMark = Decoration.mark({ class: 'cm-strong' })
 const italicMark = Decoration.mark({ class: 'cm-em' })
 const strikeMark = Decoration.mark({ class: 'cm-strike' })
@@ -89,7 +91,12 @@ function buildDecorations(state: EditorState): DecorationSet {
           ranges.push(
             Decoration.replace({ widget: new CheckboxWidget(s.checked ?? false, s.from, s.to) }).range(s.from, s.to)
           )
+        } else {
+          ranges.push(taskSrcMark.range(s.from, s.to))
         }
+        break
+      case 'taskDoneText':
+        ranges.push(taskDoneMark.range(s.from, s.to))
         break
       case 'codeBlock':
         ranges.push(

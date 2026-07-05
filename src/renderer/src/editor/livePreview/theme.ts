@@ -104,20 +104,29 @@ export const marginEditorTheme = EditorView.theme({
   },
 
   '.cm-task-checkbox': {
-    appearance: 'none',
+    display: 'inline-block',
     width: '15px',
     height: '15px',
-    margin: '0 0.45em 0 0',
-    verticalAlign: '-2px',
-    border: '1px solid var(--border)',
-    borderRadius: '5px',
-    background: 'var(--bg)',
-    cursor: 'pointer'
+    borderRadius: '4px',
+    border: '1.5px solid var(--checkbox-border)',
+    background: 'var(--bg-elev)',
+    verticalAlign: 'text-bottom',
+    cursor: 'pointer',
+    marginRight: '6px',
+    transition: 'background 0.12s ease, border-color 0.12s ease'
   },
-  '.cm-task-checkbox:checked': {
+  '.cm-task-checkbox:hover': { borderColor: 'var(--accent)' },
+  '.cm-task-checkbox-on': {
     background: 'var(--accent)',
     borderColor: 'var(--accent)',
-    boxShadow: 'inset 0 0 0 3px var(--bg)'
+    color: 'var(--accent-ink)'
+  },
+  '.cm-task-checkbox-on svg': { width: '11px', height: '11px', display: 'block', margin: '1px auto' },
+  '.cm-task-src': { fontFamily: 'var(--mono)', fontSize: '0.9em', color: 'var(--accent)' },
+  '.cm-task-done': {
+    textDecoration: 'line-through',
+    textDecorationColor: 'var(--text-faint)',
+    color: 'var(--text-faint)'
   },
 
   '.cm-list-bullet': {

@@ -80,7 +80,7 @@ describe('livePreview StateField — DOM smoke', () => {
   it('renders the hr and checkbox widgets', () => {
     view = mount(ALL_FEATURES, bodyPos) // cursor away from hr/tasks
     expect(view.dom.querySelector('hr.cm-hr')).not.toBeNull()
-    expect(view.dom.querySelector('input.cm-task-checkbox')).not.toBeNull()
+    expect(view.dom.querySelector('.cm-task-checkbox')).not.toBeNull()
   })
 
   it('dispatches a wiki-link event from a paragraph wiki widget', () => {

@@ -1,7 +1,7 @@
 import type { EditorState } from '@codemirror/state'
 import { ensureSyntaxTree, syntaxTree } from '@codemirror/language'
 import type { SyntaxNode } from '@lezer/common'
-import { rangeRevealed } from './reveal'
+import { rangeRevealed, markerRevealed } from './reveal'
 import { collectFootnoteRefs, findFootnoteDef } from './footnotes'
 import { isExternal } from '@/lib/resolvePath'
 import { LIST_INDENT } from '../listContinuation'
@@ -41,6 +41,7 @@ export type DecoKind =
   | 'highlight'
   | 'listBullet'
   | 'listNumber'
+  | 'taskDoneText'
 
 export interface DecoSpec {
   kind: DecoKind
@@ -356,26 +357,26 @@ export function collectDecorations(state: EditorState): DecoSpec[] {
         return
       }
 
-      // Task checkbox
+      // Task checkbox — marker-level reveal: only flips to source when the cursor
+      // actually touches "- [ ]"; elsewhere on the line the checkbox stays rendered.
       if (name === 'TaskMarker') {
         const raw = doc.sliceString(node.from, node.to)
-        const revealed = rangeRevealed(state, node.from, node.to)
-        // Hide the leading list bullet ("- ") so a task renders as a bare
-        // checkbox, not "- ☐". Walk up to the ListItem and swallow everything
-        // from its ListMark up to the checkbox.
         let li: typeof node.node | null = node.node.parent
         while (li && li.name !== 'ListItem') li = li.parent
         const mark = li?.getChild('ListMark')
+        const hideFrom = mark && mark.from < node.from ? mark.from : node.from
+        const revealed = markerRevealed(state, hideFrom, node.to)
         if (mark && mark.from < node.from) {
           specs.push({ kind: 'hide', from: mark.from, to: node.from, revealed })
         }
-        specs.push({
-          kind: 'task',
-          from: node.from,
-          to: node.to,
-          revealed,
-          checked: /\[[xX]\]/.test(raw)
-        })
+        const checked = /\[[xX]\]/.test(raw)
+        specs.push({ kind: 'task', from: node.from, to: node.to, revealed, checked })
+        if (checked) {
+          const line = doc.lineAt(node.from)
+          if (node.to + 1 < line.to) {
+            specs.push({ kind: 'taskDoneText', from: node.to + 1, to: line.to, revealed: false })
+          }
+        }
         return
       }
 

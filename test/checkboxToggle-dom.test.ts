@@ -10,8 +10,11 @@ describe('CheckboxWidget toggle', () => {
   it('unchecked → checked on mousedown', () => {
     const view = mockView()
     const w = new CheckboxWidget(false, 10, 13) // [ ] is 3 chars
-    const el = w.toDOM(view) as HTMLInputElement
-    expect(el.checked).toBe(false)
+    const el = w.toDOM(view)
+    // New widget is a <span role="checkbox"> with class cm-task-checkbox
+    expect(el.tagName.toLowerCase()).toBe('span')
+    expect(el.classList.contains('cm-task-checkbox')).toBe(true)
+    expect(el.getAttribute('aria-checked')).toBe('false')
     el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
     expect(view.dispatch).toHaveBeenCalledWith({
       changes: { from: 10, to: 13, insert: '[x]' }
@@ -21,8 +24,11 @@ describe('CheckboxWidget toggle', () => {
   it('checked → unchecked on mousedown', () => {
     const view = mockView()
     const w = new CheckboxWidget(true, 20, 23) // [x] is 3 chars
-    const el = w.toDOM(view) as HTMLInputElement
-    expect(el.checked).toBe(true)
+    const el = w.toDOM(view)
+    expect(el.tagName.toLowerCase()).toBe('span')
+    expect(el.classList.contains('cm-task-checkbox')).toBe(true)
+    expect(el.classList.contains('cm-task-checkbox-on')).toBe(true)
+    expect(el.getAttribute('aria-checked')).toBe('true')
     el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
     expect(view.dispatch).toHaveBeenCalledWith({
       changes: { from: 20, to: 23, insert: '[ ]' }

@@ -22,10 +22,11 @@ export class CheckboxWidget extends WidgetType {
   }
 
   toDOM(view: EditorView): HTMLElement {
-    const box = document.createElement('input')
-    box.type = 'checkbox'
-    box.checked = this.checked
-    box.className = 'cm-task-checkbox'
+    const box = document.createElement('span')
+    box.className = 'cm-task-checkbox' + (this.checked ? ' cm-task-checkbox-on' : '')
+    box.setAttribute('role', 'checkbox')
+    box.setAttribute('aria-checked', String(this.checked))
+    if (this.checked) box.appendChild(checkSvg())
     box.addEventListener('mousedown', (e) => {
       e.preventDefault()
       view.dispatch({
@@ -94,6 +95,13 @@ function path(d: string): SVGPathElement {
   const p = document.createElementNS('http://www.w3.org/2000/svg', 'path')
   p.setAttribute('d', d)
   return p
+}
+
+function checkSvg(): SVGSVGElement {
+  const svg = baseSvg()
+  svg.setAttribute('stroke-width', '3')
+  svg.appendChild(path('M5 13l4 4L19 7'))
+  return svg
 }
 
 function fileSvg(): SVGSVGElement {
