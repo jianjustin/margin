@@ -1,4 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Modal } from '@/components/ui/Modal'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
 
 interface InputDialogProps {
   title: string
@@ -37,13 +40,7 @@ export function InputDialog({
     }
   }, [defaultValue])
 
-  useEffect(() => {
-    function handleKey(e: KeyboardEvent): void {
-      if (e.key === 'Escape') onCancel()
-    }
-    window.addEventListener('keydown', handleKey)
-    return () => window.removeEventListener('keydown', handleKey)
-  }, [onCancel])
+  const handleClose = useCallback(() => onCancel(), [onCancel])
 
   const submit = (): void => {
     const trimmed = value.trim()
@@ -51,50 +48,34 @@ export function InputDialog({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 grid place-items-center bg-[oklch(0_0_0/0.4)]"
-      onClick={onCancel}
-    >
-      <div
-        className="w-[min(340px,calc(100vw-32px))] overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-elev)] shadow-[0_24px_64px_oklch(0_0_0/0.5)]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="border-b border-[color:var(--border-soft)] px-4 py-3">
-          <div className="text-[13px] font-semibold">{title}</div>
-        </div>
-
-        <div className="px-4 py-3">
-          <input
-            ref={inputRef}
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                submit()
-              }
-            }}
-            placeholder={placeholder}
-            className="w-full rounded-md border border-[color:var(--border-soft)] bg-[color:var(--bg)] px-3 py-1.5 text-[13px] text-foreground outline-none focus:border-[color:var(--accent-line)]"
-          />
-        </div>
-
-        <div className="flex justify-end gap-2 border-t border-[color:var(--border-soft)] px-4 py-3">
-          <button
-            onClick={onCancel}
-            className="rounded-md px-3 py-1.5 text-[12.5px] text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)]"
-          >
-            取消
-          </button>
-          <button
-            onClick={submit}
-            disabled={!value.trim()}
-            className="rounded-md bg-[color:var(--accent)] px-3 py-1.5 text-[12.5px] font-medium text-[color:var(--accent-ink)] disabled:opacity-40"
-          >
-            确认
-          </button>
-        </div>
+    <Modal open onClose={handleClose} width={340}>
+      <div className="border-b border-[color:var(--border-soft)] px-4 py-3">
+        <div className="text-[13px] font-semibold">{title}</div>
       </div>
-    </div>
+
+      <div className="px-4 py-3">
+        <Input
+          ref={inputRef}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              submit()
+            }
+          }}
+          placeholder={placeholder}
+        />
+      </div>
+
+      <div className="flex justify-end gap-2 border-t border-[color:var(--border-soft)] px-4 py-3">
+        <Button variant="ghost" size="sm" onClick={onCancel}>
+          取消
+        </Button>
+        <Button variant="primary" size="sm" onClick={submit} disabled={!value.trim()}>
+          确认
+        </Button>
+      </div>
+    </Modal>
   )
 }
