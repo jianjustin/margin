@@ -73,6 +73,7 @@
 
   /* Overlay & layer tokens */
   --overlay: oklch(0 0 0 / 0.4);
+  --overlay-heavy: oklch(0 0 0 / 0.72); /* lightbox 级遮罩（图片预览），比对话框遮罩更深 */
   --shadow-modal: 0 24px 64px oklch(0 0 0 / 0.5);
   --shadow-popover: 0 18px 48px oklch(0 0 0 / 0.45);
   --shadow-dropdown: 0 16px 36px oklch(0 0 0 / 0.14);
