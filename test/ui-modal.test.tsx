@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, cleanup, fireEvent } from '@testing-library/react'
+import { render, cleanup, fireEvent, act } from '@testing-library/react'
 import { Modal } from '@/components/ui/Modal'
 import { Popover } from '@/components/ui/Popover'
 
@@ -60,7 +60,7 @@ describe('Modal', () => {
     expect(onClose).not.toHaveBeenCalled()
   })
 
-  it('传入 width 时内层卡片应用 style.width', () => {
+  it('传入 width 时内层卡片应用视口钳制的 min() style.width', () => {
     const { container } = render(
       <Modal open={true} onClose={() => {}} width={480}>
         <div>内容</div>
@@ -69,7 +69,9 @@ describe('Modal', () => {
     // 内层卡片是遮罩的直接子元素
     const backdrop = container.querySelector('.fixed.inset-0')!
     const card = backdrop.firstElementChild as HTMLElement
-    expect(card.style.width).toBe('480px')
+    // width 应为 min(480px, calc(100vw - 32px)) 形式
+    expect(card.style.width).toContain('480px')
+    expect(card.style.width).toContain('calc(100vw - 32px)')
   })
 
   it('open=false 时按 Esc 不应调用 onClose', () => {
@@ -102,6 +104,84 @@ describe('Modal', () => {
     )
     const backdrop = container.querySelector('.fixed.inset-0')!
     expect(backdrop.className).toContain('items-center')
+  })
+
+  it('卡片有 role="dialog" 和 aria-modal="true"', () => {
+    const { container } = render(
+      <Modal open={true} onClose={() => {}}>
+        <div>内容</div>
+      </Modal>
+    )
+    const card = container.querySelector('[role="dialog"]')!
+    expect(card).not.toBeNull()
+    expect(card.getAttribute('aria-modal')).toBe('true')
+  })
+
+  it('打开时焦点移入卡片', async () => {
+    const { container } = render(
+      <Modal open={true} onClose={() => {}}>
+        <div>内容</div>
+      </Modal>
+    )
+    // useLayoutEffect 在 jsdom 中同步执行
+    const card = container.querySelector('[role="dialog"]') as HTMLElement
+    expect(document.activeElement === card || card.contains(document.activeElement)).toBe(true)
+  })
+
+  it('关闭时焦点归还到触发元素', async () => {
+    // 创建一个按钮并 focus 它作为触发元素
+    const trigger = document.createElement('button')
+    document.body.appendChild(trigger)
+    trigger.focus()
+    expect(document.activeElement).toBe(trigger)
+
+    const { rerender } = render(
+      <Modal open={true} onClose={() => {}}>
+        <div>内容</div>
+      </Modal>
+    )
+
+    // 关闭 Modal
+    rerender(<Modal open={false} onClose={() => {}}><div>内容</div></Modal>)
+
+    // 焦点应归还到触发元素
+    expect(document.activeElement).toBe(trigger)
+    document.body.removeChild(trigger)
+  })
+
+  it('Tab 键在卡片内可聚焦元素间循环', () => {
+    const { container } = render(
+      <Modal open={true} onClose={() => {}}>
+        <button data-testid="btn1">按钮1</button>
+        <button data-testid="btn2">按钮2</button>
+      </Modal>
+    )
+    const card = container.querySelector('[role="dialog"]') as HTMLElement
+    const btn1 = container.querySelector('[data-testid="btn1"]') as HTMLElement
+    const btn2 = container.querySelector('[data-testid="btn2"]') as HTMLElement
+
+    // focus btn2，按 Tab 应循环到 btn1
+    btn2.focus()
+    fireEvent.keyDown(card, { key: 'Tab', shiftKey: false })
+    // 因为 btn2 是最后一个可聚焦元素，Tab 后应到 btn1（第一个）
+    expect(document.activeElement).toBe(btn1)
+  })
+
+  it('Shift+Tab 键反向循环', () => {
+    const { container } = render(
+      <Modal open={true} onClose={() => {}}>
+        <button data-testid="btn1">按钮1</button>
+        <button data-testid="btn2">按钮2</button>
+      </Modal>
+    )
+    const card = container.querySelector('[role="dialog"]') as HTMLElement
+    const btn1 = container.querySelector('[data-testid="btn1"]') as HTMLElement
+    const btn2 = container.querySelector('[data-testid="btn2"]') as HTMLElement
+
+    // focus btn1，Shift+Tab 应循环到 btn2（最后一个）
+    btn1.focus()
+    fireEvent.keyDown(card, { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(btn2)
   })
 })
 
