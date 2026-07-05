@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Plus, Search, Trash2 } from 'lucide-react'
 import { FolderGlyph } from '@/components/icons/FolderGlyph'
 import { PluginMarket } from '@/components/PluginMarket'
@@ -7,6 +7,7 @@ import { UpdateSection } from '@/components/UpdateSection'
 import { useUpdater } from '@/hooks/useUpdater'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { Modal } from '@/components/ui/Modal'
+import { useDismissable } from '@/hooks/useDismissable'
 import { ICON_SM, ICON_MD } from '@/components/ui/icon'
 import type { TreeNode } from '../../../shared/ipc'
 
@@ -32,14 +33,8 @@ function FolderPicker({ value, folders, onChange }: FolderPickerProps): JSX.Elem
     return folders.filter((f) => f.toLowerCase().includes(q))
   }, [folders, query])
 
-  useEffect(() => {
-    if (!open) return
-    function handleClick(e: MouseEvent): void {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false)
-    }
-    window.addEventListener('mousedown', handleClick)
-    return () => window.removeEventListener('mousedown', handleClick)
-  }, [open])
+  // 收编：使用 useDismissable 替代手写 click-outside
+  useDismissable(() => setOpen(false), rootRef, open)
 
   return (
     <div ref={rootRef} className="relative">
@@ -55,7 +50,7 @@ function FolderPicker({ value, folders, onChange }: FolderPickerProps): JSX.Elem
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-10 mt-1 w-full overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-elev)] shadow-[var(--shadow-dropdown)]">
+        <div className="absolute left-0 top-full z-10 mt-1 w-full overflow-hidden rounded-[var(--radius-popover)] border border-[color:var(--border)] bg-[color:var(--bg-elev)] shadow-[var(--shadow-dropdown)]">
           <div className="flex items-center gap-1.5 border-b border-[color:var(--border-soft)] px-2 py-1.5">
             <Search size={ICON_SM} className="flex-none text-[color:var(--text-faint)]" />
             <input
@@ -153,66 +148,59 @@ export function SettingsPanel({ tree, onClose }: SettingsPanelProps): JSX.Elemen
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
   const [pluginMarketOpen, setPluginMarketOpen] = useState(false)
 
-  // Modal 的 Esc/遮罩点击都走这里；pluginMarket 打开时优先关 pluginMarket
-  const handleClose = useCallback(() => {
-    if (pluginMarketOpen) {
-      setPluginMarketOpen(false)
-    } else {
-      onClose()
-    }
-  }, [pluginMarketOpen, onClose])
-
   return (
-    <Modal open onClose={handleClose}>
-      <div
-        className="flex h-[520px] w-[680px] max-w-[calc(100vw-32px)] overflow-hidden"
-      >
-        <div className="flex w-[160px] flex-none flex-col border-r border-[color:var(--border-soft)] bg-[color:var(--bg-panel)] py-3">
-          <div className="px-4 pb-2 text-[11px] font-semibold uppercase tracking-[.08em] text-[color:var(--text-faint)]">
-            设置
-          </div>
-          {NAV_ITEMS.map(({ id, label }) => (
-            <button
-              key={id}
-              onClick={() => {
-                if (id === 'plugins') {
-                  setPluginMarketOpen(true)
-                  return
-                }
-                setActiveTab(id)
-              }}
-              className={[
-                'mx-2 flex items-center rounded-xl px-3 py-2 text-left text-[13px] transition-colors',
-                activeTab === id
-                  ? 'bg-[color:var(--accent-soft)] font-semibold text-[color:var(--accent)]'
-                  : 'text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)] hover:text-foreground'
-              ].join(' ')}
-            >
-              {label}
-            </button>
-          ))}
-          <div className="flex-1" />
-          <button
-            onClick={onClose}
-            className="mx-3 mt-2 rounded-xl px-3 py-1.5 text-[12px] text-[color:var(--text-faint)] hover:bg-[color:var(--bg-hover)] hover:text-foreground"
-          >
-            关闭
-          </button>
-        </div>
-
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-[color:var(--bg-elev)] px-6 py-5">
-          {activeTab === 'general' && <GeneralTab tree={tree} />}
-          {activeTab === 'editor' && <EditorTab />}
-          {(activeTab === 'sync' || activeTab === 'shortcuts' || activeTab === 'advanced') && (
-            <div className="flex flex-1 items-center justify-center text-[13px] text-[color:var(--text-faint)]">
-              即将推出
+    <>
+      <Modal open onClose={onClose}>
+        <div
+          className="flex h-[520px] w-[680px] max-w-[calc(100vw-32px)] overflow-hidden"
+        >
+          <div className="flex w-[160px] flex-none flex-col border-r border-[color:var(--border-soft)] bg-[color:var(--bg-panel)] py-3">
+            <div className="px-4 pb-2 text-[11px] font-semibold uppercase tracking-[.08em] text-[color:var(--text-faint)]">
+              设置
             </div>
-          )}
+            {NAV_ITEMS.map(({ id, label }) => (
+              <button
+                key={id}
+                onClick={() => {
+                  if (id === 'plugins') {
+                    setPluginMarketOpen(true)
+                    return
+                  }
+                  setActiveTab(id)
+                }}
+                className={[
+                  'mx-2 flex items-center rounded-xl px-3 py-2 text-left text-[13px] transition-colors',
+                  activeTab === id
+                    ? 'bg-[color:var(--accent-soft)] font-semibold text-[color:var(--accent)]'
+                    : 'text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)] hover:text-foreground'
+                ].join(' ')}
+              >
+                {label}
+              </button>
+            ))}
+            <div className="flex-1" />
+            <button
+              onClick={onClose}
+              className="mx-3 mt-2 rounded-xl px-3 py-1.5 text-[12px] text-[color:var(--text-faint)] hover:bg-[color:var(--bg-hover)] hover:text-foreground"
+            >
+              关闭
+            </button>
+          </div>
+
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-[color:var(--bg-elev)] px-6 py-5">
+            {activeTab === 'general' && <GeneralTab tree={tree} />}
+            {activeTab === 'editor' && <EditorTab />}
+            {(activeTab === 'sync' || activeTab === 'shortcuts' || activeTab === 'advanced') && (
+              <div className="flex flex-1 items-center justify-center text-[13px] text-[color:var(--text-faint)]">
+                即将推出
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      </Modal>
 
       {pluginMarketOpen && <PluginMarket onBack={() => setPluginMarketOpen(false)} />}
-    </Modal>
+    </>
   )
 }
 

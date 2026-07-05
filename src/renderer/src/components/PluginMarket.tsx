@@ -1,5 +1,6 @@
 import { Search, Star, X } from 'lucide-react'
 import { useState } from 'react'
+import { Modal } from '@/components/ui/Modal'
 
 interface PluginMarketProps {
   onBack: () => void
@@ -26,10 +27,9 @@ export function PluginMarket({ onBack }: PluginMarketProps): JSX.Element {
   const [query, setQuery] = useState('')
 
   return (
-    <div className="fixed inset-0 z-[60] grid place-items-center bg-[color:var(--overlay)]">
+    <Modal open onClose={onBack}>
       <div
-        className="flex h-[520px] w-[720px] max-w-[calc(100vw-32px)] overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[color:var(--bg-elev)] shadow-[var(--shadow-modal)]"
-        onClick={(e) => e.stopPropagation()}
+        className="flex h-[520px] w-[720px] max-w-[calc(100vw-32px)] overflow-hidden"
       >
         <div className="flex w-[200px] flex-none flex-col border-r border-[color:var(--border-soft)] bg-[color:var(--bg-panel)] py-3">
           <div className="flex items-center justify-between px-4 pb-2">
@@ -106,6 +106,6 @@ export function PluginMarket({ onBack }: PluginMarketProps): JSX.Element {
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }
