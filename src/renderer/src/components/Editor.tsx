@@ -298,7 +298,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       <div ref={hostRef} className="h-full w-full overflow-hidden" />
       {imagePreview && (
         <div
-          className="fixed inset-0 z-[70] grid place-items-center bg-[oklch(0_0_0/0.72)]"
+          className="fixed inset-0 z-[70] grid place-items-center bg-[color:var(--overlay)]"
           onClick={() => setImagePreview(null)}
           onWheel={(e) => {
             e.preventDefault()

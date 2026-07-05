@@ -26,9 +26,9 @@ export function PluginMarket({ onBack }: PluginMarketProps): JSX.Element {
   const [query, setQuery] = useState('')
 
   return (
-    <div className="fixed inset-0 z-[60] grid place-items-center bg-[oklch(0_0_0/0.28)]">
+    <div className="fixed inset-0 z-[60] grid place-items-center bg-[color:var(--overlay)]">
       <div
-        className="flex h-[520px] w-[720px] max-w-[calc(100vw-32px)] overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[color:var(--bg-elev)] shadow-[0_24px_64px_oklch(0_0_0/0.2)]"
+        className="flex h-[520px] w-[720px] max-w-[calc(100vw-32px)] overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[color:var(--bg-elev)] shadow-[var(--shadow-modal)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex w-[200px] flex-none flex-col border-r border-[color:var(--border-soft)] bg-[color:var(--bg-panel)] py-3">
