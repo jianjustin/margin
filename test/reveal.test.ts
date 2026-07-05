@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { EditorState } from '@codemirror/state'
-import { rangeRevealed } from '@/editor/livePreview/reveal'
+import { EditorState, EditorSelection } from '@codemirror/state'
+import { rangeRevealed, markerRevealed } from '@/editor/livePreview/reveal'
 
 function stateWith(doc: string, anchor: number, head = anchor): EditorState {
   return EditorState.create({ doc, selection: { anchor, head } })
@@ -29,5 +29,26 @@ describe('rangeRevealed', () => {
     // treat [0, 12] as a block spanning all lines; cursor in "body"
     const state = stateWith(doc, 10)
     expect(rangeRevealed(state, 0, doc.length)).toBe(true)
+  })
+})
+
+describe('markerRevealed', () => {
+  const doc = '- [ ] buy milk'
+  // marker "[ ]" 在偏移 2..5
+  it('光标在 marker 内 → true', () => {
+    const state = EditorState.create({ doc, selection: EditorSelection.single(3) })
+    expect(markerRevealed(state, 2, 5)).toBe(true)
+  })
+  it('光标紧贴 marker 边缘（pad=1）→ true', () => {
+    const state = EditorState.create({ doc, selection: EditorSelection.single(6) })
+    expect(markerRevealed(state, 2, 5)).toBe(true)
+  })
+  it('光标在同一行行尾（远离 marker）→ false', () => {
+    const state = EditorState.create({ doc, selection: EditorSelection.single(14) })
+    expect(markerRevealed(state, 2, 5)).toBe(false)
+  })
+  it('选区覆盖 marker → true', () => {
+    const state = EditorState.create({ doc, selection: EditorSelection.range(0, 14) })
+    expect(markerRevealed(state, 2, 5)).toBe(true)
   })
 })
