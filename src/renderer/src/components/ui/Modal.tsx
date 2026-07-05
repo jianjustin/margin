@@ -16,7 +16,7 @@ export interface ModalProps {
  * - 多个浮层同时挂载时，Esc 会同时关闭所有——嵌套场景由消费方避免。
  */
 export function Modal({ open, onClose, width, children }: ModalProps): JSX.Element | null {
-  useDismissable(onClose)
+  useDismissable(onClose, undefined, open)
 
   if (!open) return null
 

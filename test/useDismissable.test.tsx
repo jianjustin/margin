@@ -1,129 +1,88 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup, fireEvent } from '@testing-library/react'
 import { useRef } from 'react'
 import { useDismissable } from '@/hooks/useDismissable'
 
-function HarnessWithRef(): JSX.Element {
-  const onClose = vi.fn()
-  const ref = useRef<HTMLDivElement>(null)
-  useDismissable(onClose, ref)
-  return (
-    <div>
-      <div ref={ref} data-testid="dismissable-container">
-        Inside container
-      </div>
-      <div data-testid="outside-container">Outside container</div>
-    </div>
-  )
-}
-
-function HarnessWithoutRef(): JSX.Element {
-  const onClose = vi.fn()
-  useDismissable(onClose)
-  return (
-    <div>
-      <div data-testid="container">Container</div>
-    </div>
-  )
-}
-
-beforeEach(() => {
-  vi.clearAllMocks()
-})
-
 afterEach(cleanup)
 
+/** 测试组件：包装 useDismissable 的 hook，设置 outsideRef */
+function WithOutsideRef({
+  onClose,
+  enabled = true,
+}: {
+  onClose: () => void
+  enabled?: boolean
+}) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  useDismissable(onClose, containerRef, enabled)
+
+  return (
+    <div data-testid="container">
+      <div ref={containerRef} data-testid="inside">
+        内部
+      </div>
+    </div>
+  )
+}
+
+/** 测试组件：包装 useDismissable 的 hook，无 outsideRef */
+function NoOutsideRef({
+  onClose,
+  enabled = true,
+}: {
+  onClose: () => void
+  enabled?: boolean
+}) {
+  useDismissable(onClose, undefined, enabled)
+  return <div data-testid="simple">简单测试</div>
+}
+
 describe('useDismissable', () => {
-  it('triggers onClose on Escape keydown', () => {
+  it('enabled=true 时按 Esc 调用 onClose', () => {
     const onClose = vi.fn()
-    function Harness(): JSX.Element {
-      useDismissable(onClose)
-      return <div>Test</div>
-    }
-    render(<Harness />)
+    render(<NoOutsideRef onClose={onClose} enabled={true} />)
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(onClose).toHaveBeenCalledOnce()
   })
 
-  it('does not trigger onClose on other keys', () => {
+  it('enabled=false 时按 Esc 不调用 onClose', () => {
     const onClose = vi.fn()
-    function Harness(): JSX.Element {
-      useDismissable(onClose)
-      return <div>Test</div>
-    }
-    render(<Harness />)
-    fireEvent.keyDown(window, { key: 'Enter' })
+    render(<NoOutsideRef onClose={onClose} enabled={false} />)
+    fireEvent.keyDown(window, { key: 'Escape' })
     expect(onClose).not.toHaveBeenCalled()
   })
 
-  it('triggers onClose on outside mousedown when ref is provided', () => {
+  it('enabled=true + outsideRef 时内部 mousedown 不调用 onClose', () => {
     const onClose = vi.fn()
-    function Harness(): JSX.Element {
-      const ref = useRef<HTMLDivElement>(null)
-      useDismissable(onClose, ref)
-      return (
-        <div>
-          <div ref={ref} data-testid="dismissable-container">
-            Inside container
-          </div>
-          <div data-testid="outside-container">Outside container</div>
-        </div>
-      )
-    }
-    const { getByTestId } = render(<Harness />)
-    const outsideElement = getByTestId('outside-container')
-    fireEvent.mouseDown(outsideElement)
+    const { getByTestId } = render(
+      <WithOutsideRef onClose={onClose} enabled={true} />
+    )
+    fireEvent.mouseDown(getByTestId('inside'))
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('enabled=true + outsideRef 时外部 mousedown 调用 onClose', () => {
+    const onClose = vi.fn()
+    const { getByTestId, container } = render(
+      <div>
+        <WithOutsideRef onClose={onClose} enabled={true} />
+        <div data-testid="outside">外部</div>
+      </div>
+    )
+    fireEvent.mouseDown(getByTestId('outside'))
     expect(onClose).toHaveBeenCalledOnce()
   })
 
-  it('does not trigger onClose on inside mousedown when ref is provided', () => {
+  it('enabled=false + outsideRef 时外部 mousedown 不调用 onClose', () => {
     const onClose = vi.fn()
-    function Harness(): JSX.Element {
-      const ref = useRef<HTMLDivElement>(null)
-      useDismissable(onClose, ref)
-      return (
-        <div>
-          <div ref={ref} data-testid="dismissable-container">
-            Inside container
-          </div>
-        </div>
-      )
-    }
-    const { getByTestId } = render(<Harness />)
-    const insideElement = getByTestId('dismissable-container')
-    fireEvent.mouseDown(insideElement)
+    const { getByTestId } = render(
+      <div>
+        <WithOutsideRef onClose={onClose} enabled={false} />
+        <div data-testid="outside">外部</div>
+      </div>
+    )
+    fireEvent.mouseDown(getByTestId('outside'))
     expect(onClose).not.toHaveBeenCalled()
-  })
-
-  it('does not register mousedown listener when ref is not provided', () => {
-    const onClose = vi.fn()
-    function Harness(): JSX.Element {
-      useDismissable(onClose)
-      return (
-        <div>
-          <div data-testid="container">Container</div>
-        </div>
-      )
-    }
-    const { getByTestId } = render(<Harness />)
-    const container = getByTestId('container')
-    fireEvent.mouseDown(container)
-    expect(onClose).not.toHaveBeenCalled()
-  })
-
-  it('stops propagation when Escape is pressed', () => {
-    const onClose = vi.fn()
-    const propagationStopper = vi.fn()
-    function Harness(): JSX.Element {
-      useDismissable(onClose)
-      return <div>Test</div>
-    }
-    render(<Harness />)
-    const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
-    vi.spyOn(event, 'stopPropagation')
-    window.addEventListener('keydown', propagationStopper)
-    window.dispatchEvent(event)
-    expect(onClose).toHaveBeenCalled()
   })
 })

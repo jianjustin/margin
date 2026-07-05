@@ -15,6 +15,7 @@ export interface PopoverProps {
  * 使用说明：
  * - 消费方应用 useCallback 稳定 onClose，避免不必要的 effect 重注册。
  * - 多个浮层同时挂载时，Esc 会同时关闭所有——嵌套场景由消费方避免。
+ * - onClose 由捕获阶段 mousedown 触发；若触发按钮位于 Popover 外部，需在按钮的 mousedown 中 stopPropagation，否则会先关后开造成闪烁。
  */
 export function Popover({ anchor, onClose, className, children }: PopoverProps): JSX.Element {
   const rootRef = useRef<HTMLDivElement>(null)

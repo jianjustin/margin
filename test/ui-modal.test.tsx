@@ -71,6 +71,17 @@ describe('Modal', () => {
     const card = backdrop.firstElementChild as HTMLElement
     expect(card.style.width).toBe('480px')
   })
+
+  it('open=false 时按 Esc 不应调用 onClose', () => {
+    const onClose = vi.fn()
+    render(
+      <Modal open={false} onClose={onClose}>
+        <div>内容</div>
+      </Modal>
+    )
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(onClose).not.toHaveBeenCalled()
+  })
 })
 
 describe('Popover', () => {
