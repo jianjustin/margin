@@ -838,9 +838,12 @@ export class ImageWidget extends WidgetType {
 
     img.addEventListener('load', () => {
       if (!wrap.isConnected) return
-      // 只有目标 URL（而非 last-good 兜底）加载成功才登记
+      // 只有目标 URL（而非 last-good 兜底）加载成功才登记；
+      // data: URL 可能达数 MB，不得登记进模块级 Map（永不 GC）。
       if (displayedUrl !== currentUrl) return
-      if (this.lineKey) lastGoodByKey.set(this.lineKey, currentUrl)
+      if (this.lineKey && !currentUrl.startsWith('data:')) {
+        lastGoodByKey.set(this.lineKey, currentUrl)
+      }
       if (!imageDims.has(currentUrl)) {
         imageDims.set(currentUrl, { w: img.naturalWidth, h: img.naturalHeight })
         view.requestMeasure()

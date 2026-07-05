@@ -76,4 +76,28 @@ describe('ImageWidget — 编辑期 last-good + debounce', () => {
     vi.advanceTimersByTime(IMAGE_RETRY_DEBOUNCE_MS)
     expect(img2.src).toContain(encodeURIComponent('/v/a.png')) // 仍是旧图，没有发起新加载
   })
+
+  it('回退链拿到 data URL 后 load：不登记进 lastGoodByKey，新 widget 直接试新目标', async () => {
+    // 让 readAssetDataUrl 返回 data URL（本地回退链成功）
+    readAssetDataUrl.mockResolvedValueOnce('data:image/png;base64,AAAA')
+
+    // Step 1: 第一个 widget 的原始 URL 触发 error → 走本地回退链 → 得到 data URL → 触发 load
+    const img1 = mountWidget('bad.png', '/v/bad.png', 'doc.md:5')
+    // 触发 error 使回退链进入 readAssetDataUrl
+    img1.dispatchEvent(new Event('error'))
+    // 等待 readAssetDataUrl 的微任务 resolve
+    await Promise.resolve()
+    await Promise.resolve()
+    // 此时 img1.src 应变为 data URL，再触发 load 事件
+    img1.dispatchEvent(new Event('load'))
+
+    // Step 2: 创建同 lineKey 的新 widget（新目标 URL）
+    const img2 = mountWidget('new.png', '/v/new.png', 'doc.md:5')
+
+    // 断言：img2 不应该把 data URL 当 last-good 来 debounce 显示
+    // 如果 data URL 被登记，img2 会先显示 data URL（debounce 分支）
+    // 正确行为：img2 直接显示目标 URL（无 debounce 分支），因为 lastGoodByKey 不含 data URL
+    expect(img2.src).not.toMatch(/^data:/)
+    expect(img2.src).toContain(encodeURIComponent('/v/new.png'))
+  })
 })
