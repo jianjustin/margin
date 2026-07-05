@@ -1,6 +1,6 @@
 # 所见即所得 Markdown 编辑器 — 功能清单
 
-> 最后更新：2026-06-24
+> 最后更新：2026-07-05
 > 适用：Margin（Tauri v2 + React + CodeMirror 6）
 
 本文档从产品视角列出**一个完整的 WYSIWYG Markdown 编辑器需要哪些功能**，并标注 Margin 的现状。
@@ -20,7 +20,7 @@
 | 0.1 | **Markdown 文本是唯一 source of truth**，无私有存储格式 | ✅ |
 | 0.2 | **无损往返**：渲染→编辑→保存不改变未触碰的字节 | ✅ |
 | 0.3 | **Obsidian 互操作**：不注入 app 专属字段，不碰 `.obsidian`/`.trash`/`.git` | ✅ `[shell]` |
-| 0.4 | **光标揭示（reveal）**：光标进入即显示原始语法，离开即渲染（Typora 手感） | ✅ `[core]` `rangeRevealed` |
+| 0.4 | **光标揭示（reveal）**：光标进入即显示原始语法，离开即渲染（Typora 手感）；**原子范围（atomicRanges）**：所有 inline conceal 处理为原子位置，光标左右移动一步越过隐藏语法，不卡在隐藏字符中间 | ✅ `[core]` `rangeRevealed` |
 | 0.5 | **本地优先**，离线可用 | ✅ |
 
 ---
@@ -49,7 +49,7 @@
 | 2.1 | 标题 H1–H6 | ✅ | ✅ `[core]` `setHeading` ⌘⌥1–6 / ⌘⌥0 | ✅ |
 | 2.2 | 无序列表 | ✅ bullet widget | ✅ `[core]` `toggleBulletList` ⌘⇧8 | ✅ |
 | 2.3 | 有序列表 | ✅ number widget | ✅ `[core]` `toggleOrderedList` ⌘⇧7 | ✅ |
-| 2.4 | 任务列表 | ✅ 可点 checkbox | ✅ `[core]` `toggleTaskList` ⌘⇧9 + `toggleTaskOnLine` | ✅ |
+| 2.4 | 任务列表 | ✅ 自绘 checkbox + 删除线 | ✅ `[core]` `toggleTaskList` ⌘⇧9 + `toggleTaskOnLine` | ✅ |
 | 2.5 | 列表自动延续（Enter） | — | ✅ `[core]` `listEnterAction` | ✅ |
 | 2.6 | 列表缩进 / 反缩进（Tab） | — | ✅ `[core]` `indent/outdentListLine` | ✅ |
 | 2.7 | 引用块 `>` | ✅ | ✅ `[core]` `toggleBlockquote` ⌘⇧. | ✅ |
@@ -160,6 +160,25 @@ editor-core 现已覆盖 WYSIWYG 编辑的**纯命令层**，全部无 DOM 可�
 
 契约：命令接收 `EditDoc {text, selection}`，返回偏移量 `EditResult {changes, selection}`，由
 `editor/commands/applyEdit.ts` 适配为 CM transaction。键位绑定在 `editor/commands/{inlineMark,block}Keymap.ts`。
+
+### 光标揭示（reveal）细节设计
+
+#### 任务复选框（Todo）
+
+reveal 层级从行级改为 **marker 级**：
+- 光标在任务行上但不接近 `- [ ]` marker 时，checkbox 保持渲染（不揭示源码）。
+- 光标触及 marker（±1 字符）才展开源码，源码段带 `cm-task-src` 样式（等宽字体 + accent 色）。
+- checkbox 为自绘 `<span role="checkbox">`（无文本），点击仅切换 `[ ]`↔`[x]` 三个字符。
+- 已完成的任务（`[x]`）正文应用 `cm-task-done` 删除线样式；marker 源码展开时删除线暂时取消。
+
+#### 独行图片与媒体
+
+从**整块替换**改为**block side widget**：
+- 图片源码行的预览渲染在**源码行下方**（不替换源码本身）。
+- ↑/↓ 光标移动不再跳行，可以落在图片源码行上。
+- 光标进入该行时源码显示（`cm-image-src` 样式），预览保持在下方可见。
+- 点击预览图片将光标定位到源码行；Cmd/Ctrl+点击打开预览浮层（缩放/拖拽）。
+- **行内图片**仍采用 inline replace（用源码替换为渲染）。
 
 ### 后续缺口（→ ROADMAP）
 
