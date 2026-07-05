@@ -146,8 +146,12 @@ function buildBlockValue(state: EditorState): LivePreviewBlockValue {
 export const livePreviewBlock = StateField.define<LivePreviewBlockValue>({
   create: (state) => buildBlockValue(state),
   update(value, tr) {
-    // Task 4 阶段：doc 或 selection 变化即重建（与旧行为一致）；Task 5 加短路
-    if (tr.docChanged || tr.selection) return buildBlockValue(tr.state)
+    if (tr.docChanged) return buildBlockValue(tr.state)
+    if (tr.selection) {
+      // regions 在无 doc 变化时位置有效：仅当某个 block 的 reveal 位翻转才重建
+      if (revealBits(tr.state, value.regions) === value.bits) return value
+      return buildBlockValue(tr.state)
+    }
     return value
   },
   provide: (f) => EditorView.decorations.from(f, (v) => v.deco)
