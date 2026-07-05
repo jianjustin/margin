@@ -37,4 +37,10 @@ describe('image decorations', () => {
     const img = collectDecorations(s).find((d) => d.kind === 'image')
     expect(img?.placement).toBe('inline')
   })
+
+  it('standalone image at doc end without trailing newline: block placement, not revealed', () => {
+    const s = state('para\n![a](pic.png)', 0)
+    const img = collectDecorations(s).find((d) => d.kind === 'image')
+    expect(img).toMatchObject({ placement: 'block', revealed: false })
+  })
 })

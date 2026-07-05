@@ -1031,6 +1031,10 @@ export class MediaWidget extends WidgetType {
 
 /** Standalone-line image: block presentation below the (concealed) source line. */
 export class ImageBlockWidget extends ImageWidget {
+  eq(other: ImageBlockWidget): boolean {
+    return super.eq(other)
+  }
+
   toDOM(view: EditorView): HTMLElement {
     const wrap = document.createElement('div')
     wrap.className = 'cm-image-block'
@@ -1046,6 +1050,10 @@ export class ImageBlockWidget extends ImageWidget {
 }
 
 export class MediaBlockWidget extends MediaWidget {
+  eq(other: MediaBlockWidget): boolean {
+    return super.eq(other)
+  }
+
   toDOM(view: EditorView): HTMLElement {
     const wrap = document.createElement('div')
     wrap.className = 'cm-media-block'
