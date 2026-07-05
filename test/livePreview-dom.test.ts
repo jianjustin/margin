@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest'
 import { EditorState } from '@codemirror/state'
-import { EditorView } from '@codemirror/view'
+import { EditorView, Decoration } from '@codemirror/view'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { livePreview } from '@/editor/livePreview/livePreviewPlugin'
 import { marginEditorTheme } from '@/editor/livePreview/theme'
@@ -114,5 +114,42 @@ describe('livePreview StateField — DOM smoke', () => {
         view!.dispatch({ selection: { anchor: pos } })
       }
     }).not.toThrow()
+  })
+})
+
+describe('livePreview image decoration model', () => {
+  it('standalone image: no block-replace covering image line; block widget at line end', () => {
+    const imgDoc = 'para\n\n![alt](pic.png)\n\nmore'
+    const imgPos = imgDoc.indexOf('![alt]')
+    const imgState = EditorState.create({
+      doc: imgDoc,
+      selection: { anchor: 0 },
+      extensions: [markdown({ base: markdownLanguage }), livePreview, marginEditorTheme]
+    })
+    const deco = imgState.field(livePreview).deco
+    const imgLine = imgState.doc.lineAt(imgPos)
+
+    let hasBlockReplaceCoveringImageLine = false
+    let hasBlockWidgetAtLineEnd = false
+
+    deco.between(0, imgDoc.length, (from, to, d) => {
+      const spec = (d as Decoration & { spec: { block?: boolean; widget?: unknown } }).spec
+      // Check for block-type replace decoration that covers the image line
+      if (spec.block && !spec.widget) {
+        // This is a block line decoration, skip
+      } else if (spec.block && spec.widget) {
+        // Block widget: check if it's at line end (side widget)
+        if (from === imgLine.to && to === imgLine.to) {
+          hasBlockWidgetAtLineEnd = true
+        }
+        // A block replace that covers the image line's content is the old bad behavior
+        if (from <= imgPos && to >= imgLine.to) {
+          hasBlockReplaceCoveringImageLine = true
+        }
+      }
+    })
+
+    expect(hasBlockReplaceCoveringImageLine).toBe(false)
+    expect(hasBlockWidgetAtLineEnd).toBe(true)
   })
 })

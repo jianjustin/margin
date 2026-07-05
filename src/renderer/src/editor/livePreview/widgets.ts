@@ -1029,6 +1029,31 @@ export class MediaWidget extends WidgetType {
   }
 }
 
+/** Standalone-line image: block presentation below the (concealed) source line. */
+export class ImageBlockWidget extends ImageWidget {
+  toDOM(view: EditorView): HTMLElement {
+    const wrap = document.createElement('div')
+    wrap.className = 'cm-image-block'
+    wrap.appendChild(super.toDOM(view))
+    wrap.addEventListener('mousedown', (e) => {
+      if (e.metaKey || e.ctrlKey) return // Cmd+click keeps the preview-overlay behavior
+      e.preventDefault()
+      view.dispatch({ selection: { anchor: view.posAtDOM(wrap) } })
+      view.focus()
+    })
+    return wrap
+  }
+}
+
+export class MediaBlockWidget extends MediaWidget {
+  toDOM(view: EditorView): HTMLElement {
+    const wrap = document.createElement('div')
+    wrap.className = 'cm-media-block'
+    wrap.appendChild(super.toDOM(view))
+    return wrap
+  }
+}
+
 export class MathWidget extends WidgetType {
   constructor(
     readonly source: string,

@@ -9,7 +9,9 @@ import {
   TableWidget,
   PropertiesWidget,
   ImageWidget,
+  ImageBlockWidget,
   MediaWidget,
+  MediaBlockWidget,
   FootnoteWidget,
   LinkIconWidget,
   WikiLinkWidget,
@@ -23,6 +25,7 @@ import { richContentConfigFacet } from './richContent'
 
 const hideMark = Decoration.replace({})
 const taskSrcMark = Decoration.mark({ class: 'cm-task-src' })
+const imageSrcMark = Decoration.mark({ class: 'cm-image-src' })
 const taskDoneMark = Decoration.mark({ class: 'cm-task-done' })
 const boldMark = Decoration.mark({ class: 'cm-strong' })
 const italicMark = Decoration.mark({ class: 'cm-em' })
@@ -138,12 +141,30 @@ function buildDecorations(state: EditorState): DecorationSet {
         const root = state.facet(vaultRootFacet)
         const cfg = state.facet(richContentConfigFacet)
         const resolved = isExternal(src) ? src : resolveMarkdownAsset(src, dp, root, cfg.assetsDir)
-        ranges.push(
-          Decoration.replace({
-            widget: new ImageWidget(src, s.info ?? '', resolved, s.width, s.height),
-            block: true
-          }).range(s.from, s.to)
-        )
+        if (s.placement === 'block') {
+          // Preview lives BELOW the line as a side widget — the source line itself
+          // is never block-replaced, so vertical cursor motion can land on it.
+          ranges.push(
+            Decoration.widget({
+              widget: new ImageBlockWidget(src, s.info ?? '', resolved, s.width, s.height),
+              block: true,
+              side: 1
+            }).range(state.doc.lineAt(s.to).to)
+          )
+          if (!s.revealed) {
+            ranges.push(hideMark.range(s.from, s.to))
+          } else {
+            ranges.push(imageSrcMark.range(s.from, s.to))
+          }
+        } else if (!s.revealed) {
+          ranges.push(
+            Decoration.replace({
+              widget: new ImageWidget(src, s.info ?? '', resolved, s.width, s.height)
+            }).range(s.from, s.to)
+          )
+        } else {
+          ranges.push(imageSrcMark.range(s.from, s.to))
+        }
         break
       }
       case 'media': {
@@ -152,12 +173,28 @@ function buildDecorations(state: EditorState): DecorationSet {
         const root = state.facet(vaultRootFacet)
         const cfg = state.facet(richContentConfigFacet)
         const resolved = isExternal(src) ? src : resolveMarkdownAsset(src, dp, root, cfg.assetsDir)
-        ranges.push(
-          Decoration.replace({
-            widget: new MediaWidget(src, s.info ?? '', resolved, s.width, s.height),
-            block: true
-          }).range(s.from, s.to)
-        )
+        if (s.placement === 'block') {
+          ranges.push(
+            Decoration.widget({
+              widget: new MediaBlockWidget(src, s.info ?? '', resolved, s.width, s.height),
+              block: true,
+              side: 1
+            }).range(state.doc.lineAt(s.to).to)
+          )
+          if (!s.revealed) {
+            ranges.push(hideMark.range(s.from, s.to))
+          } else {
+            ranges.push(imageSrcMark.range(s.from, s.to))
+          }
+        } else if (!s.revealed) {
+          ranges.push(
+            Decoration.replace({
+              widget: new MediaWidget(src, s.info ?? '', resolved, s.width, s.height)
+            }).range(s.from, s.to)
+          )
+        } else {
+          ranges.push(imageSrcMark.range(s.from, s.to))
+        }
         break
       }
       case 'footnoteRef':

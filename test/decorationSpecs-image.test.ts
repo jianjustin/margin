@@ -20,9 +20,21 @@ describe('image decorations', () => {
     expect(img?.info).toBe('my alt')
   })
 
-  it('does not emit an image spec when the cursor is on the image line', () => {
-    const doc = '![a](p.png)'
-    const s = state(doc, 3)
-    expect(collectDecorations(s).find((d) => d.kind === 'image')).toBeUndefined()
+  it('standalone image with cursor elsewhere: block placement, not revealed', () => {
+    const s = state('para\n\n![a](pic.png)\n', 0)
+    const img = collectDecorations(s).find((d) => d.kind === 'image')
+    expect(img).toMatchObject({ placement: 'block', revealed: false })
+  })
+
+  it('cursor on image line: spec still emitted with placement block and revealed true', () => {
+    const s = state('![a](pic.png)', 3)
+    const img = collectDecorations(s).find((d) => d.kind === 'image')
+    expect(img).toMatchObject({ placement: 'block', revealed: true })
+  })
+
+  it('inline image (preceded by text): inline placement', () => {
+    const s = state('before ![a](pic.png) after', 0)
+    const img = collectDecorations(s).find((d) => d.kind === 'image')
+    expect(img?.placement).toBe('inline')
   })
 })

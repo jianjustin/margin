@@ -311,6 +311,10 @@ export const marginEditorTheme = EditorView.theme({
   },
   '.cm-prop-add:hover': { color: 'var(--accent)' },
 
+  '.cm-image-block': { padding: '2px 0', cursor: 'default' },
+  '.cm-media-block': { padding: '2px 0' },
+  '.cm-image-src': { fontFamily: 'var(--mono)', fontSize: '0.85em', color: 'var(--text-dim)' },
+
   '.cm-image-wrap': { display: 'block', maxWidth: '100%' },
   '.cm-image-wrap img': {
     maxWidth: '100%',

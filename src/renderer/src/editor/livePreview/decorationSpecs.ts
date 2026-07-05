@@ -56,6 +56,7 @@ export interface DecoSpec {
   height?: number
   title?: string
   folded?: boolean
+  placement?: 'block' | 'inline'
 }
 
 /**
@@ -380,11 +381,11 @@ export function collectDecorations(state: EditorState): DecoSpec[] {
         return
       }
 
-      // Inline image: replace `![alt](src)` with a rendered <img> when the cursor
-      // is outside the node's line; reveal raw source when inside.
+      // Inline image / media. `placement` decides the rendering strategy:
+      // a standalone image gets a block widget BELOW its (concealed) source line,
+      // an in-text image is replaced inline. Spec is emitted in both reveal states
+      // so the widget can persist while the source is being edited.
       if (name === 'Image') {
-        const revealed = rangeRevealed(state, node.from, node.to)
-        if (revealed) return // raw text shows; let children render unstyled
         const urlNode = node.node.getChild('URL')
         const url = urlNode ? doc.sliceString(urlNode.from, urlNode.to) : ''
         let alt = ''
@@ -397,18 +398,21 @@ export function collectDecorations(state: EditorState): DecoSpec[] {
           }
         }
         const meta = parseImageMeta(alt, url)
+        const line = doc.lineAt(node.from)
+        const standalone = line.text.trim() === doc.sliceString(node.from, node.to)
         specs.push({
           kind: meta.mediaKind ? 'media' : 'image',
           from: node.from,
           to: node.to,
-          revealed: false,
+          revealed: rangeRevealed(state, node.from, node.to),
+          placement: standalone ? 'block' : 'inline',
           source: meta.url,
           info: meta.alt,
           title: meta.alt,
           width: meta.width,
           height: meta.height
         })
-        return false // widget replaces the range — skip children
+        return false // widget/mark handles the range — skip children
       }
 
       // Links: style the whole node, hide its [] and (url) children.
