@@ -31,6 +31,9 @@ export function SlashMenu({ x, y, onSelect, onClose }: SlashMenuProps): JSX.Elem
     function handleKeyDown(e: KeyboardEvent): void {
       if (e.key === 'Escape') {
         e.preventDefault()
+        // Stop here so neither the Popover's bubble-phase Esc (double onClose)
+        // nor the editor keymap sees this keystroke while the menu is open.
+        e.stopPropagation()
         onClose()
         return
       }
