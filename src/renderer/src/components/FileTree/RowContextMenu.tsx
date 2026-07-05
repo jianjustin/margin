@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import type { TreeNode } from '../../../../shared/ipc'
+import { Popover } from '@/components/ui/Popover'
 
 export interface ContextMenuState {
   node: TreeNode
@@ -34,35 +35,21 @@ export function RowContextMenu({
   onOpenInFinder,
   onOpenInNewWindow
 }: RowContextMenuProps): JSX.Element {
-  const menuRef = useRef<HTMLDivElement>(null)
-
+  // 监听 contextmenu 事件（新的右键）在菜单外发生时关闭当前菜单。
+  // Popover 的 useDismissable 只监听 mousedown，不覆盖此场景。
   useEffect(() => {
-    // Delay listener registration by one frame so the `contextmenu` /
-    // `auxclick` event that opened this menu finishes propagating before
-    // the "click-outside-to-close" listener is live. Without this, the
-    // opening event bubbles to window → immediately closes the menu.
+    function handleContextMenu(e: Event): void {
+      onClose()
+      // 阻止关闭后立刻被同一 contextmenu 事件重新打开由调用方处理（调用方应先检查状态）
+      void e
+    }
+    // rAF 延迟：让触发本菜单的 contextmenu 事件先完成传播
     const rafId = requestAnimationFrame(() => {
-      window.addEventListener('mousedown', handleOutside)
-      window.addEventListener('contextmenu', handleOutside)
+      window.addEventListener('contextmenu', handleContextMenu)
     })
-
-    function handleOutside(e: Event): void {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        onClose()
-      }
-    }
-
-    function handleKey(e: KeyboardEvent): void {
-      if (e.key === 'Escape') onClose()
-    }
-
-    window.addEventListener('keydown', handleKey)
-
     return () => {
       cancelAnimationFrame(rafId)
-      window.removeEventListener('mousedown', handleOutside)
-      window.removeEventListener('contextmenu', handleOutside)
-      window.removeEventListener('keydown', handleKey)
+      window.removeEventListener('contextmenu', handleContextMenu)
     }
   }, [onClose])
 
@@ -71,12 +58,10 @@ export function RowContextMenu({
     'block w-full px-3 py-1.5 text-left text-[13px] text-foreground hover:bg-[color:var(--bg-hover)]'
 
   return (
-    <div
-      ref={menuRef}
-      style={{ left: menu.x, top: menu.y }}
-      className="fixed z-50 min-w-[160px] rounded-md border border-[color:var(--border)] bg-[color:var(--bg-elev)] py-1 shadow-lg"
-      onClick={(e) => e.stopPropagation()}
-      onContextMenu={(e) => e.preventDefault()}
+    <Popover
+      anchor={{ x: menu.x, y: menu.y }}
+      onClose={onClose}
+      className="min-w-[160px] py-1"
     >
       {isFolder && (
         <>
@@ -114,6 +99,6 @@ export function RowContextMenu({
       <button className={item} onClick={() => onTrash(menu.node)}>
         移到废纸篓
       </button>
-    </div>
+    </Popover>
   )
 }
