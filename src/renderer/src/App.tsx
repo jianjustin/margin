@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback, type PointerEvent as ReactPointerEvent } from 'react'
+import { useEffect, useRef, useCallback, type PointerEvent as ReactPointerEvent } from 'react'
 import { FolderOpen, PanelLeft, PanelRight, SlidersHorizontal } from 'lucide-react'
 import { CalendarDayIcon } from '@/components/icons/CalendarDayIcon'
 import { SearchOverlay } from '@/components/SearchOverlay'
@@ -7,10 +7,11 @@ import { saveDocument, waitForDocumentSaves } from '@/lib/saveDocument'
 import { useDocumentStore } from '@/stores/documentStore'
 import { useVaultStore, loadPersistedRoot } from '@/stores/vaultStore'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { useUiStore, type DialogState } from '@/stores/uiStore'
 import { normalizeScheduleDir, scheduleFileName, scheduleTemplate } from '@/lib/schedule'
 import { scanVaultWithSettings } from '@/lib/scanVault'
 import { Sidebar } from '@/components/FileTree/Sidebar'
-import { RowContextMenu, type ContextMenuState } from '@/components/FileTree/RowContextMenu'
+import { RowContextMenu } from '@/components/FileTree/RowContextMenu'
 import { MoveDialog } from '@/components/FileTree/MoveDialog'
 import { InputDialog } from '@/components/InputDialog'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
@@ -40,7 +41,6 @@ import {
   LEFT_PANE,
   RIGHT_PANE,
   clampPaneWidth,
-  loadPaneWidth,
   persistPaneWidth,
   type PaneSpec
 } from '@/lib/layout'
@@ -57,15 +57,6 @@ interface PausedSavePaths {
   affected: string[]
   unaffected: string[]
 }
-
-/* Dialog state types ─────────────────────────────────────────── */
-
-type DialogState =
-  | null
-  | { type: 'newNote'; folder: TreeNode }
-  | { type: 'newFolder'; folder: TreeNode }
-  | { type: 'rename'; node: TreeNode }
-  | { type: 'trash'; node: TreeNode }
 
 /** Unsaved-changes indicator. A leaf subscriber so it re-renders on each
  *  keystroke without dragging App (and the file tree) along. */
@@ -94,15 +85,15 @@ export default function App(): JSX.Element {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const saveTimerPaths = useRef<string[]>([])
   const editorRef = useRef<EditorHandle>(null)
-  const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [drawerOpen, setDrawerOpen] = useState(true)
-  const [menu, setMenu] = useState<ContextMenuState | null>(null)
-  const [moveTarget, setMoveTarget] = useState<TreeNode | null>(null)
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const [searchOpen, setSearchOpen] = useState(false)
-  const [dialog, setDialog] = useState<DialogState>(null)
-  const [leftPaneWidth, setLeftPaneWidth] = useState(() => loadPaneWidth(LEFT_PANE))
-  const [rightPaneWidth, setRightPaneWidth] = useState(() => loadPaneWidth(RIGHT_PANE))
+  const sidebarOpen = useUiStore((s) => s.sidebarOpen)
+  const drawerOpen = useUiStore((s) => s.drawerOpen)
+  const menu = useUiStore((s) => s.menu)
+  const moveTarget = useUiStore((s) => s.moveTarget)
+  const settingsOpen = useUiStore((s) => s.settingsOpen)
+  const searchOpen = useUiStore((s) => s.searchOpen)
+  const dialog = useUiStore((s) => s.dialog)
+  const leftPaneWidth = useUiStore((s) => s.leftPaneWidth)
+  const rightPaneWidth = useUiStore((s) => s.rightPaneWidth)
 
   const themeMode = useThemeStore((s) => s.mode)
   const systemDark = useSystemTheme()
@@ -180,19 +171,19 @@ export default function App(): JSX.Element {
     function handleKeyDown(e: KeyboardEvent): void {
       if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
         e.preventDefault()
-        setSidebarOpen((v) => !v)
+        useUiStore.getState().toggleSidebar()
       }
       if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
         e.preventDefault()
-        setDrawerOpen((v) => !v)
+        useUiStore.getState().toggleDrawer()
       }
       if ((e.metaKey || e.ctrlKey) && e.key === ',') {
         e.preventDefault()
-        setSettingsOpen((v) => !v)
+        useUiStore.getState().setSettingsOpen(!useUiStore.getState().settingsOpen)
       }
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault()
-        setSearchOpen((v) => !v)
+        useUiStore.getState().setSearchOpen(!useUiStore.getState().searchOpen)
       }
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'N') {
         e.preventDefault()
@@ -377,7 +368,7 @@ export default function App(): JSX.Element {
   }, [])
 
   const handleContextMenu = useCallback((node: TreeNode, x: number, y: number): void => {
-    setMenu({ node, x, y })
+    useUiStore.getState().openMenu({ node, x, y })
   }, [])
 
   async function refreshTree(): Promise<void> {
@@ -401,7 +392,7 @@ export default function App(): JSX.Element {
 
   /* ── Context-menu actions (driven by the dialog state machine) ── */
 
-  const closeDialog = useCallback(() => setDialog(null), [])
+  const closeDialog = useCallback(() => useUiStore.getState().closeDialog(), [])
 
   async function doNewNote(folder: TreeNode, name: string): Promise<void> {
     const created = await api.createNote(targetDir(folder), name)
@@ -507,9 +498,9 @@ export default function App(): JSX.Element {
     await openFileByPath(created)
   }
 
-  const handleOpenSearch = useCallback(() => setSearchOpen(true), [])
+  const handleOpenSearch = useCallback(() => useUiStore.getState().setSearchOpen(true), [])
   const handleOpenToday = useCallback(() => void openSchedule(new Date()), [scheduleDir])
-  const handleCollapseSidebar = useCallback(() => setSidebarOpen(false), [])
+  const handleCollapseSidebar = useCallback(() => useUiStore.setState({ sidebarOpen: false }), [])
   const handleNewWindow = useCallback(() => createPeerWindow(), [])
   const handleNewNoteFromSidebar = useCallback(() => {
     const root = useVaultStore.getState().root
@@ -521,7 +512,7 @@ export default function App(): JSX.Element {
       type: 'folder' as const,
       children: tree
     }
-    setDialog({ type: 'newNote', folder: firstFolder })
+    useUiStore.getState().openDialog({ kind: 'newNote', dir: firstFolder.path })
   }, [])
 
   function handleJumpToLine(line: number): void {
@@ -579,7 +570,7 @@ export default function App(): JSX.Element {
           <div
             role="separator"
             aria-orientation="vertical"
-            onPointerDown={(e) => startPaneResize(e, LEFT_PANE, leftPaneWidth, setLeftPaneWidth, 1)}
+            onPointerDown={(e) => startPaneResize(e, LEFT_PANE, leftPaneWidth, (w) => useUiStore.getState().setPaneWidths(w, undefined), 1)}
             className="relative z-20 w-[5px] flex-none cursor-col-resize bg-transparent after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-transparent hover:after:bg-[color:var(--accent-line)] [-webkit-app-region:no-drag]"
           />
         </>
@@ -595,7 +586,7 @@ export default function App(): JSX.Element {
         >
           <div className="flex min-w-0 flex-1 items-center gap-1 [-webkit-app-region:no-drag]">
             <button
-              onClick={() => setSidebarOpen((v) => !v)}
+              onClick={() => useUiStore.getState().toggleSidebar()}
               title={sidebarOpen ? '隐藏文件树 (⌘B)' : '显示文件树 (⌘B)'}
               aria-label={sidebarOpen ? '隐藏文件树' : '显示文件树'}
               className={[
@@ -631,7 +622,7 @@ export default function App(): JSX.Element {
               </button>
             )}
             <button
-              onClick={() => setSettingsOpen(true)}
+              onClick={() => useUiStore.getState().setSettingsOpen(true)}
               title="设置 (⌘,)"
               aria-label="设置"
               className="grid h-[27px] w-[28px] place-items-center rounded-[7px] text-[color:var(--text-dim)] transition-colors hover:bg-[color:var(--bg-hover)] hover:text-foreground"
@@ -639,7 +630,7 @@ export default function App(): JSX.Element {
               <SlidersHorizontal size={16} />
             </button>
             <button
-              onClick={() => setDrawerOpen((v) => !v)}
+              onClick={() => useUiStore.getState().toggleDrawer()}
               title="大纲 (⌘\)"
               aria-label="切换大纲"
               className={[
@@ -707,7 +698,7 @@ export default function App(): JSX.Element {
               <div
                 role="separator"
                 aria-orientation="vertical"
-                onPointerDown={(e) => startPaneResize(e, RIGHT_PANE, rightPaneWidth, setRightPaneWidth, -1)}
+                onPointerDown={(e) => startPaneResize(e, RIGHT_PANE, rightPaneWidth, (w) => useUiStore.getState().setPaneWidths(undefined, w), -1)}
                 className="relative z-20 w-[5px] flex-none cursor-col-resize bg-transparent after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-transparent hover:after:bg-[color:var(--accent-line)] [-webkit-app-region:no-drag]"
               />
               <OutlineDrawer
@@ -729,79 +720,82 @@ export default function App(): JSX.Element {
       {menu && (
         <RowContextMenu
           menu={menu}
-          onClose={() => setMenu(null)}
+          onClose={() => useUiStore.getState().closeMenu()}
           onNewNote={(n) => {
-            setMenu(null)
-            setDialog({ type: 'newNote', folder: n })
+            useUiStore.getState().closeMenu()
+            useUiStore.getState().openDialog({ kind: 'newNote', dir: n.type === 'folder' ? n.path : n.path.replace(/\/[^/]+$/, '') })
           }}
           onNewFolder={(n) => {
-            setMenu(null)
-            setDialog({ type: 'newFolder', folder: n })
+            useUiStore.getState().closeMenu()
+            useUiStore.getState().openDialog({ kind: 'newFolder', dir: n.type === 'folder' ? n.path : n.path.replace(/\/[^/]+$/, '') })
           }}
           onRename={(n) => {
-            setMenu(null)
-            setDialog({ type: 'rename', node: n })
+            useUiStore.getState().closeMenu()
+            useUiStore.getState().openDialog({ kind: 'rename', node: n })
           }}
           onMove={(n) => {
-            setMenu(null)
-            setMoveTarget(n)
+            useUiStore.getState().closeMenu()
+            useUiStore.getState().setMoveTarget(n)
           }}
           onCopyFullPath={(n) => {
-            setMenu(null)
+            useUiStore.getState().closeMenu()
             void copyText(n.path)
           }}
           onCopyRelativePath={(n) => {
-            setMenu(null)
+            useUiStore.getState().closeMenu()
             void copyText(projectRelativePath(vaultRoot, n.path))
           }}
           onOpenInNewWindow={(n) => {
-            setMenu(null)
+            useUiStore.getState().closeMenu()
             if (vaultRoot) {
               createPeerWindow({ filePath: n.path, vaultRoot })
             }
           }}
           onOpenInFinder={(n) => {
-            setMenu(null)
+            useUiStore.getState().closeMenu()
             void api.openPathInFinder(n.path).catch(() => {
               window.alert('无法在 Finder 中显示')
             })
           }}
           onTrash={(n) => {
-            setMenu(null)
-            setDialog({ type: 'trash', node: n })
+            useUiStore.getState().closeMenu()
+            useUiStore.getState().openDialog({ kind: 'trash', node: n })
           }}
         />
       )}
 
       {/* ── Dialog state machine ──────────────────────────────── */}
 
-      {dialog?.type === 'newNote' && (
+      {dialog?.kind === 'newNote' && (
         <InputDialog
           title="新建笔记"
           placeholder="笔记名称"
           onConfirm={(name) => {
-            const folder = dialog.folder
+            const dir = dialog.dir
             closeDialog()
-            void doNewNote(folder, name)
+            void api.createNote(dir, name).then(async (created) => {
+              await refreshTree()
+              await openFileByPath(created)
+            })
           }}
           onCancel={closeDialog}
         />
       )}
 
-      {dialog?.type === 'newFolder' && (
+      {dialog?.kind === 'newFolder' && (
         <InputDialog
           title="新建文件夹"
           placeholder="文件夹名称"
           onConfirm={(name) => {
-            const folder = dialog.folder
+            const dir = dialog.dir
             closeDialog()
-            void doNewFolder(folder, name)
+            void api.createFolder(dir, name).then(() => refreshTree())
           }}
           onCancel={closeDialog}
         />
       )}
 
-      {dialog?.type === 'rename' && (
+      {dialog?.kind === 'rename' && (
         <InputDialog
           title="重命名"
           defaultValue={dialog.node.name}
@@ -814,7 +808,7 @@ export default function App(): JSX.Element {
         />
       )}
 
-      {dialog?.type === 'trash' && (
+      {dialog?.kind === 'trash' && (
         <ConfirmDialog
           title="移到废纸篓"
           message={`确定要将"${dialog.node.name}"移到废纸篓吗？`}
@@ -837,10 +831,10 @@ export default function App(): JSX.Element {
           tree={vaultTree}
           onMove={(destDir) => {
             const node = moveTarget
-            setMoveTarget(null)
+            useUiStore.getState().setMoveTarget(null)
             void doMove(node, destDir)
           }}
-          onClose={() => setMoveTarget(null)}
+          onClose={() => useUiStore.getState().setMoveTarget(null)}
         />
       )}
 
@@ -849,7 +843,7 @@ export default function App(): JSX.Element {
       {settingsOpen && (
         <SettingsPanel
           tree={vaultTree}
-          onClose={() => setSettingsOpen(false)}
+          onClose={() => useUiStore.getState().setSettingsOpen(false)}
         />
       )}
 
@@ -859,7 +853,7 @@ export default function App(): JSX.Element {
         <SearchOverlay
           tree={vaultTree}
           onOpen={(path) => void openFileByPath(path)}
-          onClose={() => setSearchOpen(false)}
+          onClose={() => useUiStore.getState().setSearchOpen(false)}
         />
       )}
       </div>
