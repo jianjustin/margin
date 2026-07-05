@@ -5,7 +5,7 @@ import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { languages } from '@codemirror/language-data'
 import { syntaxHighlighting } from '@codemirror/language'
-import { livePreview } from '@/editor/livePreview/livePreviewPlugin'
+import { livePreview, livePreviewAtomicRanges } from '@/editor/livePreview/livePreviewPlugin'
 import { linkUrlAt } from '@/editor/livePreview/linkAt'
 import { docPathFacet, vaultRootFacet } from '@/editor/docPathFacet'
 import { listContinuation } from '@/editor/listContinuation'
@@ -206,6 +206,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
         vaultRootFacet.of(vaultRoot),
         richContentConfigFacet.of({ assetsDir, plantUmlServerUrl, diagramFitWidth, mathEnabled }),
         livePreview,
+        livePreviewAtomicRanges,
         marginEditorTheme,
         EditorView.lineWrapping,
         saveKeymap,

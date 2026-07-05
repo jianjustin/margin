@@ -37,14 +37,24 @@ const quoteLine = Decoration.line({ class: 'cm-blockquote' })
 const codeLine = Decoration.line({ class: 'cm-code-block' })
 const frontmatterLine = Decoration.line({ class: 'cm-frontmatter' })
 
-function buildDecorations(state: EditorState): DecorationSet {
+function buildDecorations(state: EditorState): { deco: DecorationSet; atomic: DecorationSet } {
   const specs = collectDecorations(state)
   const ranges: Range<Decoration>[] = []
+  const atomic: Range<Decoration>[] = []
+
+  /** Push an inline replace decoration into both ranges and atomic. */
+  function pushInlineReplace(deco: Decoration, from: number, to: number): void {
+    ranges.push(deco.range(from, to))
+    atomic.push(deco.range(from, to))
+  }
 
   for (const s of specs) {
     switch (s.kind) {
       case 'hide':
-        if (!s.revealed && s.to > s.from) ranges.push(hideMark.range(s.from, s.to))
+        if (!s.revealed && s.to > s.from) {
+          ranges.push(hideMark.range(s.from, s.to))
+          atomic.push(hideMark.range(s.from, s.to))
+        }
         break
       case 'headingLine':
         ranges.push(Decoration.line({ class: `cm-heading cm-h${s.level ?? 1}` }).range(s.from))
@@ -86,13 +96,15 @@ function buildDecorations(state: EditorState): DecorationSet {
         break
       case 'hr':
         if (!s.revealed) {
-          ranges.push(Decoration.replace({ widget: new HrWidget(), block: false }).range(s.from, s.to))
+          pushInlineReplace(Decoration.replace({ widget: new HrWidget(), block: false }), s.from, s.to)
         }
         break
       case 'task':
         if (!s.revealed) {
-          ranges.push(
-            Decoration.replace({ widget: new CheckboxWidget(s.checked ?? false, s.from, s.to) }).range(s.from, s.to)
+          pushInlineReplace(
+            Decoration.replace({ widget: new CheckboxWidget(s.checked ?? false, s.from, s.to) }),
+            s.from,
+            s.to
           )
         } else {
           ranges.push(taskSrcMark.range(s.from, s.to))
@@ -152,15 +164,17 @@ function buildDecorations(state: EditorState): DecorationSet {
             }).range(state.doc.lineAt(s.to).to)
           )
           if (!s.revealed) {
+            // hideMark on a standalone image source line is an inline replace
             ranges.push(hideMark.range(s.from, s.to))
+            atomic.push(hideMark.range(s.from, s.to))
           } else {
             ranges.push(imageSrcMark.range(s.from, s.to))
           }
         } else if (!s.revealed) {
-          ranges.push(
-            Decoration.replace({
-              widget: new ImageWidget(src, s.info ?? '', resolved, s.width, s.height)
-            }).range(s.from, s.to)
+          pushInlineReplace(
+            Decoration.replace({ widget: new ImageWidget(src, s.info ?? '', resolved, s.width, s.height) }),
+            s.from,
+            s.to
           )
         } else {
           ranges.push(imageSrcMark.range(s.from, s.to))
@@ -182,15 +196,17 @@ function buildDecorations(state: EditorState): DecorationSet {
             }).range(state.doc.lineAt(s.to).to)
           )
           if (!s.revealed) {
+            // hideMark on a standalone media source line is an inline replace
             ranges.push(hideMark.range(s.from, s.to))
+            atomic.push(hideMark.range(s.from, s.to))
           } else {
             ranges.push(imageSrcMark.range(s.from, s.to))
           }
         } else if (!s.revealed) {
-          ranges.push(
-            Decoration.replace({
-              widget: new MediaWidget(src, s.info ?? '', resolved, s.width, s.height)
-            }).range(s.from, s.to)
+          pushInlineReplace(
+            Decoration.replace({ widget: new MediaWidget(src, s.info ?? '', resolved, s.width, s.height) }),
+            s.from,
+            s.to
           )
         } else {
           ranges.push(imageSrcMark.range(s.from, s.to))
@@ -198,27 +214,25 @@ function buildDecorations(state: EditorState): DecorationSet {
         break
       }
       case 'footnoteRef':
-        ranges.push(
-          Decoration.replace({
-            widget: new FootnoteWidget(s.source ?? '', s.info ?? '')
-          }).range(s.from, s.to)
+        pushInlineReplace(
+          Decoration.replace({ widget: new FootnoteWidget(s.source ?? '', s.info ?? '') }),
+          s.from,
+          s.to
         )
         break
       case 'wikiLink':
         if (!s.revealed) {
-          ranges.push(
-            Decoration.replace({
-              widget: new WikiLinkWidget(s.info ?? '', s.source ?? s.info ?? '')
-            }).range(s.from, s.to)
+          pushInlineReplace(
+            Decoration.replace({ widget: new WikiLinkWidget(s.info ?? '', s.source ?? s.info ?? '') }),
+            s.from,
+            s.to
           )
         }
         break
       case 'mathInline': {
         const cfg = state.facet(richContentConfigFacet)
         if (cfg.mathEnabled) {
-          ranges.push(
-            Decoration.replace({ widget: new MathWidget(s.source ?? '', false) }).range(s.from, s.to)
-          )
+          pushInlineReplace(Decoration.replace({ widget: new MathWidget(s.source ?? '', false) }), s.from, s.to)
         }
         break
       }
@@ -241,19 +255,19 @@ function buildDecorations(state: EditorState): DecorationSet {
         break
       case 'listBullet':
         if (!s.revealed) {
-          ranges.push(
-            Decoration.replace({
-              widget: new BulletWidget(false, undefined, s.level ?? 0)
-            }).range(s.from, s.to)
+          pushInlineReplace(
+            Decoration.replace({ widget: new BulletWidget(false, undefined, s.level ?? 0) }),
+            s.from,
+            s.to
           )
         }
         break
       case 'listNumber':
         if (!s.revealed) {
-          ranges.push(
-            Decoration.replace({
-              widget: new BulletWidget(true, Number(s.info ?? '1'), s.level ?? 0)
-            }).range(s.from, s.to)
+          pushInlineReplace(
+            Decoration.replace({ widget: new BulletWidget(true, Number(s.info ?? '1'), s.level ?? 0) }),
+            s.from,
+            s.to
           )
         }
         break
@@ -261,7 +275,10 @@ function buildDecorations(state: EditorState): DecorationSet {
   }
 
   // sort=true lets CodeMirror order the mixed point/range decorations correctly.
-  return Decoration.set(ranges, true)
+  return {
+    deco: Decoration.set(ranges, true),
+    atomic: Decoration.set(atomic, true)
+  }
 }
 
 /**
@@ -280,6 +297,9 @@ function revealSignature(state: EditorState): string {
 
 interface LivePreviewValue {
   deco: DecorationSet
+  /** Inline replace decorations only — registered as atomicRanges so the cursor
+   *  cannot stop inside a hidden syntax sequence. */
+  atomic: DecorationSet
   /** revealSignature of the state this `deco` was built from. */
   sig: string
 }
@@ -294,18 +314,25 @@ interface LivePreviewValue {
  */
 export const livePreview = StateField.define<LivePreviewValue>({
   create(state) {
-    return { deco: buildDecorations(state), sig: revealSignature(state) }
+    const { deco, atomic } = buildDecorations(state)
+    return { deco, atomic, sig: revealSignature(state) }
   },
   update(value, tr) {
     if (tr.docChanged) {
-      return { deco: buildDecorations(tr.state), sig: revealSignature(tr.state) }
+      const { deco, atomic } = buildDecorations(tr.state)
+      return { deco, atomic, sig: revealSignature(tr.state) }
     }
     if (tr.selection) {
       const sig = revealSignature(tr.state)
       if (sig === value.sig) return value
-      return { deco: buildDecorations(tr.state), sig }
+      const { deco, atomic } = buildDecorations(tr.state)
+      return { deco, atomic, sig }
     }
     return value
   },
   provide: (f) => EditorView.decorations.from(f, (v) => v.deco)
 })
+
+export const livePreviewAtomicRanges = EditorView.atomicRanges.of(
+  (view) => view.state.field(livePreview).atomic
+)
