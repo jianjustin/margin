@@ -141,15 +141,21 @@ function defaultCalloutTitle(type: string): string {
   return type.charAt(0).toUpperCase() + type.slice(1)
 }
 
-export function collectMathRanges(
-  state: EditorState,
-  tree: Tree,
-  shouldSkip: (pos: number) => boolean
-): MathRange[] {
-  const ranges: MathRange[] = []
-  const doc = state.doc
-  const blockSpans: Array<{ from: number; to: number }> = []
+export interface MathBlockSpan {
+  from: number
+  to: number
+}
 
+/**
+ * 全部 `$$ … $$` block 区间（无论是否 revealed）。配对是有状态的，必须从
+ * 文档第 1 行起扫描 —— viewport 中段起扫会导致开/闭 fence 错配。
+ */
+export function collectMathBlockSpans(
+  state: EditorState,
+  shouldSkip: (pos: number) => boolean
+): MathBlockSpan[] {
+  const doc = state.doc
+  const spans: MathBlockSpan[] = []
   let lineNo = 1
   while (lineNo <= doc.lines) {
     const line = doc.line(lineNo)
@@ -164,27 +170,44 @@ export function collectMathRanges(
       closeNo += 1
     }
     if (closeNo > doc.lines) break
-    const close = doc.line(closeNo)
-    const from = line.from
-    const to = close.to
-    blockSpans.push({ from, to })
-    if (!rangeRevealed(state, from, to)) {
-      ranges.push({
-        from,
-        to,
-        block: true,
-        source: doc.sliceString(line.to + 1, close.from).trim()
-      })
-    }
+    spans.push({ from: line.from, to: doc.line(closeNo).to })
     lineNo = closeNo + 1
   }
+  return spans
+}
 
-  const inMathBlock = (from: number): boolean => blockSpans.some((span) => from >= span.from && from < span.to)
-  const text = doc.toString()
+export function collectMathRanges(
+  state: EditorState,
+  tree: Tree,
+  shouldSkip: (pos: number) => boolean,
+  inlineScanFrom = 0,
+  inlineScanTo = state.doc.length
+): MathRange[] {
+  const ranges: MathRange[] = []
+  const doc = state.doc
+  const blockSpans = collectMathBlockSpans(state, shouldSkip)
+
+  for (const span of blockSpans) {
+    if (rangeRevealed(state, span.from, span.to)) continue
+    const openLine = doc.lineAt(span.from)
+    const closeLine = doc.lineAt(span.to)
+    ranges.push({
+      from: span.from,
+      to: span.to,
+      block: true,
+      source: doc.sliceString(openLine.to + 1, closeLine.from).trim()
+    })
+  }
+
+  const inMathBlock = (from: number): boolean =>
+    blockSpans.some((span) => from >= span.from && from < span.to)
+  const scanFrom = doc.lineAt(Math.max(0, Math.min(inlineScanFrom, doc.length))).from
+  const scanTo = doc.lineAt(Math.max(0, Math.min(inlineScanTo, doc.length))).to
+  const text = doc.sliceString(scanFrom, scanTo)
   const inlineRe = /(^|[^\\$])\$(?!\$)([^$\n]+?)(?<!\\)\$/g
   for (const match of text.matchAll(inlineRe)) {
     const prefix = match[1] ?? ''
-    const from = (match.index ?? 0) + prefix.length
+    const from = scanFrom + (match.index ?? 0) + prefix.length
     const to = from + match[0].length - prefix.length
     if (inMathBlock(from) || shouldSkip(from)) continue
     if (rangeRevealed(state, from, to)) continue
@@ -197,22 +220,22 @@ export function collectMathRanges(
 export function collectHighlightRanges(
   state: EditorState,
   tree: Tree,
-  shouldSkip: (pos: number) => boolean
+  shouldSkip: (pos: number) => boolean,
+  scanFrom = 0,
+  scanTo = state.doc.length
 ): HighlightRange[] {
   const ranges: HighlightRange[] = []
-  const text = state.doc.toString()
+  const doc = state.doc
+  const sliceFrom = doc.lineAt(Math.max(0, Math.min(scanFrom, doc.length))).from
+  const sliceTo = doc.lineAt(Math.max(0, Math.min(scanTo, doc.length))).to
+  const text = doc.sliceString(sliceFrom, sliceTo)
   const re = /(^|[^=\\])==([^=\n].*?[^=\n])==/g
   for (const match of text.matchAll(re)) {
     const prefix = match[1] ?? ''
-    const markerFrom = (match.index ?? 0) + prefix.length
+    const markerFrom = sliceFrom + (match.index ?? 0) + prefix.length
     const markerTo = markerFrom + match[0].length - prefix.length
     if (shouldSkip(markerFrom) || rangeRevealed(state, markerFrom, markerTo)) continue
-    ranges.push({
-      from: markerFrom + 2,
-      to: markerTo - 2,
-      markerFrom,
-      markerTo
-    })
+    ranges.push({ from: markerFrom + 2, to: markerTo - 2, markerFrom, markerTo })
   }
   return ranges
 }

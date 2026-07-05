@@ -8,6 +8,7 @@ import { LIST_INDENT } from '../listContinuation'
 import {
   collectHighlightRanges,
   collectMathRanges,
+  collectMathBlockSpans,
   diagramKindForInfo,
   parseCallout,
   parseImageMeta
@@ -101,40 +102,81 @@ function eachLine(
   return out
 }
 
+export interface BlockRegion {
+  from: number
+  to: number
+}
+
+function makeSkipAt(tree: ReturnType<typeof syntaxTree>, fmEnd: number): (pos: number) => boolean {
+  return (pos: number): boolean => {
+    if (fmEnd > 0 && pos < fmEnd) return true
+    let n: SyntaxNode | null = tree.resolveInner(pos, 1)
+    while (n) {
+      if (
+        n.name === 'FencedCode' ||
+        n.name === 'InlineCode' ||
+        n.name === 'CodeText' ||
+        n.name === 'Table'
+      ) {
+        return true
+      }
+      n = n.parent
+    }
+    return false
+  }
+}
+
+/** Image/media 节点 → spec。block/inline 收集器共用，保证 standalone 图片两边产出一致。 */
+function imageSpecFor(state: EditorState, node: SyntaxNode): DecoSpec {
+  const doc = state.doc
+  const urlNode = node.getChild('URL')
+  const url = urlNode ? doc.sliceString(urlNode.from, urlNode.to) : ''
+  let alt = ''
+  let firstMark: { to: number } | null = null
+  for (let c = node.firstChild; c; c = c.nextSibling) {
+    if (c.name === 'LinkMark') {
+      if (!firstMark) {
+        firstMark = c
+        continue
+      }
+      alt = doc.sliceString(firstMark.to, c.from)
+      break
+    }
+  }
+  const meta = parseImageMeta(alt, url)
+  const line = doc.lineAt(node.from)
+  const standalone = line.text.trim() === doc.sliceString(node.from, node.to)
+  return {
+    kind: meta.mediaKind ? 'media' : 'image',
+    from: node.from,
+    to: node.to,
+    revealed: rangeRevealed(state, node.from, node.to),
+    placement: standalone ? 'block' : 'inline',
+    source: meta.url,
+    info: meta.alt,
+    title: meta.alt,
+    width: meta.width,
+    height: meta.height
+  }
+}
+
 /**
- * Walk the markdown syntax tree of `state` and emit a flat list of decoration
- * specs. Pure: depends only on the document text, syntax tree, and selection.
- * Never mutates the document.
+ * Block 级 decoration 收集：全文档遍历，但只处理会产生 block widget/行装饰的
+ * 节点。`regions` 是无论 reveal 与否的 block 候选区域，StateField 用它做
+ * 「选择变化是否翻转了某个 block 的 reveal」的短路判断。
  */
-export function collectDecorations(state: EditorState): DecoSpec[] {
+export function collectBlockDecorations(state: EditorState): {
+  specs: DecoSpec[]
+  regions: BlockRegion[]
+} {
   const specs: DecoSpec[] = []
+  const regions: BlockRegion[] = []
   const tree = ensureSyntaxTree(state, state.doc.length, 5000) ?? syntaxTree(state)
   const doc = state.doc
 
-  const pushHide = (from: number, to: number): void => {
-    specs.push({ kind: 'hide', from, to, revealed: rangeRevealed(state, from, to) })
-  }
-
-  // For markers that live inside a block (fenced code fences, blockquote `>`),
-  // reveal should follow the WHOLE block — Typora-style — not just the marker's
-  // own line. Walk parents to find a FencedCode or Blockquote container.
-  const blockRevealFor = (node: { parent: { name: string; from: number; to: number } | null }):
-    | { from: number; to: number }
-    | null => {
-    let p = node.parent
-    while (p) {
-      if (p.name === 'FencedCode' || p.name === 'Blockquote') return { from: p.from, to: p.to }
-      p = (p as unknown as { parent: typeof p }).parent
-    }
-    return null
-  }
-
-  // Frontmatter: render as an editable properties panel when the cursor is
-  // outside the block; reveal raw YAML (muted lines) when inside. Either way the
-  // grammar's bogus hr/setext nodes for the region are suppressed by the fmEnd
-  // guard in the iterate callback below.
   const fmEnd = frontmatterEnd(state)
   if (fmEnd > 0) {
+    regions.push({ from: 0, to: fmEnd })
     if (rangeRevealed(state, 0, fmEnd)) {
       for (let n = 1; n <= doc.lines; n++) {
         const line = doc.line(n)
@@ -152,28 +194,171 @@ export function collectDecorations(state: EditorState): DecoSpec[] {
     }
   }
 
-  // When a node is replaced by a block widget (fenced code, table), its inner
-  // grammar nodes (CodeMark, TableDelimiter, …) must not emit their own
-  // decorations — they would overlap the block replacement. Iteration is in
-  // document order with children immediately after their parent, so a single
-  // forward "skip until" offset suffices (block regions never nest).
   let blockGuardEnd = 0
 
   tree.iterate({
     enter: (node) => {
       const name = node.name
-
-      // Defensive: never emit decorations for a zero-width node.
       if (node.to <= node.from) return
-
-      // Skip everything the grammar (mis)parsed inside the frontmatter region;
-      // it is rendered as muted metadata, not headings/rules. (`return` does not
-      // stop descent, so nodes after the region are still visited.)
       if (fmEnd > 0 && node.from < fmEnd) return
-
-      // Skip nodes nested inside an already-emitted block replacement.
       if (node.from < blockGuardEnd) return
 
+      if (name === 'FencedCode') {
+        regions.push({ from: node.from, to: node.to })
+        if (!rangeRevealed(state, node.from, node.to)) {
+          const firstLine = doc.lineAt(node.from)
+          const info = firstLine.text.replace(/^[`~]+/, '').trim()
+          const lines = doc.sliceString(node.from, node.to).split('\n')
+          const body = lines.slice(1, lines.length - 1).join('\n')
+          const diagramKind = diagramKindForInfo(info)
+          specs.push({
+            kind: diagramKind ? 'diagramBlock' : 'codeBlock',
+            from: node.from,
+            to: node.to,
+            revealed: false,
+            info: diagramKind ?? info,
+            source: body
+          })
+          blockGuardEnd = node.to
+        } else {
+          for (const s of eachLine(state, node.from, node.to, (lineFrom) => ({
+            kind: 'codeLine',
+            from: lineFrom,
+            to: lineFrom,
+            revealed: false
+          }))) {
+            specs.push(s)
+          }
+        }
+        return false
+      }
+
+      if (name === 'Table') {
+        regions.push({ from: node.from, to: node.to })
+        if (!rangeRevealed(state, node.from, node.to)) {
+          specs.push({
+            kind: 'table',
+            from: node.from,
+            to: node.to,
+            revealed: false,
+            source: doc.sliceString(node.from, node.to)
+          })
+          blockGuardEnd = node.to
+        }
+        return false
+      }
+
+      if (name === 'Blockquote') {
+        const callout = parseCallout(doc.sliceString(node.from, node.to))
+        if (callout) {
+          regions.push({ from: node.from, to: node.to })
+          if (!rangeRevealed(state, node.from, node.to)) {
+            specs.push({
+              kind: 'callout',
+              from: node.from,
+              to: node.to,
+              revealed: false,
+              info: callout.type,
+              title: callout.title,
+              folded: callout.folded,
+              source: callout.body
+            })
+            blockGuardEnd = node.to
+            return false
+          }
+        }
+        return // revealed/普通引用可能内嵌 FencedCode，继续下钻
+      }
+
+      if (name === 'Image') {
+        const spec = imageSpecFor(state, node.node)
+        if (spec.placement === 'block') specs.push(spec)
+        return false
+      }
+      return
+    }
+  })
+
+  const skipAt = makeSkipAt(tree, fmEnd)
+  const mathEnabledSpans = collectMathBlockSpans(state, skipAt)
+  for (const span of mathEnabledSpans) {
+    regions.push({ from: span.from, to: span.to })
+    if (!rangeRevealed(state, span.from, span.to)) {
+      const openLine = doc.lineAt(span.from)
+      const closeLine = doc.lineAt(span.to)
+      specs.push({
+        kind: 'mathBlock',
+        from: span.from,
+        to: span.to,
+        revealed: false,
+        source: doc.sliceString(openLine.to + 1, closeLine.from).trim()
+      })
+    }
+  }
+
+  return { specs, regions }
+}
+
+/**
+ * Inline 级 decoration 收集：只处理与 [rangeFrom, rangeTo]（扩展到整行）相交
+ * 的内容。隐藏 block（fence/table/callout）的子树直接剪枝 —— 它们由 block 层
+ * 的 widget 整体替换。
+ */
+export function collectInlineDecorations(
+  state: EditorState,
+  rangeFrom: number,
+  rangeTo: number
+): DecoSpec[] {
+  const specs: DecoSpec[] = []
+  const doc = state.doc
+  const tree = ensureSyntaxTree(state, Math.min(Math.max(rangeTo, 0), doc.length), 5000) ?? syntaxTree(state)
+  const from = doc.lineAt(Math.max(0, Math.min(rangeFrom, doc.length))).from
+  const to = doc.lineAt(Math.max(0, Math.min(rangeTo, doc.length))).to
+  const fmEnd = frontmatterEnd(state)
+
+  const pushHide = (hFrom: number, hTo: number): void => {
+    specs.push({ kind: 'hide', from: hFrom, to: hTo, revealed: rangeRevealed(state, hFrom, hTo) })
+  }
+
+  const blockRevealFor = (node: { parent: { name: string; from: number; to: number } | null }):
+    | { from: number; to: number }
+    | null => {
+    let p = node.parent
+    while (p) {
+      if (p.name === 'FencedCode' || p.name === 'Blockquote') return { from: p.from, to: p.to }
+      p = (p as unknown as { parent: typeof p }).parent
+    }
+    return null
+  }
+
+  tree.iterate({
+    from,
+    to,
+    enter: (node) => {
+      const name = node.name
+      if (node.to <= node.from) return
+      if (fmEnd > 0 && node.from < fmEnd) return
+
+      // 隐藏的 block 容器：整棵子树剪枝（由 StateField 的 block widget 替换）
+      if (name === 'FencedCode' || name === 'Table') {
+        if (!rangeRevealed(state, node.from, node.to)) return false
+        return // revealed：下钻让 CodeMark/CodeInfo 正常产出
+      }
+      if (name === 'Blockquote') {
+        const callout = parseCallout(doc.sliceString(node.from, node.to))
+        if (callout && !rangeRevealed(state, node.from, node.to)) return false
+        for (const s of eachLine(
+          state,
+          Math.max(node.from, from),
+          Math.min(node.to, to),
+          (lineFrom) => ({ kind: 'quoteLine', from: lineFrom, to: lineFrom, revealed: false })
+        )) {
+          specs.push(s)
+        }
+        return
+      }
+
+      // ↓↓↓ 以下分支从原 collectDecorations 的 iterate 回调逐字搬移，逻辑不变 ↓↓↓
       // Headings: ATXHeading1..6
       if (/^ATXHeading[1-6]$/.test(name)) {
         const level = Number(name.slice(-1))
@@ -183,9 +368,9 @@ export function collectDecorations(state: EditorState): DecoSpec[] {
       }
       if (name === 'HeaderMark') {
         // also swallow the single space after the leading '#'s
-        let to = node.to
-        if (doc.sliceString(to, to + 1) === ' ') to += 1
-        pushHide(node.from, to)
+        let hTo = node.to
+        if (doc.sliceString(hTo, hTo + 1) === ' ') hTo += 1
+        pushHide(node.from, hTo)
         return
       }
 
@@ -221,36 +406,6 @@ export function collectDecorations(state: EditorState): DecoSpec[] {
         return
       }
 
-      // Blockquote
-      if (name === 'Blockquote') {
-        const callout = parseCallout(doc.sliceString(node.from, node.to))
-        if (callout) {
-          const revealed = rangeRevealed(state, node.from, node.to)
-          if (!revealed) {
-            specs.push({
-              kind: 'callout',
-              from: node.from,
-              to: node.to,
-              revealed: false,
-              info: callout.type,
-              title: callout.title,
-              folded: callout.folded,
-              source: callout.body
-            })
-            blockGuardEnd = node.to
-            return false
-          }
-        }
-        for (const s of eachLine(state, node.from, node.to, (lineFrom) => ({
-          kind: 'quoteLine',
-          from: lineFrom,
-          to: lineFrom,
-          revealed: false
-        }))) {
-          specs.push(s)
-        }
-        return
-      }
       if (name === 'QuoteMark') {
         const block = blockRevealFor(node.node)
         const revealed = block
@@ -260,57 +415,8 @@ export function collectDecorations(state: EditorState): DecoSpec[] {
         return
       }
 
-      // Fenced code: render as a scrollable highlighted block when the cursor is
-      // outside; reveal raw editable lines (cm-code-block) when inside.
-      if (name === 'FencedCode') {
-        const revealed = rangeRevealed(state, node.from, node.to)
-        if (!revealed) {
-          const firstLine = doc.lineAt(node.from)
-          const info = firstLine.text.replace(/^[`~]+/, '').trim()
-          // Strip the opening/closing fence lines for the rendered code body.
-          const lines = doc.sliceString(node.from, node.to).split('\n')
-          const body = lines.slice(1, lines.length - 1).join('\n')
-          const diagramKind = diagramKindForInfo(info)
-          specs.push({
-            kind: diagramKind ? 'diagramBlock' : 'codeBlock',
-            from: node.from,
-            to: node.to,
-            revealed: false,
-            info: diagramKind ?? info,
-            source: body
-          })
-          blockGuardEnd = node.to
-          return
-        }
-        for (const s of eachLine(state, node.from, node.to, (lineFrom) => ({
-          kind: 'codeLine',
-          from: lineFrom,
-          to: lineFrom,
-          revealed: false
-        }))) {
-          specs.push(s)
-        }
-        return
-      }
       if (name === 'CodeInfo') {
         pushHide(node.from, node.to)
-        return
-      }
-
-      // GFM table: render as an editable HTML table when the cursor is outside;
-      // reveal raw markdown when inside for complex edits (add/remove rows).
-      if (name === 'Table') {
-        const revealed = rangeRevealed(state, node.from, node.to)
-        if (!revealed) {
-          specs.push({
-            kind: 'table',
-            from: node.from,
-            to: node.to,
-            revealed: false,
-            source: doc.sliceString(node.from, node.to)
-          })
-          blockGuardEnd = node.to
-        }
         return
       }
 
@@ -381,38 +487,9 @@ export function collectDecorations(state: EditorState): DecoSpec[] {
         return
       }
 
-      // Inline image / media. `placement` decides the rendering strategy:
-      // a standalone image gets a block widget BELOW its (concealed) source line,
-      // an in-text image is replaced inline. Spec is emitted in both reveal states
-      // so the widget can persist while the source is being edited.
       if (name === 'Image') {
-        const urlNode = node.node.getChild('URL')
-        const url = urlNode ? doc.sliceString(urlNode.from, urlNode.to) : ''
-        let alt = ''
-        let firstMark: { to: number } | null = null
-        for (let c = node.node.firstChild; c; c = c.nextSibling) {
-          if (c.name === 'LinkMark') {
-            if (!firstMark) { firstMark = c; continue }
-            alt = doc.sliceString(firstMark.to, c.from)
-            break
-          }
-        }
-        const meta = parseImageMeta(alt, url)
-        const line = doc.lineAt(node.from)
-        const standalone = line.text.trim() === doc.sliceString(node.from, node.to)
-        specs.push({
-          kind: meta.mediaKind ? 'media' : 'image',
-          from: node.from,
-          to: node.to,
-          revealed: rangeRevealed(state, node.from, node.to),
-          placement: standalone ? 'block' : 'inline',
-          source: meta.url,
-          info: meta.alt,
-          title: meta.alt,
-          width: meta.width,
-          height: meta.height
-        })
-        return false // widget/mark handles the range — skip children
+        specs.push(imageSpecFor(state, node.node))
+        return false
       }
 
       // Links: style the whole node, hide its [] and (url) children.
@@ -442,56 +519,47 @@ export function collectDecorations(state: EditorState): DecoSpec[] {
     }
   })
 
-  const fullText = doc.toString()
-  const skipAt = (pos: number): boolean => {
-    if (fmEnd > 0 && pos < fmEnd) return true
-    let n: SyntaxNode | null = tree.resolveInner(pos, 1)
-    while (n) {
-      if (
-        n.name === 'FencedCode' ||
-        n.name === 'InlineCode' ||
-        n.name === 'CodeText' ||
-        n.name === 'Table'
-      ) {
-        return true
-      }
-      n = n.parent
-    }
-    return false
-  }
-  for (const ref of collectFootnoteRefs(fullText)) {
-    if (skipAt(ref.index)) continue
-    const from = ref.index
-    const to = ref.index + ref.length
-    const revealed = rangeRevealed(state, from, to)
+  // 正则类收集：只扫范围切片，命中位置加 `from` 偏移
+  const skipAt = makeSkipAt(tree, fmEnd)
+  const scanText = doc.sliceString(from, to)
+  let cachedFullText: string | null = null
+  const fullText = (): string => (cachedFullText ??= doc.toString())
+
+  for (const ref of collectFootnoteRefs(scanText)) {
+    const refFrom = from + ref.index
+    const refTo = refFrom + ref.length
+    if (skipAt(refFrom)) continue
+    const revealed = rangeRevealed(state, refFrom, refTo)
     if (!revealed) {
       specs.push({
         kind: 'footnoteRef',
-        from,
-        to,
+        from: refFrom,
+        to: refTo,
         revealed,
         source: ref.label,
-        info: findFootnoteDef(fullText, ref.label) ?? ''
+        // 脚注定义可能在 viewport 外（通常在文末），懒取全文
+        info: findFootnoteDef(fullText(), ref.label) ?? ''
       })
     }
   }
 
-  // Text-level image fallback for Obsidian-style size suffixes such as
-  // `![alt](video.mp4 =640x)`, which the markdown grammar may not classify as
-  // an Image because of the whitespace inside the destination.
   const imageRe = /!\[([^\]\n]*)\]\(([^)\n]+)\)/g
-  for (const match of fullText.matchAll(imageRe)) {
-    const from = match.index ?? 0
-    const to = from + match[0].length
-    if (skipAt(from) || rangeRevealed(state, from, to)) continue
-    if (specs.some((spec) => (spec.kind === 'image' || spec.kind === 'media') && spec.from === from && spec.to === to)) {
+  for (const match of scanText.matchAll(imageRe)) {
+    const mFrom = from + (match.index ?? 0)
+    const mTo = mFrom + match[0].length
+    if (skipAt(mFrom) || rangeRevealed(state, mFrom, mTo)) continue
+    if (
+      specs.some(
+        (spec) => (spec.kind === 'image' || spec.kind === 'media') && spec.from === mFrom && spec.to === mTo
+      )
+    ) {
       continue
     }
     const meta = parseImageMeta(match[1], match[2])
     specs.push({
       kind: meta.mediaKind ? 'media' : 'image',
-      from,
-      to,
+      from: mFrom,
+      to: mTo,
       revealed: false,
       source: meta.url,
       info: meta.alt,
@@ -501,44 +569,37 @@ export function collectDecorations(state: EditorState): DecoSpec[] {
     })
   }
 
-  for (const math of collectMathRanges(state, tree, skipAt)) {
-    specs.push({
-      kind: math.block ? 'mathBlock' : 'mathInline',
-      from: math.from,
-      to: math.to,
-      revealed: false,
-      source: math.source
-    })
+  for (const math of collectMathRanges(state, tree, skipAt, from, to)) {
+    if (math.block) continue
+    specs.push({ kind: 'mathInline', from: math.from, to: math.to, revealed: false, source: math.source })
   }
 
-  for (const highlight of collectHighlightRanges(state, tree, skipAt)) {
+  for (const highlight of collectHighlightRanges(state, tree, skipAt, from, to)) {
     specs.push({ kind: 'hide', from: highlight.markerFrom, to: highlight.markerFrom + 2, revealed: false })
     specs.push({ kind: 'highlight', from: highlight.from, to: highlight.to, revealed: false })
     specs.push({ kind: 'hide', from: highlight.markerTo - 2, to: highlight.markerTo, revealed: false })
   }
 
-  // Wiki links: [[target]] or [[target|display]].
-  // Re-uses skipAt() to exclude code blocks, inline code, and tables.
-  // Reveal is line-based (consistent with all other live-preview nodes).
   const wikiRe = /\[\[([^\]\n]+)\]\]/g
-  for (const m of fullText.matchAll(wikiRe)) {
-    const from = m.index ?? 0
-    const to = from + m[0].length
-    if (skipAt(from)) continue
+  for (const m of scanText.matchAll(wikiRe)) {
+    const wFrom = from + (m.index ?? 0)
+    const wTo = wFrom + m[0].length
+    if (skipAt(wFrom)) continue
     const inner = m[1]
     const pipeIdx = inner.indexOf('|')
     const target = (pipeIdx >= 0 ? inner.slice(0, pipeIdx) : inner).split('#')[0].trim()
     const display = pipeIdx >= 0 ? inner.slice(pipeIdx + 1).trim() : target
-    const revealed = rangeRevealed(state, from, to)
-    specs.push({
-      kind: 'wikiLink',
-      from,
-      to,
-      revealed,
-      info: target,    // navigation target
-      source: display  // display label shown in the widget
-    })
+    const revealed = rangeRevealed(state, wFrom, wTo)
+    specs.push({ kind: 'wikiLink', from: wFrom, to: wTo, revealed, info: target, source: display })
   }
 
   return specs
+}
+
+/** 兼容包装：全文档 block + inline。standalone 图片会重复产出一条（两层各一），调用方按 kind/placement 各取所需。 */
+export function collectDecorations(state: EditorState): DecoSpec[] {
+  return [
+    ...collectBlockDecorations(state).specs,
+    ...collectInlineDecorations(state, 0, state.doc.length)
+  ]
 }
