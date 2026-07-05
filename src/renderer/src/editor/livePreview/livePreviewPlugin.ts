@@ -52,8 +52,7 @@ function buildDecorations(state: EditorState): { deco: DecorationSet; atomic: De
     switch (s.kind) {
       case 'hide':
         if (!s.revealed && s.to > s.from) {
-          ranges.push(hideMark.range(s.from, s.to))
-          atomic.push(hideMark.range(s.from, s.to))
+          pushInlineReplace(hideMark, s.from, s.to)
         }
         break
       case 'headingLine':
@@ -165,8 +164,7 @@ function buildDecorations(state: EditorState): { deco: DecorationSet; atomic: De
           )
           if (!s.revealed) {
             // hideMark on a standalone image source line is an inline replace
-            ranges.push(hideMark.range(s.from, s.to))
-            atomic.push(hideMark.range(s.from, s.to))
+            pushInlineReplace(hideMark, s.from, s.to)
           } else {
             ranges.push(imageSrcMark.range(s.from, s.to))
           }
@@ -197,8 +195,7 @@ function buildDecorations(state: EditorState): { deco: DecorationSet; atomic: De
           )
           if (!s.revealed) {
             // hideMark on a standalone media source line is an inline replace
-            ranges.push(hideMark.range(s.from, s.to))
-            atomic.push(hideMark.range(s.from, s.to))
+            pushInlineReplace(hideMark, s.from, s.to)
           } else {
             ranges.push(imageSrcMark.range(s.from, s.to))
           }
