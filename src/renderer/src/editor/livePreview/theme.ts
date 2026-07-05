@@ -20,14 +20,14 @@ export const marginEditorTheme = EditorView.theme({
     lineHeight: '1.28',
     color: 'var(--text)'
   },
-  '.cm-h1': { fontSize: '1.42em', fontWeight: '650', lineHeight: '1.28', paddingTop: '6px' },
-  '.cm-h2': { fontSize: '1.22em', fontWeight: '635', lineHeight: '1.32', paddingTop: '4px' },
-  '.cm-h3': { fontSize: '1.07em', fontWeight: '620', lineHeight: '1.38', paddingTop: '2px' },
-  '.cm-h4': { fontSize: '1em', fontWeight: '610' },
+  '.cm-h1': { fontSize: '1.42em', fontWeight: '600', lineHeight: '1.28', paddingTop: '6px' },
+  '.cm-h2': { fontSize: '1.22em', fontWeight: '600', lineHeight: '1.32', paddingTop: '4px' },
+  '.cm-h3': { fontSize: '1.07em', fontWeight: '600', lineHeight: '1.38', paddingTop: '2px' },
+  '.cm-h4': { fontSize: '1em', fontWeight: '600' },
   '.cm-h5': { fontSize: '0.95em' },
   '.cm-h6': { fontSize: '0.9em', color: 'var(--text-dim)' },
 
-  '.cm-strong': { fontWeight: '650' },
+  '.cm-strong': { fontWeight: '600' },
   '.cm-em': { fontStyle: 'italic' },
   '.cm-strike': { textDecoration: 'line-through', color: 'var(--text-dim)' },
 

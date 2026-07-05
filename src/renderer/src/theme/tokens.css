@@ -62,8 +62,7 @@
 
   /* Font stacks: Latin from bundled IBM Plex; CJK from system PingFang SC. */
   --ui: 'IBM Plex Sans', 'PingFang SC', system-ui, sans-serif;
-  --editor: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
-    'Microsoft YaHei', 'IBM Plex Sans', system-ui, sans-serif;
+  --editor: 'IBM Plex Sans', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
   --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   --serif: 'IBM Plex Serif', Georgia, serif;
 
