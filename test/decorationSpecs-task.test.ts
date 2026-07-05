@@ -61,4 +61,18 @@ describe('collectDecorations — task list', () => {
     expect(done).toBeTruthy()
     expect(done!.from).toBe(6) // after "[x]" (pos 2..4) + space = pos 6
   })
+
+  it('taskDoneText reveals with cursor far from marker', () => {
+    const state = mkState('- [x] done item', 14)
+    const done = collectDecorations(state).find((s) => s.kind === 'taskDoneText')
+    expect(done).toBeTruthy()
+    expect(done!.revealed).toBe(false)
+  })
+
+  it('taskDoneText unreveals when cursor is on the marker', () => {
+    const state = mkState('- [x] done item', 3)
+    const done = collectDecorations(state).find((s) => s.kind === 'taskDoneText')
+    expect(done).toBeTruthy()
+    expect(done!.revealed).toBe(true)
+  })
 })

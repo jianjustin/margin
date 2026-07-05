@@ -96,7 +96,7 @@ function buildDecorations(state: EditorState): DecorationSet {
         }
         break
       case 'taskDoneText':
-        ranges.push(taskDoneMark.range(s.from, s.to))
+        if (!s.revealed) ranges.push(taskDoneMark.range(s.from, s.to))
         break
       case 'codeBlock':
         ranges.push(

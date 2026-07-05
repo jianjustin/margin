@@ -374,7 +374,7 @@ export function collectDecorations(state: EditorState): DecoSpec[] {
         if (checked) {
           const line = doc.lineAt(node.from)
           if (node.to + 1 < line.to) {
-            specs.push({ kind: 'taskDoneText', from: node.to + 1, to: line.to, revealed: false })
+            specs.push({ kind: 'taskDoneText', from: node.to + 1, to: line.to, revealed })
           }
         }
         return
