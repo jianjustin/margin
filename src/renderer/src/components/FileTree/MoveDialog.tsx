@@ -1,7 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { ChevronRight, ChevronDown } from 'lucide-react'
 import type { TreeNode } from '../../../../shared/ipc'
 import { FolderGlyph } from '@/components/icons/FolderGlyph'
+import { Modal } from '@/components/ui/Modal'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
+import { ICON_SM, ICON_MD } from '@/components/ui/icon'
 
 interface MoveDialogProps {
   node: TreeNode
@@ -39,13 +43,7 @@ export function MoveDialog({ node, root, rootName, tree, onMove, onClose }: Move
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [filter, setFilter] = useState('')
 
-  useEffect(() => {
-    function handleKey(e: KeyboardEvent): void {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', handleKey)
-    return () => window.removeEventListener('keydown', handleKey)
-  }, [onClose])
+  const handleClose = useCallback(() => onClose(), [onClose])
 
   const visiblePaths = useMemo(
     () => (filter.trim() ? matchingPaths(tree, filter) : null),
@@ -95,7 +93,7 @@ export function MoveDialog({ node, root, rootName, tree, onMove, onClose }: Move
             style={{ left: 4 + (depth - 1) * 14 }}
             className="absolute z-10 grid h-6 w-6 place-items-center text-[color:var(--text-faint)] hover:text-foreground"
           >
-            {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            {open ? <ChevronDown size={ICON_SM} /> : <ChevronRight size={ICON_SM} />}
           </button>
         ) : null}
         <button
@@ -110,7 +108,7 @@ export function MoveDialog({ node, root, rootName, tree, onMove, onClose }: Move
               : 'text-foreground hover:bg-[color:var(--bg-hover)]'
           ].join(' ')}
         >
-          <FolderGlyph open={open || isSel} size={17} className={folderIconClass} />
+          <FolderGlyph open={open || isSel} size={ICON_MD} className={folderIconClass} />
           <span className="truncate">{folderNode.name}</span>
           {isCurrent && (
             <span className="ml-auto text-[10.5px] text-[color:var(--text-faint)]">当前位置</span>
@@ -129,14 +127,8 @@ export function MoveDialog({ node, root, rootName, tree, onMove, onClose }: Move
   const folderRows = tree.flatMap((n) => (n.type === 'folder' ? renderFolder(n, 1, root) : []))
 
   return (
-    <div
-      className="fixed inset-0 z-50 grid place-items-center bg-[oklch(0_0_0/0.4)]"
-      onClick={onClose}
-    >
-      <div
-        className="flex max-h-[70vh] w-[min(360px,calc(100vw-32px))] flex-col overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-elev)] shadow-[0_24px_64px_oklch(0_0_0/0.5)]"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Modal open onClose={handleClose}>
+      <div className="flex max-h-[70vh] w-[min(360px,calc(100vw-32px))] flex-col overflow-hidden">
         <div className="border-b border-[color:var(--border-soft)] px-4 py-3">
           <div className="text-[13px] font-semibold">移动到…</div>
           <div className="mt-0.5 truncate text-[11.5px] text-[color:var(--text-faint)]">
@@ -145,11 +137,11 @@ export function MoveDialog({ node, root, rootName, tree, onMove, onClose }: Move
         </div>
 
         <div className="border-b border-[color:var(--border-soft)] px-3 py-2">
-          <input
+          <Input
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
             placeholder="过滤目录…"
-            className="w-full rounded-md border border-[color:var(--border-soft)] bg-[color:var(--bg)] px-2 py-1 text-[12.5px] outline-none placeholder:text-[color:var(--text-faint)] focus:border-[color:var(--accent)]"
+            className="h-7 text-[12.5px]"
           />
         </div>
 
@@ -164,7 +156,7 @@ export function MoveDialog({ node, root, rootName, tree, onMove, onClose }: Move
                 : 'text-foreground hover:bg-[color:var(--bg-hover)]'
             ].join(' ')}
           >
-            <FolderGlyph open={selected === root} size={17} />
+            <FolderGlyph open={selected === root} size={ICON_MD} />
             <span className="truncate">{rootName || '文件库'}</span>
             {root === currentParent && (
               <span className="ml-auto text-[10.5px] text-[color:var(--text-faint)]">当前位置</span>
@@ -174,21 +166,19 @@ export function MoveDialog({ node, root, rootName, tree, onMove, onClose }: Move
         </div>
 
         <div className="flex justify-end gap-2 border-t border-[color:var(--border-soft)] px-4 py-3">
-          <button
-            onClick={onClose}
-            className="rounded-md px-3 py-1.5 text-[12.5px] text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)]"
-          >
+          <Button variant="ghost" size="sm" onClick={onClose}>
             取消
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
             onClick={() => onMove(selected)}
             disabled={selected === currentParent}
-            className="rounded-md bg-[color:var(--accent)] px-3 py-1.5 text-[12.5px] font-medium text-[color:var(--accent-ink)] disabled:opacity-40"
           >
             移动
-          </button>
+          </Button>
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }
