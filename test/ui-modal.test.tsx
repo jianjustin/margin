@@ -161,4 +161,55 @@ describe('Popover', () => {
     expect(popover.style.left).toBe('150px')
     expect(popover.style.top).toBe('250px')
   })
+
+  it('视口 clamp：anchor 超出右缘时 left 被钳制', () => {
+    // mock innerWidth=800, getBoundingClientRect width=200
+    Object.defineProperty(window, 'innerWidth', { value: 800, configurable: true })
+    Object.defineProperty(window, 'innerHeight', { value: 600, configurable: true })
+    const origGetBCR = HTMLElement.prototype.getBoundingClientRect
+    HTMLElement.prototype.getBoundingClientRect = function () {
+      return { width: 200, height: 100, left: 0, top: 0, right: 200, bottom: 100, x: 0, y: 0, toJSON: () => {} } as DOMRect
+    }
+
+    // anchor.x=700 → 700+200=900 > 800 → clamp to 800-200-8=592
+    const { container } = render(
+      <Popover anchor={{ x: 700, y: 100 }} onClose={() => {}}>
+        <div>内容</div>
+      </Popover>
+    )
+    const popover = container.querySelector('.fixed') as HTMLElement
+    expect(parseFloat(popover.style.left)).toBeLessThanOrEqual(592)
+
+    HTMLElement.prototype.getBoundingClientRect = origGetBCR
+  })
+
+  it('视口 clamp：anchor 未超出右缘时保留原始 left', () => {
+    Object.defineProperty(window, 'innerWidth', { value: 800, configurable: true })
+    Object.defineProperty(window, 'innerHeight', { value: 600, configurable: true })
+    const origGetBCR = HTMLElement.prototype.getBoundingClientRect
+    HTMLElement.prototype.getBoundingClientRect = function () {
+      return { width: 100, height: 50, left: 0, top: 0, right: 100, bottom: 50, x: 0, y: 0, toJSON: () => {} } as DOMRect
+    }
+
+    // anchor.x=100 → 100+100=200 < 800 → 不 clamp，保持 100
+    const { container } = render(
+      <Popover anchor={{ x: 100, y: 100 }} onClose={() => {}}>
+        <div>内容</div>
+      </Popover>
+    )
+    const popover = container.querySelector('.fixed') as HTMLElement
+    expect(parseFloat(popover.style.left)).toBe(100)
+
+    HTMLElement.prototype.getBoundingClientRect = origGetBCR
+  })
+
+  it('role prop 透传到根元素', () => {
+    const { container } = render(
+      <Popover anchor={{ x: 10, y: 10 }} onClose={() => {}} role="menu">
+        <div>内容</div>
+      </Popover>
+    )
+    const popover = container.querySelector('.fixed')!
+    expect(popover.getAttribute('role')).toBe('menu')
+  })
 })

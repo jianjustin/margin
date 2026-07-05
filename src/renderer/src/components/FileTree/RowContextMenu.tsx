@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import type { TreeNode } from '../../../../shared/ipc'
 import { Popover } from '@/components/ui/Popover'
 
@@ -35,13 +35,15 @@ export function RowContextMenu({
   onOpenInFinder,
   onOpenInNewWindow
 }: RowContextMenuProps): JSX.Element {
+  const popoverRef = useRef<HTMLDivElement>(null)
+
   // 监听 contextmenu 事件（新的右键）在菜单外发生时关闭当前菜单。
+  // 菜单内部右键事件通过 contains 检查跳过，避免误关。
   // Popover 的 useDismissable 只监听 mousedown，不覆盖此场景。
   useEffect(() => {
     function handleContextMenu(e: Event): void {
+      if (popoverRef.current?.contains(e.target as Node)) return
       onClose()
-      // 阻止关闭后立刻被同一 contextmenu 事件重新打开由调用方处理（调用方应先检查状态）
-      void e
     }
     // rAF 延迟：让触发本菜单的 contextmenu 事件先完成传播
     const rafId = requestAnimationFrame(() => {
@@ -59,9 +61,12 @@ export function RowContextMenu({
 
   return (
     <Popover
+      ref={popoverRef}
       anchor={{ x: menu.x, y: menu.y }}
       onClose={onClose}
       className="min-w-[160px] py-1"
+      role="menu"
+      onContextMenu={(e: React.MouseEvent) => e.preventDefault()}
     >
       {isFolder && (
         <>

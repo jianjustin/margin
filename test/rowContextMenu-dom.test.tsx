@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { RowContextMenu } from '@/components/FileTree/RowContextMenu'
 import type { TreeNode } from '../src/shared/ipc'
 
@@ -36,5 +36,35 @@ describe('RowContextMenu', () => {
     expect(onCopyFullPath).toHaveBeenCalledWith(node)
     expect(onCopyRelativePath).toHaveBeenCalledWith(node)
     expect(onOpenInFinder).toHaveBeenCalledWith(node)
+  })
+
+  it('菜单内右键不触发 onClose', async () => {
+    const onClose = vi.fn()
+    render(
+      <RowContextMenu
+        menu={{ node, x: 10, y: 20 }}
+        onClose={onClose}
+        onNewNote={() => {}}
+        onNewFolder={() => {}}
+        onRename={() => {}}
+        onMove={() => {}}
+        onTrash={() => {}}
+        onCopyFullPath={() => {}}
+        onCopyRelativePath={() => {}}
+        onOpenInFinder={() => {}}
+      />
+    )
+
+    // 等待 rAF 注册 contextmenu 监听器
+    await act(async () => {
+      await new Promise((r) => requestAnimationFrame(r))
+    })
+
+    // 在菜单按钮上触发 contextmenu 事件
+    const btn = screen.getByRole('button', { name: '重命名…' })
+    fireEvent.contextMenu(btn)
+
+    // 因为是菜单内部，onClose 不应被调用
+    expect(onClose).not.toHaveBeenCalled()
   })
 })
