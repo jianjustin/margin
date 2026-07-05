@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { SLASH_COMMANDS, type SlashCommand } from '@/core/commands'
+import { Popover } from '@/components/ui/Popover'
 
 /** Slash-menu item shape. The catalog now lives in core/commands/slashCommands. */
 export type SlashMenuItem = SlashCommand
@@ -67,32 +68,12 @@ export function SlashMenu({ x, y, onSelect, onClose }: SlashMenuProps): JSX.Elem
   }, [activeIdx, filter, filtered, onClose, onSelect])
 
   useEffect(() => {
-    function handleClick(e: MouseEvent): void {
-      const el = bodyRef.current
-      if (el && !el.closest('.slash-menu')?.contains(e.target as Node)) {
-        onClose()
-      }
-    }
-    window.addEventListener('mousedown', handleClick)
-    return () => window.removeEventListener('mousedown', handleClick)
-  }, [onClose])
-
-  useEffect(() => {
     const el = bodyRef.current?.children[activeIdx] as HTMLElement | undefined
     el?.scrollIntoView({ block: 'nearest' })
   }, [activeIdx])
 
-  const menuStyle: React.CSSProperties = {
-    position: 'fixed',
-    left: x,
-    top: y,
-    zIndex: 60,
-    width: 292,
-    animation: 'slash-in 0.12s ease'
-  }
-
   return (
-    <div className="slash-menu flex flex-col overflow-hidden rounded-[10px] border border-[color:var(--border)] bg-[color:var(--bg-elev)] shadow-[0_18px_48px_oklch(0_0_0/0.45)]" style={menuStyle}>
+    <Popover anchor={{ x, y }} onClose={onClose} className="slash-menu flex w-[292px] flex-col overflow-hidden">
       <div ref={bodyRef} className="max-h-[298px] overflow-y-auto p-1.5">
         {filter && (
           <div className="px-2 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-[color:var(--text-faint)]">
@@ -154,6 +135,6 @@ export function SlashMenu({ x, y, onSelect, onClose }: SlashMenuProps): JSX.Elem
           关闭
         </span>
       </div>
-    </div>
+    </Popover>
   )
 }
