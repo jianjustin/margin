@@ -26,14 +26,35 @@ export class CheckboxWidget extends WidgetType {
     box.className = 'cm-task-checkbox' + (this.checked ? ' cm-task-checkbox-on' : '')
     box.setAttribute('role', 'checkbox')
     box.setAttribute('aria-checked', String(this.checked))
+    box.setAttribute('aria-label', '任务完成状态')
+    box.setAttribute('tabindex', '0')
+    box.dataset.taskPos = String(this.from)
     if (this.checked) box.appendChild(checkSvg())
+    // preventDefault keeps editor focus/selection untouched on mouse toggle.
     box.addEventListener('mousedown', (e) => {
       e.preventDefault()
-      view.dispatch({
-        changes: { from: this.from, to: this.to, insert: this.checked ? '[ ]' : '[x]' }
+      this.toggle(view)
+    })
+    box.addEventListener('keydown', (e) => {
+      if (e.key !== ' ' && e.key !== 'Enter') return
+      e.preventDefault()
+      this.toggle(view)
+      // The toggle rebuilds decorations and replaces this DOM node; move
+      // focus to the successor widget ([ ]/[x] are equal-length, so the
+      // document position is stable) instead of dropping it on <body>.
+      requestAnimationFrame(() => {
+        view.dom
+          ?.querySelector<HTMLElement>(`.cm-task-checkbox[data-task-pos="${this.from}"]`)
+          ?.focus()
       })
     })
     return box
+  }
+
+  private toggle(view: EditorView): void {
+    view.dispatch({
+      changes: { from: this.from, to: this.to, insert: this.checked ? '[ ]' : '[x]' }
+    })
   }
 
   ignoreEvent(): boolean {

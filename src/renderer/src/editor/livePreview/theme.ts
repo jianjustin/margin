@@ -116,6 +116,10 @@ export const marginEditorTheme = EditorView.theme({
     transition: 'background 0.12s ease, border-color 0.12s ease'
   },
   '.cm-task-checkbox:hover': { borderColor: 'var(--accent)' },
+  '.cm-task-checkbox:focus-visible': {
+    outline: '2px solid var(--accent)',
+    outlineOffset: '1px'
+  },
   '.cm-task-checkbox-on': {
     background: 'var(--accent)',
     borderColor: 'var(--accent)',
