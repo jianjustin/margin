@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { FileText, Search } from 'lucide-react'
 import type { TreeNode } from '../../../shared/ipc'
+import { ICON_SM, ICON_MD } from '@/components/ui/icon'
 import {
   flattenMarkdownFiles,
   matchByName,
@@ -8,6 +9,7 @@ import {
   type SearchResult
 } from '@/lib/searchContent'
 import { api } from '@/lib/api'
+import { Modal } from '@/components/ui/Modal'
 
 interface SearchOverlayProps {
   tree: TreeNode[]
@@ -73,7 +75,6 @@ export function SearchOverlay({ tree, onOpen, onClose }: SearchOverlayProps): JS
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent): void {
-      if (e.key === 'Escape') { onClose(); return }
       if (e.key === 'ArrowDown') {
         e.preventDefault()
         setSelectedIdx((i) => Math.min(i + 1, results.length - 1))
@@ -89,23 +90,19 @@ export function SearchOverlay({ tree, onOpen, onClose }: SearchOverlayProps): JS
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [onClose, openSelected])
+  }, [openSelected])
 
   const tabBase = 'px-3 py-1 text-[12px] rounded-md transition-colors'
   const tabActive = 'bg-[color:var(--accent-soft)] text-[color:var(--accent)] font-medium'
   const tabInactive = 'text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)]'
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-[oklch(0_0_0/0.45)] pt-[15vh]"
-      onClick={onClose}
-    >
+    <Modal open onClose={onClose} align="top">
       <div
-        className="flex w-[min(560px,calc(100vw-32px))] flex-col overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--bg-elev)] shadow-[0_24px_64px_oklch(0_0_0/0.5)]"
-        onClick={(e) => e.stopPropagation()}
+        className="flex w-[min(560px,calc(100vw-32px))] flex-col overflow-hidden"
       >
         <div className="flex items-center gap-2 border-b border-[color:var(--border-soft)] px-4 py-3">
-          <Search size={15} className="flex-none text-[color:var(--text-faint)]" />
+          <Search size={ICON_MD} className="flex-none text-[color:var(--text-faint)]" />
           <input
             ref={inputRef}
             value={query}
@@ -156,7 +153,7 @@ export function SearchOverlay({ tree, onOpen, onClose }: SearchOverlayProps): JS
                   : 'hover:bg-[color:var(--bg-hover)]'
               ].join(' ')}
             >
-              <FileText size={14} className="mt-0.5 flex-none text-[color:var(--text-faint)]" />
+              <FileText size={ICON_SM} className="mt-0.5 flex-none text-[color:var(--text-faint)]" />
               <div className="min-w-0">
                 <div className="truncate text-[13px] font-medium text-foreground">{r.name}</div>
                 {r.snippet && (
@@ -172,6 +169,6 @@ export function SearchOverlay({ tree, onOpen, onClose }: SearchOverlayProps): JS
           ))}
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }
