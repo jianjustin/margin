@@ -1,13 +1,15 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
-const APP_SOURCE = 'src/renderer/src/App.tsx'
+// The title-bar drag region lives in the header toolbar, extracted from App.tsx
+// into AppHeader.tsx (Task 3.5 — App.tsx shrunk to an assembly layer).
+const HEADER_SOURCE = 'src/renderer/src/components/AppHeader.tsx'
 const TAURI_CONFIG = 'src-tauri/tauri.conf.json'
 const CAPABILITIES = 'src-tauri/capabilities/default.json'
 
 describe('window chrome behavior', () => {
   it('uses Tauri drag regions instead of relying on Electron-only app-region CSS', () => {
-    const source = readFileSync(APP_SOURCE, 'utf8')
+    const source = readFileSync(HEADER_SOURCE, 'utf8')
 
     expect(source).toContain('data-tauri-drag-region')
   })

@@ -1,13 +1,12 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { useSavePipeline } from '@/hooks/useSavePipeline'
-import { FolderOpen, PanelLeft, PanelRight, SlidersHorizontal } from 'lucide-react'
-import { CalendarDayIcon } from '@/components/icons/CalendarDayIcon'
+import { AppHeader } from '@/components/AppHeader'
 import { SearchOverlay } from '@/components/SearchOverlay'
 import { Editor, type EditorHandle } from '@/components/Editor'
 import { useDocumentStore } from '@/stores/documentStore'
 import { useVaultStore } from '@/stores/vaultStore'
 import { useSettingsStore } from '@/stores/settingsStore'
-import { useUiStore, type DialogState } from '@/stores/uiStore'
+import { useUiStore } from '@/stores/uiStore'
 import { scanVaultWithSettings } from '@/lib/scanVault'
 import { Sidebar } from '@/components/FileTree/Sidebar'
 import { RowContextMenu } from '@/components/FileTree/RowContextMenu'
@@ -26,13 +25,13 @@ import { useGlobalKeymap } from '@/hooks/useGlobalKeymap'
 import { DraftBanner } from '@/components/DraftBanner'
 import { ConflictBar } from '@/components/ConflictBar'
 import { StatusBar } from '@/components/StatusBar'
-import { projectRelativePath } from '@/lib/copyPath'
 import { isMarkdownFile } from '@/lib/fileKinds'
 import { LEFT_PANE, RIGHT_PANE } from '@/lib/layout'
 import { usePaneResize } from '@/hooks/usePaneResize'
 import { api } from '@/lib/api'
 import { createPeerWindow } from '@/lib/windowManager'
 import { useVaultBoot } from '@/hooks/useVaultBoot'
+import { useRowContextMenuActions } from '@/hooks/useRowContextMenuActions'
 import type { TreeNode } from '../../shared/ipc'
 
 export default function App(): JSX.Element {
@@ -137,16 +136,9 @@ export default function App(): JSX.Element {
     useVaultStore.getState().setTree(tree)
   }
 
-  async function copyText(text: string): Promise<void> {
-    try {
-      await navigator.clipboard.writeText(text)
-    } catch {
-      window.alert('复制失败')
-    }
-  }
-
   /* ── Context-menu actions (driven by the dialog state machine) ── */
 
+  const rowMenuActions = useRowContextMenuActions(vaultRoot)
   const closeDialog = useCallback(() => useUiStore.getState().closeDialog(), [])
 
   const handleOpenSearch = useCallback(() => useUiStore.getState().setSearchOpen(true), [])
@@ -201,73 +193,16 @@ export default function App(): JSX.Element {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header
-          data-tauri-drag-region
-          className={[
-            'flex h-[46px] shrink-0 items-center justify-between border-b border-[color:var(--toolbar-border)] bg-[color:var(--bg-elev)] px-[10px] text-sm text-[color:var(--text-faint)]',
-            sidebarOpen ? '' : 'pl-20'
-          ].join(' ')}
-        >
-          <div className="flex min-w-0 flex-1 items-center gap-1 [-webkit-app-region:no-drag]">
-            <button
-              onClick={() => useUiStore.getState().toggleSidebar()}
-              title={sidebarOpen ? '隐藏文件树 (⌘B)' : '显示文件树 (⌘B)'}
-              aria-label={sidebarOpen ? '隐藏文件树' : '显示文件树'}
-              className={[
-                'grid h-[27px] w-[28px] place-items-center rounded-[7px] transition-colors',
-                sidebarOpen
-                  ? 'text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)] hover:text-foreground'
-                  : 'bg-[color:var(--accent-soft)] text-[color:var(--accent)]'
-              ].join(' ')}
-            >
-              <PanelLeft size={16} />
-            </button>
-            <button
-              onClick={handleOpenFolder}
-              title="打开文件夹"
-              aria-label="打开文件夹"
-              className="grid h-[27px] w-[28px] place-items-center rounded-[7px] text-[color:var(--text-dim)] transition-colors hover:bg-[color:var(--bg-hover)] hover:text-foreground"
-            >
-              <FolderOpen size={16} />
-            </button>
-          </div>
-
-          <div data-tauri-drag-region className="min-w-0 flex-1" />
-
-          <div className="relative flex flex-1 justify-end gap-1 [-webkit-app-region:no-drag]">
-            {scheduleEnabled && (
-              <button
-                onClick={handleOpenToday}
-                title="今日日程"
-                aria-label="今日日程"
-                className="relative grid h-[27px] w-[28px] place-items-center rounded-[7px] text-[color:var(--text-dim)] transition-colors hover:bg-[color:var(--bg-hover)] hover:text-foreground"
-              >
-                <CalendarDayIcon day={new Date().getDate()} />
-              </button>
-            )}
-            <button
-              onClick={() => useUiStore.getState().setSettingsOpen(true)}
-              title="设置 (⌘,)"
-              aria-label="设置"
-              className="grid h-[27px] w-[28px] place-items-center rounded-[7px] text-[color:var(--text-dim)] transition-colors hover:bg-[color:var(--bg-hover)] hover:text-foreground"
-            >
-              <SlidersHorizontal size={16} />
-            </button>
-            <button
-              onClick={() => useUiStore.getState().toggleDrawer()}
-              title="大纲 (⌘\)"
-              aria-label="切换大纲"
-              className={[
-                'grid h-[27px] w-[28px] place-items-center rounded-[7px] transition-colors',
-                drawerOpen
-                  ? 'bg-[color:var(--accent-soft)] text-[color:var(--accent)] opacity-90'
-                  : 'text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)] hover:text-foreground'
-              ].join(' ')}
-            >
-              <PanelRight size={16} />
-            </button>
-          </div>
-        </header>
+        <AppHeader
+          sidebarOpen={sidebarOpen}
+          drawerOpen={drawerOpen}
+          scheduleEnabled={scheduleEnabled}
+          onToggleSidebar={() => useUiStore.getState().toggleSidebar()}
+          onOpenFolder={handleOpenFolder}
+          onOpenToday={handleOpenToday}
+          onOpenSettings={() => useUiStore.getState().setSettingsOpen(true)}
+          onToggleDrawer={() => useUiStore.getState().toggleDrawer()}
+        />
 
         <div className="flex min-h-0 flex-1">
           <main className="min-h-0 min-w-0 flex-1">
@@ -347,52 +282,7 @@ export default function App(): JSX.Element {
 
       {/* ── Context menu ──────────────────────────────────────── */}
 
-      {menu && (
-        <RowContextMenu
-          menu={menu}
-          onClose={() => useUiStore.getState().closeMenu()}
-          onNewNote={(n) => {
-            useUiStore.getState().closeMenu()
-            useUiStore.getState().openDialog({ kind: 'newNote', dir: n.type === 'folder' ? n.path : n.path.replace(/\/[^/]+$/, '') })
-          }}
-          onNewFolder={(n) => {
-            useUiStore.getState().closeMenu()
-            useUiStore.getState().openDialog({ kind: 'newFolder', dir: n.type === 'folder' ? n.path : n.path.replace(/\/[^/]+$/, '') })
-          }}
-          onRename={(n) => {
-            useUiStore.getState().closeMenu()
-            useUiStore.getState().openDialog({ kind: 'rename', node: n })
-          }}
-          onMove={(n) => {
-            useUiStore.getState().closeMenu()
-            useUiStore.getState().setMoveTarget(n)
-          }}
-          onCopyFullPath={(n) => {
-            useUiStore.getState().closeMenu()
-            void copyText(n.path)
-          }}
-          onCopyRelativePath={(n) => {
-            useUiStore.getState().closeMenu()
-            void copyText(projectRelativePath(vaultRoot, n.path))
-          }}
-          onOpenInNewWindow={(n) => {
-            useUiStore.getState().closeMenu()
-            if (vaultRoot) {
-              createPeerWindow({ filePath: n.path, vaultRoot })
-            }
-          }}
-          onOpenInFinder={(n) => {
-            useUiStore.getState().closeMenu()
-            void api.openPathInFinder(n.path).catch(() => {
-              window.alert('无法在 Finder 中显示')
-            })
-          }}
-          onTrash={(n) => {
-            useUiStore.getState().closeMenu()
-            useUiStore.getState().openDialog({ kind: 'trash', node: n })
-          }}
-        />
-      )}
+      {menu && <RowContextMenu menu={menu} {...rowMenuActions} />}
 
       {/* ── Dialog state machine ──────────────────────────────── */}
 
