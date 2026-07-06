@@ -40,22 +40,6 @@ import { createPeerWindow, parseOpenParam, parseVaultParam, isBlankWindow } from
 import { startEventBridge } from '@/lib/eventBridge'
 import type { TreeNode } from '../../shared/ipc'
 
-
-/** Unsaved-changes indicator. A leaf subscriber so it re-renders on each
- *  keystroke without dragging App (and the file tree) along. */
-function DirtyDot(): JSX.Element {
-  const dirty = useDocumentStore((s) => s.content !== s.savedContent)
-  return (
-    <span
-      className="text-[color:var(--accent)] transition-opacity"
-      style={{ opacity: dirty ? 1 : 0 }}
-      aria-hidden
-    >
-      ●
-    </span>
-  )
-}
-
 export default function App(): JSX.Element {
   // Only active-document identity and tab presence are subscribed here — a
   // keystroke changes active tab content, not these values, so App (and the
