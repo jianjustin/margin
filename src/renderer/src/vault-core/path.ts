@@ -76,3 +76,15 @@ export function renamePlan(path: string, newName: string): PathPlan {
 export function movePlan(path: string, destDir: string): PathPlan {
   return { from: path, to: joinPath(destDir, basename(path)) }
 }
+
+/** True if `child` is `parent` itself or nested anywhere under it. */
+export function isSelfOrDescendant(parent: string, child: string): boolean {
+  return child === parent || child.startsWith(parent.endsWith('/') ? parent : parent + '/')
+}
+
+/** Guard for drag-move: reject no-op, self, descendant and unsafe targets. */
+export function canMoveInto(srcPath: string, destDir: string): boolean {
+  if (!isPathSafe(srcPath) || !isPathSafe(destDir)) return false
+  if (isSelfOrDescendant(srcPath, destDir)) return false
+  return dirname(srcPath) !== destDir
+}

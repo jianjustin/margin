@@ -24,5 +24,7 @@ export {
   splitExt,
   uniqueName,
   renamePlan,
-  movePlan
+  movePlan,
+  isSelfOrDescendant,
+  canMoveInto
 } from './path'
