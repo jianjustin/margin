@@ -1,9 +1,9 @@
 import { useEffect, useRef, useCallback, type PointerEvent as ReactPointerEvent } from 'react'
+import { useSavePipeline } from '@/hooks/useSavePipeline'
 import { FolderOpen, PanelLeft, PanelRight, SlidersHorizontal } from 'lucide-react'
 import { CalendarDayIcon } from '@/components/icons/CalendarDayIcon'
 import { SearchOverlay } from '@/components/SearchOverlay'
 import { Editor, type EditorHandle } from '@/components/Editor'
-import { saveDocument, waitForDocumentSaves } from '@/lib/saveDocument'
 import { useDocumentStore } from '@/stores/documentStore'
 import { useVaultStore, loadPersistedRoot } from '@/stores/vaultStore'
 import { useSettingsStore } from '@/stores/settingsStore'
@@ -33,9 +33,7 @@ import { isMarkdownFile } from '@/lib/fileKinds'
 import {
   beginPathMutation,
   endPathMutation,
-  isAffectedPath,
-  pathMutationGuardFor,
-  type PathMutationGuard
+  isAffectedPath
 } from '@/lib/pathMutationGuards'
 import {
   LEFT_PANE,
@@ -51,12 +49,6 @@ import { emit } from '@tauri-apps/api/event'
 import { windowId, EV_PATH_MUTATED } from '@/lib/windowIdentity'
 import type { TreeNode } from '../../shared/ipc'
 
-const AUTOSAVE_MS = 800
-
-interface PausedSavePaths {
-  affected: string[]
-  unaffected: string[]
-}
 
 /** Unsaved-changes indicator. A leaf subscriber so it re-renders on each
  *  keystroke without dragging App (and the file tree) along. */
@@ -82,8 +74,7 @@ export default function App(): JSX.Element {
   const path = useDocumentStore((s) => s.path)
   const epoch = useDocumentStore((s) => s.epoch)
 
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const saveTimerPaths = useRef<string[]>([])
+  const pipeline = useSavePipeline()
   const editorRef = useRef<EditorHandle>(null)
   const sidebarOpen = useUiStore((s) => s.sidebarOpen)
   const drawerOpen = useUiStore((s) => s.drawerOpen)
@@ -260,33 +251,8 @@ export default function App(): JSX.Element {
     [openFileByPath]
   )
 
-  function save(targetPath?: string): Promise<void> {
-    return saveDocument(api.writeFile, api.readFile, targetPath)
-  }
-
-  function clearPendingSave(): void {
-    if (saveTimer.current) clearTimeout(saveTimer.current)
-    saveTimer.current = null
-    saveTimerPaths.current = []
-  }
-
   function uniquePaths(paths: string[]): string[] {
     return Array.from(new Set(paths))
-  }
-
-  function pausePendingSaveIfAffected(basePath: string): PausedSavePaths {
-    const paused: PausedSavePaths = { affected: [], unaffected: [] }
-    if (!saveTimer.current) return paused
-
-    for (const path of uniquePaths(saveTimerPaths.current)) {
-      if (isAffectedPath(path, basePath)) paused.affected.push(path)
-      else paused.unaffected.push(path)
-    }
-
-    if (paused.affected.length === 0) return paused
-    clearPendingSave()
-    scheduleDirtyAffectedTabsSave(paused.unaffected)
-    return paused
   }
 
   function affectedOpenTabPaths(basePath: string): string[] {
@@ -301,38 +267,6 @@ export default function App(): JSX.Element {
     const root = useVaultStore.getState().root
     if (!root || paths.length === 0) return
     await Promise.all(uniquePaths(paths).map((draftPath) => api.deleteDraft(root, draftPath).catch(() => {})))
-  }
-
-  function restorePausedAndBlockedSave(paused: PausedSavePaths, guard: PathMutationGuard): void {
-    scheduleDirtyAffectedTabsSave([...paused.affected, ...paused.unaffected, ...guard.blockedPaths])
-  }
-
-  function scheduleDirtyAffectedTabsSave(paths: string[]): void {
-    const candidates = uniquePaths([...saveTimerPaths.current, ...paths])
-    if (saveTimer.current) clearTimeout(saveTimer.current)
-
-    const schedulableCandidates: string[] = []
-    for (const nextPath of candidates) {
-      const guard = pathMutationGuardFor(nextPath)
-      if (guard) guard.blockedPaths = uniquePaths([...guard.blockedPaths, nextPath])
-      else schedulableCandidates.push(nextPath)
-    }
-
-    const dirtyPaths = schedulableCandidates.filter((nextPath) => {
-      const tab = useDocumentStore.getState().tabForPath(nextPath)
-      return tab != null && tab.content !== tab.savedContent
-    })
-    if (dirtyPaths.length === 0) {
-      saveTimer.current = null
-      saveTimerPaths.current = []
-      return
-    }
-    saveTimerPaths.current = dirtyPaths
-    saveTimer.current = setTimeout(() => {
-      saveTimer.current = null
-      saveTimerPaths.current = []
-      dirtyPaths.forEach((nextPath) => void save(nextPath))
-    }, AUTOSAVE_MS)
   }
 
   function replaceAffectedOpenTabPaths(oldBasePath: string, newBasePath: string): void {
@@ -352,20 +286,14 @@ export default function App(): JSX.Element {
     }
 
     useVaultStore.getState().select(selectedPath)
-    scheduleDirtyAffectedTabsSave(nextPaths)
+    nextPaths.forEach((p) => pipeline.scheduleSave(p))
   }
 
   function handleChange(value: string): void {
     useDocumentStore.getState().setActiveContent(value)
     const currentPath = useDocumentStore.getState().activePath
-    if (currentPath) scheduleDirtyAffectedTabsSave([currentPath])
+    if (currentPath) pipeline.scheduleSave(currentPath)
   }
-
-  useEffect(() => {
-    return () => {
-      clearPendingSave()
-    }
-  }, [])
 
   const handleContextMenu = useCallback((node: TreeNode, x: number, y: number): void => {
     useUiStore.getState().openMenu({ node, x, y })
@@ -376,10 +304,6 @@ export default function App(): JSX.Element {
     if (!root) return
     const tree = await scanVaultWithSettings(root)
     useVaultStore.getState().setTree(tree)
-  }
-
-  function targetDir(node: TreeNode): string {
-    return node.type === 'folder' ? node.path : node.path.replace(/\/[^/]+$/, '')
   }
 
   async function copyText(text: string): Promise<void> {
@@ -397,11 +321,11 @@ export default function App(): JSX.Element {
   async function doRename(node: TreeNode, name: string): Promise<void> {
     if (name === node.name) return
     const affectedPaths = affectedOpenTabPaths(node.path)
-    const pausedPaths = pausePendingSaveIfAffected(node.path)
+    pipeline.pauseForPaths([node.path])
     const guard = beginPathMutation(node.path)
     let succeeded = false
     try {
-      await waitForDocumentSaves(affectedPaths)
+      await pipeline.waitForDocumentSaves(affectedPaths)
       const newPath = await api.renamePath(node.path, name)
       succeeded = true
       replaceAffectedOpenTabPaths(node.path, newPath)
@@ -412,17 +336,22 @@ export default function App(): JSX.Element {
       console.error('Failed to rename path:', err)
     } finally {
       endPathMutation(guard)
-      if (!succeeded) restorePausedAndBlockedSave(pausedPaths, guard)
+      if (succeeded) {
+        // tabs already renamed; nothing to restore
+      } else {
+        pipeline.resumeAfterMutation(node.path, node.path)
+        guard.blockedPaths.forEach((p) => pipeline.scheduleSave(p))
+      }
     }
   }
 
   async function doTrash(node: TreeNode): Promise<void> {
     const affectedPaths = affectedOpenTabPaths(node.path)
-    const pausedPaths = pausePendingSaveIfAffected(node.path)
+    pipeline.pauseForPaths([node.path])
     const guard = beginPathMutation(node.path)
     let succeeded = false
     try {
-      await waitForDocumentSaves(affectedPaths)
+      await pipeline.waitForDocumentSaves(affectedPaths)
       await api.trashPath(node.path)
       succeeded = true
       for (const affectedPath of affectedPaths) {
@@ -436,17 +365,22 @@ export default function App(): JSX.Element {
       console.error('Failed to trash path:', err)
     } finally {
       endPathMutation(guard)
-      if (!succeeded) restorePausedAndBlockedSave(pausedPaths, guard)
+      if (succeeded) {
+        pipeline.resumeAfterMutation(node.path, null)
+      } else {
+        pipeline.resumeAfterMutation(node.path, node.path)
+        guard.blockedPaths.forEach((p) => pipeline.scheduleSave(p))
+      }
     }
   }
 
   async function doMove(node: TreeNode, destDir: string): Promise<void> {
     const affectedPaths = affectedOpenTabPaths(node.path)
-    const pausedPaths = pausePendingSaveIfAffected(node.path)
+    pipeline.pauseForPaths([node.path])
     const guard = beginPathMutation(node.path)
     let succeeded = false
     try {
-      await waitForDocumentSaves(affectedPaths)
+      await pipeline.waitForDocumentSaves(affectedPaths)
       const newPath = await api.movePath(node.path, destDir)
       succeeded = true
       replaceAffectedOpenTabPaths(node.path, newPath)
@@ -457,7 +391,12 @@ export default function App(): JSX.Element {
       console.error('Failed to move path:', err)
     } finally {
       endPathMutation(guard)
-      if (!succeeded) restorePausedAndBlockedSave(pausedPaths, guard)
+      if (succeeded) {
+        // tabs already moved; nothing to restore
+      } else {
+        pipeline.resumeAfterMutation(node.path, node.path)
+        guard.blockedPaths.forEach((p) => pipeline.scheduleSave(p))
+      }
     }
   }
 
@@ -650,7 +589,7 @@ export default function App(): JSX.Element {
                     // path+content together, so it's current here.
                     initialValue={useDocumentStore.getState().content}
                     onChange={handleChange}
-                    onSave={() => void save(path)}
+                    onSave={() => void pipeline.flushSaves()}
                     onOpenLink={handleOpenLink}
                     onAssetImported={() => void refreshTree()}
                     filePath={path}
