@@ -10,7 +10,7 @@ import { scanVaultWithSettings } from '@/lib/scanVault'
 import { isExternal, resolveRelative } from '@/lib/resolvePath'
 import { resolveWikiLinkTarget } from '@/lib/wikiLinks'
 import { isAffectedPath, beginPathMutation, endPathMutation } from '@/lib/pathMutationGuards'
-import { renamePlan, movePlan, dirname } from '@/vault-core/path'
+import { dirname } from '@/vault-core/path'
 import { windowId, EV_PATH_MUTATED } from '@/lib/windowIdentity'
 import type { SavePipeline } from '@/hooks/useSavePipeline'
 import type { TreeNode } from '../../../shared/ipc'
@@ -132,8 +132,6 @@ export function useFileOperations(pipeline: SavePipeline): FileOperations {
 
   const renameNode = useCallback(async (node: TreeNode, newName: string): Promise<void> => {
     if (newName === node.name) return
-    // Use renamePlan for front-end consistency (tab remap), IPC args unchanged
-    const plan = renamePlan(node.path, newName)
     const affectedPaths = affectedOpenTabPaths(node.path)
     pipeline.pauseForPaths([node.path])
     const guard = beginPathMutation(node.path)
@@ -142,7 +140,8 @@ export function useFileOperations(pipeline: SavePipeline): FileOperations {
       await pipeline.waitForDocumentSaves(affectedPaths)
       const newPath = await api.renamePath(node.path, newName)
       succeeded = true
-      replaceAffectedOpenTabPaths(plan.from, plan.to !== newPath ? newPath : plan.to)
+      // newPath (IPC 返回) 是权威值——Rust 端在命名冲突时会加 -1/-2 后缀（unique_path/unique_asset_path），不能假设等于本地计算的目标路径。renamePlan/movePlan 的真正消费点见 Task 4.1 的 canMoveInto。
+      replaceAffectedOpenTabPaths(node.path, newPath)
       void emit(EV_PATH_MUTATED, { action: 'rename', oldPath: node.path, newPath, _source: windowId })
       await deleteDraftsForPaths(affectedPaths)
       await refreshTree()
@@ -163,8 +162,6 @@ export function useFileOperations(pipeline: SavePipeline): FileOperations {
   const moveNode = useCallback(async (srcPath: string, destDir: string): Promise<void> => {
     // 前置守卫：同目录/自身拒绝
     if (dirname(srcPath) === destDir || srcPath === destDir) return
-    // Use movePlan for front-end consistency (tab remap), IPC args unchanged
-    const plan = movePlan(srcPath, destDir)
     const affectedPaths = affectedOpenTabPaths(srcPath)
     pipeline.pauseForPaths([srcPath])
     const guard = beginPathMutation(srcPath)
@@ -173,7 +170,8 @@ export function useFileOperations(pipeline: SavePipeline): FileOperations {
       await pipeline.waitForDocumentSaves(affectedPaths)
       const newPath = await api.movePath(srcPath, destDir)
       succeeded = true
-      replaceAffectedOpenTabPaths(plan.from, plan.to !== newPath ? newPath : plan.to)
+      // newPath (IPC 返回) 是权威值——Rust 端在命名冲突时会加 -1/-2 后缀（unique_path/unique_asset_path），不能假设等于本地计算的目标路径。renamePlan/movePlan 的真正消费点见 Task 4.1 的 canMoveInto。
+      replaceAffectedOpenTabPaths(srcPath, newPath)
       void emit(EV_PATH_MUTATED, { action: 'move', oldPath: srcPath, newPath, _source: windowId })
       await deleteDraftsForPaths(affectedPaths)
       await refreshTree()
