@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useDocumentStore } from '@/stores/documentStore'
-import { collectScheduleDates, formatDateKey } from '@/lib/schedule'
+import { collectScheduleDates, formatDateKey } from '@/core/schedule'
 import { collectOutline, type OutlineItem } from '@/editor-core'
 import type { TreeNode } from '../../../shared/ipc'
 
