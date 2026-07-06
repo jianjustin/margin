@@ -22,6 +22,7 @@ import { useVaultWatch } from '@/hooks/useVaultWatch'
 import { useProjectConfig } from '@/hooks/useProjectConfig'
 import { useDraft } from '@/hooks/useDraft'
 import { useFileOperations } from '@/hooks/useFileOperations'
+import { useGlobalKeymap } from '@/hooks/useGlobalKeymap'
 import { DraftBanner } from '@/components/DraftBanner'
 import { ConflictBar } from '@/components/ConflictBar'
 import { StatusBar } from '@/components/StatusBar'
@@ -149,32 +150,7 @@ export default function App(): JSX.Element {
 
   /* ── Global keyboard shortcuts ─────────────────────────────── */
 
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent): void {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
-        e.preventDefault()
-        useUiStore.getState().toggleSidebar()
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
-        e.preventDefault()
-        useUiStore.getState().toggleDrawer()
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key === ',') {
-        e.preventDefault()
-        useUiStore.getState().toggleSettings()
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault()
-        useUiStore.getState().toggleSearch()
-      }
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'N') {
-        e.preventDefault()
-        createPeerWindow()
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
+  useGlobalKeymap()
 
   /* ── Core file operations ──────────────────────────────────── */
 
