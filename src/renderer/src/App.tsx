@@ -5,7 +5,7 @@ import { CalendarDayIcon } from '@/components/icons/CalendarDayIcon'
 import { SearchOverlay } from '@/components/SearchOverlay'
 import { Editor, type EditorHandle } from '@/components/Editor'
 import { useDocumentStore } from '@/stores/documentStore'
-import { useVaultStore, loadPersistedRoot } from '@/stores/vaultStore'
+import { useVaultStore } from '@/stores/vaultStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useUiStore, type DialogState } from '@/stores/uiStore'
 import { scanVaultWithSettings } from '@/lib/scanVault'
@@ -36,8 +36,8 @@ import {
   type PaneSpec
 } from '@/lib/layout'
 import { api } from '@/lib/api'
-import { createPeerWindow, parseOpenParam, parseVaultParam, isBlankWindow } from '@/lib/windowManager'
-import { startEventBridge } from '@/lib/eventBridge'
+import { createPeerWindow } from '@/lib/windowManager'
+import { useVaultBoot } from '@/hooks/useVaultBoot'
 import type { TreeNode } from '../../shared/ipc'
 
 export default function App(): JSX.Element {
@@ -97,40 +97,7 @@ export default function App(): JSX.Element {
 
   /* ── Boot: determine window role and open vault ────────────── */
 
-  useEffect(() => {
-    // Start cross-window event bridge (idempotent per window).
-    const stopBridge = startEventBridge()
-
-    const openParam = parseOpenParam()
-    const vaultParam = parseVaultParam()
-
-    if (openParam && vaultParam) {
-      // Window created via "Open in New Window" — auto-open the target.
-      void scanVaultWithSettings(vaultParam)
-        .then((tree) => {
-          useVaultStore.getState().openRoot(vaultParam, tree)
-          return api.readFile(openParam)
-        })
-        .then((text) => {
-          if (text) {
-            useDocumentStore.getState().openOrActivate(openParam, text)
-            useVaultStore.getState().select(openParam)
-          }
-        })
-        .catch(() => useVaultStore.getState().closeVault())
-    } else if (isBlankWindow()) {
-      // Window created via Cmd+Shift+N — start blank, no auto-restore.
-    } else {
-      // Main window (first launch) — restore persisted vault.
-      const saved = loadPersistedRoot()
-      if (!saved) return
-      void scanVaultWithSettings(saved)
-        .then((tree) => useVaultStore.getState().openRoot(saved, tree))
-        .catch(() => useVaultStore.getState().closeVault())
-    }
-
-    return stopBridge
-  }, [])
+  useVaultBoot()
 
   /* ── Global keyboard shortcuts ─────────────────────────────── */
 
