@@ -8,7 +8,6 @@ import { useDocumentStore } from '@/stores/documentStore'
 import { useVaultStore, loadPersistedRoot } from '@/stores/vaultStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useUiStore, type DialogState } from '@/stores/uiStore'
-import { normalizeScheduleDir, scheduleFileName, scheduleTemplate } from '@/lib/schedule'
 import { scanVaultWithSettings } from '@/lib/scanVault'
 import { Sidebar } from '@/components/FileTree/Sidebar'
 import { RowContextMenu } from '@/components/FileTree/RowContextMenu'
@@ -22,19 +21,12 @@ import { useSystemTheme } from '@/hooks/useSystemTheme'
 import { useVaultWatch } from '@/hooks/useVaultWatch'
 import { useProjectConfig } from '@/hooks/useProjectConfig'
 import { useDraft } from '@/hooks/useDraft'
+import { useFileOperations } from '@/hooks/useFileOperations'
 import { DraftBanner } from '@/components/DraftBanner'
 import { ConflictBar } from '@/components/ConflictBar'
 import { StatusBar } from '@/components/StatusBar'
-import { open as shellOpen } from '@tauri-apps/plugin-shell'
-import { isExternal, resolveRelative } from '@/lib/resolvePath'
-import { resolveWikiLinkTarget } from '@/lib/wikiLinks'
 import { projectRelativePath } from '@/lib/copyPath'
 import { isMarkdownFile } from '@/lib/fileKinds'
-import {
-  beginPathMutation,
-  endPathMutation,
-  isAffectedPath
-} from '@/lib/pathMutationGuards'
 import {
   LEFT_PANE,
   RIGHT_PANE,
@@ -45,8 +37,6 @@ import {
 import { api } from '@/lib/api'
 import { createPeerWindow, parseOpenParam, parseVaultParam, isBlankWindow } from '@/lib/windowManager'
 import { startEventBridge } from '@/lib/eventBridge'
-import { emit } from '@tauri-apps/api/event'
-import { windowId, EV_PATH_MUTATED } from '@/lib/windowIdentity'
 import type { TreeNode } from '../../shared/ipc'
 
 
@@ -75,6 +65,7 @@ export default function App(): JSX.Element {
   const epoch = useDocumentStore((s) => s.epoch)
 
   const pipeline = useSavePipeline()
+  const fileOps = useFileOperations(pipeline)
   const editorRef = useRef<EditorHandle>(null)
   const sidebarOpen = useUiStore((s) => s.sidebarOpen)
   const drawerOpen = useUiStore((s) => s.drawerOpen)
@@ -196,98 +187,16 @@ export default function App(): JSX.Element {
     useVaultStore.getState().openRoot(chosen, tree)
   }, [])
 
-  const openFileByPath = useCallback(async (filePath: string): Promise<void> => {
-    const existing = useDocumentStore.getState().tabForPath(filePath)
-    if (existing) {
-      useDocumentStore.getState().setActivePath(filePath)
-      useVaultStore.getState().select(filePath)
-      return
-    }
-
-    const text = await api.readFile(filePath)
-    useDocumentStore.getState().openOrActivate(filePath, text)
-    useVaultStore.getState().select(filePath)
-    const root = useVaultStore.getState().root
-    if (root) {
-      const draft = await api.readDraft(root, filePath).catch(() => null)
-      if (draft != null && draft !== text && useDocumentStore.getState().tabForPath(filePath)) {
-        useDocumentStore.getState().setPendingDraft(filePath, draft)
-      }
-    }
-  }, [])
-
-  const handleOpenLink = useCallback(
-    (url: string): void => {
-      if (url.startsWith('wiki:')) {
-        const target = resolveWikiLinkTarget(url.slice(5), useVaultStore.getState().tree)
-        if (target) {
-          void openFileByPath(target).catch(() => {
-            window.alert(`无法打开链接目标: ${url.slice(5)}`)
-          })
-        }
-        return
-      }
-      if (isExternal(url)) {
-        void shellOpen(url).catch(() => {})
-        return
-      }
-      const docPath = useDocumentStore.getState().path
-      const target = resolveRelative(url, docPath)
-      if (target && target.endsWith('.md')) {
-        void openFileByPath(target).catch(() => {
-          window.alert(`无法打开链接目标: ${url}`)
-        })
-      }
-    },
-    [openFileByPath]
-  )
+  const handleOpenLink = useCallback((url: string) => void fileOps.openLink(url), [fileOps])
 
   const handleOpenFolder = useCallback(() => void openFolder(), [openFolder])
   const handleOpenFile = useCallback(
     (node: TreeNode) => {
       if (node.type !== 'file' || !isMarkdownFile(node.name)) return
-      void openFileByPath(node.path)
+      void fileOps.openFileByPath(node.path)
     },
-    [openFileByPath]
+    [fileOps]
   )
-
-  function uniquePaths(paths: string[]): string[] {
-    return Array.from(new Set(paths))
-  }
-
-  function affectedOpenTabPaths(basePath: string): string[] {
-    return useDocumentStore
-      .getState()
-      .tabs
-      .filter((tab) => isAffectedPath(tab.path, basePath))
-      .map((tab) => tab.path)
-  }
-
-  async function deleteDraftsForPaths(paths: string[]): Promise<void> {
-    const root = useVaultStore.getState().root
-    if (!root || paths.length === 0) return
-    await Promise.all(uniquePaths(paths).map((draftPath) => api.deleteDraft(root, draftPath).catch(() => {})))
-  }
-
-  function replaceAffectedOpenTabPaths(oldBasePath: string, newBasePath: string): void {
-    const store = useDocumentStore.getState()
-    const affectedTabs = store.tabs.filter((tab) => isAffectedPath(tab.path, oldBasePath))
-    if (affectedTabs.length === 0) return
-
-    const activeBefore = store.activePath
-    let selectedPath = activeBefore
-    const nextPaths: string[] = []
-
-    for (const tab of affectedTabs) {
-      const nextPath = `${newBasePath}${tab.path.slice(oldBasePath.length)}`
-      useDocumentStore.getState().replacePath(tab.path, nextPath)
-      nextPaths.push(nextPath)
-      if (tab.path === activeBefore) selectedPath = nextPath
-    }
-
-    useVaultStore.getState().select(selectedPath)
-    nextPaths.forEach((p) => pipeline.scheduleSave(p))
-  }
 
   function handleChange(value: string): void {
     useDocumentStore.getState().setActiveContent(value)
@@ -318,119 +227,8 @@ export default function App(): JSX.Element {
 
   const closeDialog = useCallback(() => useUiStore.getState().closeDialog(), [])
 
-  async function doRename(node: TreeNode, name: string): Promise<void> {
-    if (name === node.name) return
-    const affectedPaths = affectedOpenTabPaths(node.path)
-    pipeline.pauseForPaths([node.path])
-    const guard = beginPathMutation(node.path)
-    let succeeded = false
-    try {
-      await pipeline.waitForDocumentSaves(affectedPaths)
-      const newPath = await api.renamePath(node.path, name)
-      succeeded = true
-      replaceAffectedOpenTabPaths(node.path, newPath)
-      void emit(EV_PATH_MUTATED, { action: 'rename', oldPath: node.path, newPath, _source: windowId })
-      await deleteDraftsForPaths(affectedPaths)
-      await refreshTree()
-    } catch (err) {
-      console.error('Failed to rename path:', err)
-    } finally {
-      endPathMutation(guard)
-      if (succeeded) {
-        // tabs already renamed; nothing to restore
-      } else {
-        // 传 old 作 new：路径未变（IPC 失败），原地重排暂停的保存
-        pipeline.resumeAfterMutation(node.path, node.path)
-        guard.blockedPaths.forEach((p) => pipeline.scheduleSave(p))
-      }
-    }
-  }
-
-  async function doTrash(node: TreeNode): Promise<void> {
-    const affectedPaths = affectedOpenTabPaths(node.path)
-    pipeline.pauseForPaths([node.path])
-    const guard = beginPathMutation(node.path)
-    let succeeded = false
-    try {
-      await pipeline.waitForDocumentSaves(affectedPaths)
-      await api.trashPath(node.path)
-      succeeded = true
-      for (const affectedPath of affectedPaths) {
-        useDocumentStore.getState().removePath(affectedPath)
-      }
-      void emit(EV_PATH_MUTATED, { action: 'trash', oldPath: node.path, _source: windowId })
-      useVaultStore.getState().select(useDocumentStore.getState().activePath)
-      await deleteDraftsForPaths(affectedPaths)
-      await refreshTree()
-    } catch (err) {
-      console.error('Failed to trash path:', err)
-    } finally {
-      endPathMutation(guard)
-      if (succeeded) {
-        pipeline.resumeAfterMutation(node.path, null)
-      } else {
-        // 传 old 作 new：路径未变（IPC 失败），原地重排暂停的保存
-        pipeline.resumeAfterMutation(node.path, node.path)
-        guard.blockedPaths.forEach((p) => pipeline.scheduleSave(p))
-      }
-    }
-  }
-
-  async function doMove(node: TreeNode, destDir: string): Promise<void> {
-    const affectedPaths = affectedOpenTabPaths(node.path)
-    pipeline.pauseForPaths([node.path])
-    const guard = beginPathMutation(node.path)
-    let succeeded = false
-    try {
-      await pipeline.waitForDocumentSaves(affectedPaths)
-      const newPath = await api.movePath(node.path, destDir)
-      succeeded = true
-      replaceAffectedOpenTabPaths(node.path, newPath)
-      void emit(EV_PATH_MUTATED, { action: 'move', oldPath: node.path, newPath, _source: windowId })
-      await deleteDraftsForPaths(affectedPaths)
-      await refreshTree()
-    } catch (err) {
-      console.error('Failed to move path:', err)
-    } finally {
-      endPathMutation(guard)
-      if (succeeded) {
-        // tabs already moved; nothing to restore
-      } else {
-        // 传 old 作 new：路径未变（IPC 失败），原地重排暂停的保存
-        pipeline.resumeAfterMutation(node.path, node.path)
-        guard.blockedPaths.forEach((p) => pipeline.scheduleSave(p))
-      }
-    }
-  }
-
-  /* ── Schedule (日程) ───────────────────────────────────────── */
-
-  async function ensureRoot(): Promise<string | null> {
-    const existing = useVaultStore.getState().root
-    if (existing) return existing
-    const chosen = await api.openFolder()
-    if (!chosen) return null
-    const tree = await scanVaultWithSettings(chosen)
-    useVaultStore.getState().openRoot(chosen, tree)
-    return chosen
-  }
-
-  async function openSchedule(date: Date): Promise<void> {
-    const root = await ensureRoot()
-    if (!root) return
-    const cleanScheduleDir = normalizeScheduleDir(scheduleDir) || '日程'
-    const dirPath = `${root}/${cleanScheduleDir}`
-    const created = await api.ensureNote(
-      dirPath,
-      scheduleFileName(date),
-      scheduleTemplate(date)
-    )
-    await refreshTree()
-    await openFileByPath(created)
-  }
-
   const handleOpenSearch = useCallback(() => useUiStore.getState().setSearchOpen(true), [])
-  const handleOpenToday = useCallback(() => void openSchedule(new Date()), [scheduleDir])
+  const handleOpenToday = useCallback(() => void fileOps.openScheduleNote(new Date()), [fileOps])
   const handleCollapseSidebar = useCallback(() => useUiStore.setState({ sidebarOpen: false }), [])
   const handleNewWindow = useCallback(() => createPeerWindow(), [])
   const handleNewNoteFromSidebar = useCallback(() => {
@@ -643,7 +441,7 @@ export default function App(): JSX.Element {
                 tree={vaultTree}
                 scheduleDir={scheduleDir}
                 onJumpToLine={handleJumpToLine}
-                onOpenSchedule={(date) => void openSchedule(date)}
+                onOpenSchedule={(date) => void fileOps.openScheduleNote(date)}
               />
             </>
           )}
@@ -710,10 +508,7 @@ export default function App(): JSX.Element {
           onConfirm={(name) => {
             const dir = dialog.dir
             closeDialog()
-            void api.createNote(dir, name).then(async (created) => {
-              await refreshTree()
-              await openFileByPath(created)
-            })
+            void fileOps.createNote(dir, name)
           }}
           onCancel={closeDialog}
         />
@@ -726,7 +521,7 @@ export default function App(): JSX.Element {
           onConfirm={(name) => {
             const dir = dialog.dir
             closeDialog()
-            void api.createFolder(dir, name).then(() => refreshTree())
+            void fileOps.createFolder(dir, name)
           }}
           onCancel={closeDialog}
         />
@@ -739,7 +534,7 @@ export default function App(): JSX.Element {
           onConfirm={(name) => {
             const node = dialog.node
             closeDialog()
-            void doRename(node, name)
+            void fileOps.renameNode(node, name)
           }}
           onCancel={closeDialog}
         />
@@ -754,7 +549,7 @@ export default function App(): JSX.Element {
           onConfirm={() => {
             const node = dialog.node
             closeDialog()
-            void doTrash(node)
+            void fileOps.trashNode(node)
           }}
           onCancel={closeDialog}
         />
@@ -769,7 +564,7 @@ export default function App(): JSX.Element {
           onMove={(destDir) => {
             const node = moveTarget
             useUiStore.getState().setMoveTarget(null)
-            void doMove(node, destDir)
+            void fileOps.moveNode(node.path, destDir)
           }}
           onClose={() => useUiStore.getState().setMoveTarget(null)}
         />
@@ -789,7 +584,7 @@ export default function App(): JSX.Element {
       {searchOpen && vaultRoot && (
         <SearchOverlay
           tree={vaultTree}
-          onOpen={(path) => void openFileByPath(path)}
+          onOpen={(path) => void fileOps.openFileByPath(path)}
           onClose={() => useUiStore.getState().setSearchOpen(false)}
         />
       )}
