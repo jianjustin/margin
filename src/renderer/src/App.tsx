@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, type PointerEvent as ReactPointerEvent } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 import { useSavePipeline } from '@/hooks/useSavePipeline'
 import { FolderOpen, PanelLeft, PanelRight, SlidersHorizontal } from 'lucide-react'
 import { CalendarDayIcon } from '@/components/icons/CalendarDayIcon'
@@ -28,13 +28,8 @@ import { ConflictBar } from '@/components/ConflictBar'
 import { StatusBar } from '@/components/StatusBar'
 import { projectRelativePath } from '@/lib/copyPath'
 import { isMarkdownFile } from '@/lib/fileKinds'
-import {
-  LEFT_PANE,
-  RIGHT_PANE,
-  clampPaneWidth,
-  persistPaneWidth,
-  type PaneSpec
-} from '@/lib/layout'
+import { LEFT_PANE, RIGHT_PANE } from '@/lib/layout'
+import { usePaneResize } from '@/hooks/usePaneResize'
 import { api } from '@/lib/api'
 import { createPeerWindow } from '@/lib/windowManager'
 import { useVaultBoot } from '@/hooks/useVaultBoot'
@@ -175,34 +170,7 @@ export default function App(): JSX.Element {
     editorRef.current?.jumpToLine(line)
   }
 
-  function startPaneResize(
-    e: ReactPointerEvent,
-    spec: PaneSpec,
-    initialWidth: number,
-    setWidth: (width: number) => void,
-    direction: 1 | -1
-  ): void {
-    e.preventDefault()
-    const startX = e.clientX
-    const previousUserSelect = document.body.style.userSelect
-    document.body.style.userSelect = 'none'
-
-    function move(ev: PointerEvent): void {
-      const next = clampPaneWidth(spec, initialWidth + (ev.clientX - startX) * direction)
-      setWidth(next)
-    }
-
-    function up(ev: PointerEvent): void {
-      window.removeEventListener('pointermove', move)
-      window.removeEventListener('pointerup', up)
-      document.body.style.userSelect = previousUserSelect
-      const next = clampPaneWidth(spec, initialWidth + (ev.clientX - startX) * direction)
-      setWidth(persistPaneWidth(spec, next))
-    }
-
-    window.addEventListener('pointermove', move)
-    window.addEventListener('pointerup', up)
-  }
+  const startPaneResize = usePaneResize()
 
   /* ── Render ────────────────────────────────────────────────── */
 
