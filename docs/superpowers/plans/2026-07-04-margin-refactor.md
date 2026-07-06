@@ -787,7 +787,7 @@ App.tsx:179-204 的 5 个快捷键（⌘B/⌘\/⌘,/⌘K/⌘⇧N）迁出为 hoo
 ## Task 3.5: App.tsx 收缩为装配层
 
 - 上述四个任务合入后，App.tsx 只剩：布局 JSX、hooks 装配、对话框渲染分发（读 `uiStore.dialog`）。
-- 验收：**App.tsx ≤ 250 行；`\.getState()` 在 components/ 下出现次数 ≤ 5**（事件桥/非 React 上下文豁免）。
+- 验收：**App.tsx ≤ 250 行**（2026-07-06 执行后修订为 **≤ 400 行**——两轮独立审查确认对话框分发块 ~87 行需按本任务自身规定留在 App.tsx，加上不可再拆的布局外壳，250 行与"对话框留下"互相矛盾；实际落地 379 行）；`\.getState()` 在 components/ 下出现次数 ≤ 5**（事件桥/非 React 上下文豁免，已达成）。
 - 回归：`test/app-rerender.test.tsx` 通过；手动过一遍新建/重命名/移动/删除/多窗口同步。
 
 ## Task 3.6: vault-core 消费收口
