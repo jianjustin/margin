@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { ChevronRight, ChevronDown } from 'lucide-react'
 import type { TreeNode } from '../../../../shared/ipc'
+import { filterTree } from '@/vault-core'
 import { FolderGlyph } from '@/components/icons/FolderGlyph'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
@@ -20,23 +21,6 @@ function parentDir(path: string): string {
   return path.replace(/\/[^/]+$/, '')
 }
 
-/** Collect paths of all folders (and their ancestors) whose name contains filter. */
-function matchingPaths(nodes: TreeNode[], filter: string, ancestors: string[] = []): Set<string> {
-  const result = new Set<string>()
-  const low = filter.toLowerCase()
-  for (const n of nodes) {
-    if (n.type !== 'folder') continue
-    const lineage = [...ancestors, n.path]
-    const selfMatches = n.name.toLowerCase().includes(low)
-    const childSet = matchingPaths(n.children ?? [], filter, lineage)
-    if (selfMatches || childSet.size > 0) {
-      lineage.forEach((p) => result.add(p))
-      childSet.forEach((p) => result.add(p))
-    }
-  }
-  return result
-}
-
 export function MoveDialog({ node, root, rootName, tree, onMove, onClose }: MoveDialogProps): JSX.Element {
   const currentParent = parentDir(node.path)
   const [selected, setSelected] = useState<string>(root)
@@ -45,18 +29,18 @@ export function MoveDialog({ node, root, rootName, tree, onMove, onClose }: Move
 
   const handleClose = useCallback(() => onClose(), [onClose])
 
-  const visiblePaths = useMemo(
-    () => (filter.trim() ? matchingPaths(tree, filter) : null),
-    [tree, filter]
+  const isFiltering = filter.trim() !== ''
+  const displayTree = useMemo(
+    () => (isFiltering ? filterTree(tree, filter) : tree),
+    [tree, filter, isFiltering]
   )
 
-  const isExpanded = (path: string): boolean =>
-    visiblePaths != null ? visiblePaths.has(path) : expanded.has(path)
+  // While filtering, everything left in the pruned tree is a match (or an
+  // ancestor of one), so show it fully expanded; otherwise defer to manual toggles.
+  const isExpanded = (path: string): boolean => (isFiltering ? true : expanded.has(path))
 
   const isVisible = (path: string, parentPath: string): boolean =>
-    visiblePaths != null
-      ? visiblePaths.has(path)
-      : parentPath === root || expanded.has(parentPath)
+    isFiltering ? true : parentPath === root || expanded.has(parentPath)
 
   const toggleExpand = (path: string): void => {
     setExpanded((prev) => {
@@ -124,7 +108,7 @@ export function MoveDialog({ node, root, rootName, tree, onMove, onClose }: Move
     return rows
   }
 
-  const folderRows = tree.flatMap((n) => (n.type === 'folder' ? renderFolder(n, 1, root) : []))
+  const folderRows = displayTree.flatMap((n) => (n.type === 'folder' ? renderFolder(n, 1, root) : []))
 
   return (
     <Modal open onClose={handleClose}>
