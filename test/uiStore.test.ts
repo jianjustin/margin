@@ -61,6 +61,19 @@ describe('uiStore — toggleSidebar', () => {
   })
 })
 
+describe('uiStore — collapseSidebar', () => {
+  it('forces sidebarOpen to false regardless of prior state', () => {
+    useUiStore.getState().collapseSidebar()
+    expect(useUiStore.getState().sidebarOpen).toBe(false)
+  })
+
+  it('is idempotent when already collapsed', () => {
+    useUiStore.getState().collapseSidebar()
+    useUiStore.getState().collapseSidebar()
+    expect(useUiStore.getState().sidebarOpen).toBe(false)
+  })
+})
+
 describe('uiStore — toggleDrawer', () => {
   it('flips drawerOpen from true to false', () => {
     useUiStore.getState().toggleDrawer()

@@ -143,7 +143,7 @@ export default function App(): JSX.Element {
 
   const handleOpenSearch = useCallback(() => useUiStore.getState().setSearchOpen(true), [])
   const handleOpenToday = useCallback(() => void fileOps.openScheduleNote(new Date()), [fileOps])
-  const handleCollapseSidebar = useCallback(() => useUiStore.setState({ sidebarOpen: false }), [])
+  const handleCollapseSidebar = useCallback(() => useUiStore.getState().collapseSidebar(), [])
   const handleNewWindow = useCallback(() => createPeerWindow(), [])
   const handleNewNoteFromSidebar = useCallback(() => {
     const root = useVaultStore.getState().root

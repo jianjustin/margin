@@ -20,6 +20,7 @@ interface UiState {
   menu: { x: number; y: number; node: TreeNode } | null
   moveTarget: TreeNode | null
   toggleSidebar: () => void
+  collapseSidebar: () => void
   toggleDrawer: () => void
   toggleSettings: () => void
   toggleSearch: () => void
@@ -44,6 +45,7 @@ export const useUiStore = create<UiState>((set) => ({
   menu: null,
   moveTarget: null,
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
+  collapseSidebar: () => set({ sidebarOpen: false }),
   toggleDrawer: () => set((s) => ({ drawerOpen: !s.drawerOpen })),
   toggleSettings: () => set((s) => ({ settingsOpen: !s.settingsOpen })),
   toggleSearch: () => set((s) => ({ searchOpen: !s.searchOpen })),
