@@ -339,6 +339,7 @@ export default function App(): JSX.Element {
       if (succeeded) {
         // tabs already renamed; nothing to restore
       } else {
+        // 传 old 作 new：路径未变（IPC 失败），原地重排暂停的保存
         pipeline.resumeAfterMutation(node.path, node.path)
         guard.blockedPaths.forEach((p) => pipeline.scheduleSave(p))
       }
@@ -368,6 +369,7 @@ export default function App(): JSX.Element {
       if (succeeded) {
         pipeline.resumeAfterMutation(node.path, null)
       } else {
+        // 传 old 作 new：路径未变（IPC 失败），原地重排暂停的保存
         pipeline.resumeAfterMutation(node.path, node.path)
         guard.blockedPaths.forEach((p) => pipeline.scheduleSave(p))
       }
@@ -394,6 +396,7 @@ export default function App(): JSX.Element {
       if (succeeded) {
         // tabs already moved; nothing to restore
       } else {
+        // 传 old 作 new：路径未变（IPC 失败），原地重排暂停的保存
         pipeline.resumeAfterMutation(node.path, node.path)
         guard.blockedPaths.forEach((p) => pipeline.scheduleSave(p))
       }
@@ -589,7 +592,13 @@ export default function App(): JSX.Element {
                     // path+content together, so it's current here.
                     initialValue={useDocumentStore.getState().content}
                     onChange={handleChange}
-                    onSave={() => void pipeline.flushSaves()}
+                    onSave={() => {
+                      const activePath = useDocumentStore.getState().activePath
+                      if (activePath && useDocumentStore.getState().isDirty(activePath)) {
+                        pipeline.scheduleSave(activePath)
+                      }
+                      void pipeline.flushSaves()
+                    }}
                     onOpenLink={handleOpenLink}
                     onAssetImported={() => void refreshTree()}
                     filePath={path}

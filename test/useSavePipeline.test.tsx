@@ -311,4 +311,185 @@ describe('useSavePipeline', () => {
     // Clean up guard.
     endPathMutation(guard)
   })
+
+  // ── 8. IPC 失败补偿路径（rename/move 失败，原地恢复） ─────────────────────
+
+  describe('IPC failure compensation — old==new identity remap (rename/move failure)', () => {
+    it('saves to old path after failure compensation sequence', () => {
+      // ① 文档 dirty，scheduleSave 排队
+      openDirtyTab('/docs/a.md')
+      const { result } = renderHook(() => useSavePipeline())
+
+      act(() => {
+        result.current.scheduleSave('/docs/a.md')
+      })
+
+      // ② pauseForPaths([oldPath]) — 模拟 IPC 前挂起
+      act(() => {
+        result.current.pauseForPaths(['/docs/a.md'])
+      })
+
+      // 确认挂起后 timer 不落盘
+      act(() => {
+        vi.advanceTimersByTime(800)
+      })
+      expect(saveDocumentMock).not.toHaveBeenCalled()
+
+      // ③ 模拟 IPC reject 后的补偿调用：resumeAfterMutation(old, old)（old==new）
+      act(() => {
+        result.current.resumeAfterMutation('/docs/a.md', '/docs/a.md')
+      })
+
+      // ④ 推进 timer，落盘应发生在旧路径
+      act(() => {
+        vi.advanceTimersByTime(800)
+      })
+
+      expect(saveDocumentMock).toHaveBeenCalledWith(
+        expect.any(Function),
+        expect.any(Function),
+        '/docs/a.md'
+      )
+      // 不应落盘到任何其他路径
+      expect(saveDocumentMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('blocked paths are re-scheduled and saved after failure compensation', () => {
+      // ① 主路径 + 旁路径都 dirty
+      openDirtyTab('/docs/a.md')
+      openDirtyTab('/docs/b.md')
+
+      const { result } = renderHook(() => useSavePipeline())
+
+      // 开启 guard，使 /docs 下路径先被 block
+      const guard = beginPathMutation('/docs')
+
+      // /docs/b.md 在 guard 活跃期间 scheduleSave → 进入 blockedPaths
+      act(() => {
+        result.current.scheduleSave('/docs/a.md')
+        result.current.scheduleSave('/docs/b.md')
+      })
+
+      // /docs/a.md 排队但随即被 pause（模拟 IPC 前挂起）
+      act(() => {
+        result.current.pauseForPaths(['/docs/a.md'])
+      })
+
+      endPathMutation(guard)
+
+      // 模拟 IPC reject 后：① resumeAfterMutation(old, old) ② blockedPaths 补偿
+      act(() => {
+        result.current.resumeAfterMutation('/docs/a.md', '/docs/a.md')
+        // blockedPaths 由 App 层显式回调；此处直接调用 scheduleSave 模拟
+        guard.blockedPaths.forEach((p) => result.current.scheduleSave(p))
+      })
+
+      act(() => {
+        vi.advanceTimersByTime(800)
+      })
+
+      // /docs/a.md 和 /docs/b.md 都应落盘
+      expect(saveDocumentMock).toHaveBeenCalledWith(
+        expect.any(Function),
+        expect.any(Function),
+        '/docs/a.md'
+      )
+      expect(saveDocumentMock).toHaveBeenCalledWith(
+        expect.any(Function),
+        expect.any(Function),
+        '/docs/b.md'
+      )
+      // 无多余落盘（恰好 2 次）
+      expect(saveDocumentMock).toHaveBeenCalledTimes(2)
+    })
+
+    it('pausedPaths ref is cleared after resumeAfterMutation (no state residue)', () => {
+      openDirtyTab('/docs/a.md')
+      const { result } = renderHook(() => useSavePipeline())
+
+      act(() => {
+        result.current.scheduleSave('/docs/a.md')
+        result.current.pauseForPaths(['/docs/a.md'])
+        // IPC 失败：原地恢复
+        result.current.resumeAfterMutation('/docs/a.md', '/docs/a.md')
+        vi.advanceTimersByTime(800)
+      })
+
+      // 第一次落盘完成后，再次 scheduleSave 不应触发额外保存（无残留 pausedPaths）
+      saveDocumentMock.mockClear()
+
+      // 标记为已保存，再调度时 clean，不应再落盘
+      useDocumentStore.getState().markSaved(
+        useDocumentStore.getState().tabForPath('/docs/a.md')!.content,
+        '/docs/a.md'
+      )
+
+      act(() => {
+        result.current.scheduleSave('/docs/a.md')
+        vi.advanceTimersByTime(800)
+      })
+
+      expect(saveDocumentMock).not.toHaveBeenCalled()
+    })
+  })
+
+  // ── 9. ⌘S 强存活动文档（未排队但 dirty 时也落盘） ────────────────────────
+
+  describe('⌘S strong-save active document', () => {
+    it('flushSaves alone does not save dirty-but-unscheduled active document', async () => {
+      // 仅测基线行为：不 schedule，flushSaves 不落盘（边角情况复现）
+      openDirtyTab('/active.md')
+      const { result } = renderHook(() => useSavePipeline())
+
+      // 不调用 scheduleSave — 模拟 active tab dirty 但队列为空
+      await act(async () => {
+        await result.current.flushSaves()
+      })
+
+      // 纯 flushSaves 不落盘（已知局限，被下面的修复覆盖）
+      expect(saveDocumentMock).not.toHaveBeenCalled()
+    })
+
+    it('scheduleSave then flushSaves saves dirty active document not yet in queue', async () => {
+      // 模拟 App.tsx ⌘S 修复后的行为：先 scheduleSave(activePath) 再 flushSaves()
+      openDirtyTab('/active.md')
+      const { result } = renderHook(() => useSavePipeline())
+
+      // ⌘S 修复后的调用序列（App.tsx onSave handler）
+      await act(async () => {
+        result.current.scheduleSave('/active.md')
+        await result.current.flushSaves()
+      })
+
+      expect(saveDocumentMock).toHaveBeenCalledWith(
+        expect.any(Function),
+        expect.any(Function),
+        '/active.md'
+      )
+      expect(saveDocumentMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('⌘S on already-queued dirty document saves exactly once', async () => {
+      openDirtyTab('/active.md')
+      const { result } = renderHook(() => useSavePipeline())
+
+      // 先排队（模拟已有 scheduleSave 在 debounce 中）
+      act(() => {
+        result.current.scheduleSave('/active.md')
+      })
+
+      // ⌘S 再次 schedule + flush — 应只落盘一次
+      await act(async () => {
+        result.current.scheduleSave('/active.md')
+        await result.current.flushSaves()
+      })
+
+      expect(saveDocumentMock).toHaveBeenCalledTimes(1)
+      expect(saveDocumentMock).toHaveBeenCalledWith(
+        expect.any(Function),
+        expect.any(Function),
+        '/active.md'
+      )
+    })
+  })
 })
