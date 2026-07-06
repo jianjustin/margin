@@ -1,5 +1,5 @@
 import { useVaultStore } from '@/stores/vaultStore'
-import { flattenTree } from '@/lib/flattenTree'
+import { flattenTree } from '@/vault-core'
 import type { TreeNode } from '../../../../shared/ipc'
 import { FileTreeRow } from './FileTreeRow'
 

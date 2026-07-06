@@ -1,7 +1,24 @@
 import type { VaultNode } from './types'
 
-export { flattenTree } from '@/lib/flattenTree'
-export type { FlatRow } from '@/lib/flattenTree'
+export interface FlatRow {
+  node: VaultNode
+  depth: number
+}
+
+/** Flatten a tree into the list of currently-visible rows (collapsed folders hide children). */
+export function flattenTree(nodes: VaultNode[], expanded: Set<string> | 'all'): FlatRow[] {
+  const rows: FlatRow[] = []
+  const walk = (list: VaultNode[], depth: number): void => {
+    for (const node of list) {
+      rows.push({ node, depth })
+      if (node.type === 'folder' && node.children && (expanded === 'all' || expanded.has(node.path))) {
+        walk(node.children, depth + 1)
+      }
+    }
+  }
+  walk(nodes, 0)
+  return rows
+}
 
 /** Depth-first search for the node at `path`, or null. */
 export function findNode(tree: VaultNode[], path: string): VaultNode | null {

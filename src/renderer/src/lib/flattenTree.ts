@@ -1,21 +1,3 @@
-import type { TreeNode } from '../../../shared/ipc'
-
-export interface FlatRow {
-  node: TreeNode
-  depth: number
-}
-
-/** Flatten a tree into the list of currently-visible rows (collapsed folders hide children). */
-export function flattenTree(nodes: TreeNode[], expanded: Set<string> | 'all'): FlatRow[] {
-  const rows: FlatRow[] = []
-  const walk = (list: TreeNode[], depth: number): void => {
-    for (const node of list) {
-      rows.push({ node, depth })
-      if (node.type === 'folder' && node.children && (expanded === 'all' || expanded.has(node.path))) {
-        walk(node.children, depth + 1)
-      }
-    }
-  }
-  walk(nodes, 0)
-  return rows
-}
+// Compat shim: the real implementation lives in vault-core (ROADMAP P0.2 kernel).
+export { flattenTree } from '@/vault-core'
+export type { FlatRow } from '@/vault-core'
