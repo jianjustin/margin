@@ -370,7 +370,8 @@ describe('useSavePipeline', () => {
         result.current.scheduleSave('/docs/b.md')
       })
 
-      // /docs/a.md 排队但随即被 pause（模拟 IPC 前挂起）
+      // guard 已先开启：a.md 的 scheduleSave 直接进 blockedPaths（未入 timer 队列），
+      // 因此下面的 pauseForPaths 是空操作——本用例覆盖 blocked→补偿这半边（paused 半边见 8.1）
       act(() => {
         result.current.pauseForPaths(['/docs/a.md'])
       })
