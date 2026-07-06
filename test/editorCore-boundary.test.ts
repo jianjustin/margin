@@ -19,6 +19,8 @@ describe('editor-core public surface', () => {
       'collectDecorations',
       'frontmatterEnd',
       'rangeRevealed',
+      // outline
+      'collectOutline',
       // inline marks
       'toggleInlineMark',
       'INLINE_MARKERS',

@@ -30,6 +30,10 @@ export type { TextRange, EditDoc, TextChange, EditResult } from './types'
 export { collectDecorations, frontmatterEnd, rangeRevealed } from './projection'
 export type { DecoSpec, DecoKind } from './projection'
 
+// ── Outline (Markdown → table of contents) ───────────────────────────────────
+export { collectOutline } from './outline'
+export type { OutlineItem } from './outline'
+
 // ── Commands (text transformations) ──────────────────────────────────────────
 export { toggleInlineMark, INLINE_MARKERS } from './commands/inlineMark'
 export type { InlineMarkKind } from './commands/inlineMark'

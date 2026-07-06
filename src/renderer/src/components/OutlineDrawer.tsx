@@ -2,41 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useDocumentStore } from '@/stores/documentStore'
 import { collectScheduleDates, formatDateKey } from '@/lib/schedule'
+import { collectOutline, type OutlineItem } from '@/editor-core'
 import type { TreeNode } from '../../../shared/ipc'
-
-interface HeadingItem {
-  level: number
-  text: string
-  line: number
-}
-
-function parseHeadings(content: string): HeadingItem[] {
-  const lines = content.split('\n')
-  const headings: HeadingItem[] = []
-  let inFence = false
-  let inFrontmatter = false
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]
-    if (i === 0 && line === '---') {
-      inFrontmatter = true
-      continue
-    }
-    if (inFrontmatter) {
-      if (line === '---') inFrontmatter = false
-      continue
-    }
-    if (/^```/.test(line)) {
-      inFence = !inFence
-      continue
-    }
-    if (inFence) continue
-    const m = line.match(/^(#{1,3})\s+(.+)/)
-    if (m) {
-      headings.push({ level: m[1].length, text: m[2].trim(), line: i })
-    }
-  }
-  return headings
-}
 
 function parseScheduleDate(value: string | null): Date | null {
   if (!value) return null
@@ -90,7 +57,7 @@ export function OutlineDrawer({
   onOpenSchedule
 }: OutlineDrawerProps): JSX.Element {
   const content = useDocumentStore((s) => s.content)
-  const headings = useMemo(() => parseHeadings(content), [content])
+  const headings = useMemo(() => collectOutline(content), [content])
   const activeScheduleDate = useMemo(() => parseCurrentScheduleDate(content), [content])
   const [calendarView, setCalendarView] = useState(() => {
     const anchor = activeScheduleDate ?? new Date()
@@ -107,7 +74,7 @@ export function OutlineDrawer({
     setCalendarView(new Date(activeScheduleDate.getFullYear(), activeScheduleDate.getMonth(), 1))
   }, [activeScheduleDate])
 
-  function handleClick(heading: HeadingItem, idx: number): void {
+  function handleClick(heading: OutlineItem, idx: number): void {
     setActiveIdx(idx)
     onJumpToLine?.(heading.line)
     if (timerRef.current) clearTimeout(timerRef.current)
