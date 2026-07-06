@@ -21,6 +21,8 @@ interface UiState {
   moveTarget: TreeNode | null
   toggleSidebar: () => void
   toggleDrawer: () => void
+  toggleSettings: () => void
+  toggleSearch: () => void
   setSettingsOpen: (v: boolean) => void
   setSearchOpen: (v: boolean) => void
   setPaneWidths: (left?: number, right?: number) => void
@@ -43,6 +45,8 @@ export const useUiStore = create<UiState>((set) => ({
   moveTarget: null,
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   toggleDrawer: () => set((s) => ({ drawerOpen: !s.drawerOpen })),
+  toggleSettings: () => set((s) => ({ settingsOpen: !s.settingsOpen })),
+  toggleSearch: () => set((s) => ({ searchOpen: !s.searchOpen })),
   setSettingsOpen: (v) => set({ settingsOpen: v }),
   setSearchOpen: (v) => set({ searchOpen: v }),
   setPaneWidths: (left, right) =>

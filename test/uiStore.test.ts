@@ -74,6 +74,32 @@ describe('uiStore — toggleDrawer', () => {
   })
 })
 
+describe('uiStore — toggleSettings', () => {
+  it('flips settingsOpen from false to true', () => {
+    useUiStore.getState().toggleSettings()
+    expect(useUiStore.getState().settingsOpen).toBe(true)
+  })
+
+  it('flips settingsOpen back to false', () => {
+    useUiStore.getState().toggleSettings()
+    useUiStore.getState().toggleSettings()
+    expect(useUiStore.getState().settingsOpen).toBe(false)
+  })
+})
+
+describe('uiStore — toggleSearch', () => {
+  it('flips searchOpen from false to true', () => {
+    useUiStore.getState().toggleSearch()
+    expect(useUiStore.getState().searchOpen).toBe(true)
+  })
+
+  it('flips searchOpen back to false', () => {
+    useUiStore.getState().toggleSearch()
+    useUiStore.getState().toggleSearch()
+    expect(useUiStore.getState().searchOpen).toBe(false)
+  })
+})
+
 describe('uiStore — setSettingsOpen / setSearchOpen', () => {
   it('sets settingsOpen to true', () => {
     useUiStore.getState().setSettingsOpen(true)

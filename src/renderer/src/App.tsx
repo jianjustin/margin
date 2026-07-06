@@ -179,11 +179,11 @@ export default function App(): JSX.Element {
       }
       if ((e.metaKey || e.ctrlKey) && e.key === ',') {
         e.preventDefault()
-        useUiStore.getState().setSettingsOpen(!useUiStore.getState().settingsOpen)
+        useUiStore.getState().toggleSettings()
       }
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault()
-        useUiStore.getState().setSearchOpen(!useUiStore.getState().searchOpen)
+        useUiStore.getState().toggleSearch()
       }
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'N') {
         e.preventDefault()
@@ -393,17 +393,6 @@ export default function App(): JSX.Element {
   /* ── Context-menu actions (driven by the dialog state machine) ── */
 
   const closeDialog = useCallback(() => useUiStore.getState().closeDialog(), [])
-
-  async function doNewNote(folder: TreeNode, name: string): Promise<void> {
-    const created = await api.createNote(targetDir(folder), name)
-    await refreshTree()
-    await openFileByPath(created)
-  }
-
-  async function doNewFolder(folder: TreeNode, name: string): Promise<void> {
-    await api.createFolder(targetDir(folder), name)
-    await refreshTree()
-  }
 
   async function doRename(node: TreeNode, name: string): Promise<void> {
     if (name === node.name) return

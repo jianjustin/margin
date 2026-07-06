@@ -105,6 +105,7 @@ vi.mock('@/components/Editor', () => ({
 
 import App from '@/App'
 import { resetPathMutationGuards } from '@/lib/pathMutationGuards'
+import { useUiStore } from '@/stores/uiStore'
 
 function deferred<T>(): {
   promise: Promise<T>
@@ -226,6 +227,15 @@ beforeEach(() => {
   })
   useDocumentStore.getState().reset()
   useDocumentStore.getState().load('/v/a.md', 'hello')
+  useUiStore.setState({
+    sidebarOpen: true,
+    drawerOpen: true,
+    settingsOpen: false,
+    searchOpen: false,
+    dialog: null,
+    menu: null,
+    moveTarget: null
+  })
 })
 
 afterEach(() => {
