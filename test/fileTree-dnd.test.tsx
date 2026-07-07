@@ -229,6 +229,37 @@ describe('FileTree drag-and-drop (DOM)', () => {
 
     expect(preventDefaultSpy).not.toHaveBeenCalled()
   })
+
+  it('drop of nested file onto sibling folder calls onMove exactly once with correct dest (regression: no root-level double-move)', () => {
+    // Regression test for drop event bubbling bug:
+    // Before fix: drop on FileTreeRow bubbled up to the root container's handleRootDrop,
+    // causing onMove to be called twice — once with the correct destDir (/v/folderB),
+    // and once with the vault root (/v). The fix (stopPropagation in handleDrop) ensures
+    // only one call happens with the correct target.
+    //
+    // This test uses a nested source file (/v/folderA/inner.md) because the old bug was
+    // masked when the source was a root-level file: canMoveInto('/v/root.md', '/v') = false
+    // (already in root), so the double-call was silently short-circuited.
+    const onMove = vi.fn()
+    render(<FileTree onOpenFile={() => {}} onContextMenu={() => {}} onMove={onMove} />)
+
+    // inner.md is visible because folderA is expanded in beforeEach
+    const innerRow = screen.getByText('inner.md').closest('div[draggable]')!
+    // We drop inner.md onto folderB
+    const folderBRow = screen.getByText('folderB').closest('div[draggable]')!
+    const dt = makeMockDataTransfer({ 'application/x-margin-path': '/v/folderA/inner.md' })
+    fireDragWithTransfer(folderBRow, 'drop', dt)
+
+    // Must be called exactly once — not twice (the bubbling bug would call it again
+    // with vault root as destDir since canMoveInto('/v/folderA/inner.md', '/v') = true)
+    expect(onMove).toHaveBeenCalledOnce()
+    expect(onMove).toHaveBeenCalledWith('/v/folderA/inner.md', '/v/folderB')
+    // Explicitly assert the wrong call never happened
+    expect(onMove).not.toHaveBeenCalledWith('/v/folderA/inner.md', '/v')
+
+    // innerRow itself is not used in this drop, but we ensure the fixture is correct
+    expect(innerRow).toBeTruthy()
+  })
 })
 
 // ── Ensure click behavior is unaffected ──────────────────────────────────────

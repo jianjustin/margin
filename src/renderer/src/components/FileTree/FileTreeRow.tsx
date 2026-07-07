@@ -13,7 +13,7 @@ interface FileTreeRowProps {
   onSelect: (node: TreeNode) => void
   onToggle: (node: TreeNode) => void
   onContextMenu: (node: TreeNode, x: number, y: number) => void
-  onMove: (srcPath: string, destDir: string) => void
+  onMove?: (srcPath: string, destDir: string) => void
   onDropTargetChange: (path: string | null) => void
   onHoverExpand: (node: TreeNode) => void
   onHoverExpandCancel: () => void
@@ -101,19 +101,21 @@ export function FileTreeRow({
     }
   }
 
-  const handleDragLeave = (): void => {
+  const handleDragLeave = (e: React.DragEvent): void => {
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return
     onDropTargetChange(null)
     onHoverExpandCancel()
   }
 
   const handleDrop = (e: React.DragEvent): void => {
     e.preventDefault()
+    e.stopPropagation()
     onDropTargetChange(null)
     onHoverExpandCancel()
     const src = e.dataTransfer.getData('application/x-margin-path')
     const destDir = getDropDir()
     if (src && canMoveInto(src, destDir)) {
-      onMove(src, destDir)
+      onMove?.(src, destDir)
     }
   }
 

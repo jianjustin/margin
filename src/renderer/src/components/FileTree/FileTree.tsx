@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useVaultStore } from '@/stores/vaultStore'
 import { flattenTree, canMoveInto, dirname } from '@/vault-core'
 import type { TreeNode } from '../../../../shared/ipc'
@@ -7,7 +7,7 @@ import { FileTreeRow } from './FileTreeRow'
 interface FileTreeProps {
   onOpenFile: (node: TreeNode) => void
   onContextMenu: (node: TreeNode, x: number, y: number) => void
-  onMove: (srcPath: string, destDir: string) => void
+  onMove?: (srcPath: string, destDir: string) => void
   filteredTree?: TreeNode[] | null
 }
 
@@ -36,6 +36,9 @@ export function FileTree({ onOpenFile, onContextMenu, onMove, filteredTree }: Fi
     }, 600)
   }, [clearHoverTimer, expanded, toggleExpanded])
 
+  // Cleanup hover-expand timer on unmount to avoid setState-after-unmount warnings
+  useEffect(() => () => clearHoverTimer(), [clearHoverTimer])
+
   const handleDropTargetChange = useCallback((path: string | null): void => {
     setDropTarget(path)
   }, [])
@@ -58,7 +61,7 @@ export function FileTree({ onOpenFile, onContextMenu, onMove, filteredTree }: Fi
     const src = e.dataTransfer.getData('application/x-margin-path')
     const vaultRoot = useVaultStore.getState().root
     if (src && vaultRoot && canMoveInto(src, vaultRoot)) {
-      onMove(src, vaultRoot)
+      onMove?.(src, vaultRoot)
     }
   }
 
