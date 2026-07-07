@@ -1,5 +1,7 @@
 # margin-assistant 内核 v0 + Hermes 宿主 实施计划
 
+> **⚠️ 已作废（2026-07-06 同日）**：设计已修订为 v2——教学会话为核心、margin 插件 + Node sidecar 形态、去 Hermes（见 spec `docs/superpowers/specs/2026-07-06-knowledge-assistant-design.md`）。本计划未执行任何任务。Task 2-11 的确定性模块设计（协议/解析/扫描/进度/连接器/渲染）在新计划中将以 agent tools 形式复用，届时可参考本文件的代码细节。执行顺序改为：先完整执行 margin 重构方案 P5，再为 Tutor 写新计划。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 建成 margin-assistant 内核 v0（独立 TS 仓库 + CLI：扫描/计划/进度/抓取/LLM/渲染/daily/report 编排）及 Hermes 宿主层（两个定时 job + 对话 skill + launchd 退出通道）。
