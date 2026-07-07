@@ -15,6 +15,7 @@ interface SidebarProps {
   onNewNote?: () => void
   onOpenFile: (node: TreeNode) => void
   onContextMenu: (node: TreeNode, x: number, y: number) => void
+  onMove: (srcPath: string, destDir: string) => void
 }
 
 function toolbarButton(active = false): string {
@@ -31,7 +32,8 @@ function SidebarInner({
   onOpenSearch,
   onNewNote,
   onOpenFile,
-  onContextMenu
+  onContextMenu,
+  onMove
 }: SidebarProps): JSX.Element {
   const root = useVaultStore((s) => s.root)
 
@@ -72,6 +74,7 @@ function SidebarInner({
         <FileTree
           onOpenFile={onOpenFile}
           onContextMenu={onContextMenu}
+          onMove={onMove}
           filteredTree={null}
         />
       ) : (

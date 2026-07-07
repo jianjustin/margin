@@ -129,6 +129,13 @@ export default function App(): JSX.Element {
     useUiStore.getState().openMenu({ node, x, y })
   }, [])
 
+  const handleMove = useCallback(
+    (srcPath: string, destDir: string): void => {
+      void fileOps.moveNode(srcPath, destDir)
+    },
+    [fileOps]
+  )
+
   async function refreshTree(): Promise<void> {
     const root = useVaultStore.getState().root
     if (!root) return
@@ -182,6 +189,7 @@ export default function App(): JSX.Element {
             onNewNote={handleNewNoteFromSidebar}
             onOpenFile={handleOpenFile}
             onContextMenu={handleContextMenu}
+            onMove={handleMove}
           />
           <div
             role="separator"

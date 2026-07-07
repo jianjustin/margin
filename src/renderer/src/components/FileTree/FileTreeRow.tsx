@@ -2,15 +2,21 @@ import { ChevronRight } from 'lucide-react'
 import type { TreeNode } from '../../../../shared/ipc'
 import { FolderGlyph } from '@/components/icons/FolderGlyph'
 import { fileExt, isMarkdownFile } from '@/lib/fileKinds'
+import { canMoveInto, dirname } from '@/vault-core'
 
 interface FileTreeRowProps {
   node: TreeNode
   depth: number
   expanded: boolean
   selected: boolean
+  isDropTarget: boolean
   onSelect: (node: TreeNode) => void
   onToggle: (node: TreeNode) => void
   onContextMenu: (node: TreeNode, x: number, y: number) => void
+  onMove: (srcPath: string, destDir: string) => void
+  onDropTargetChange: (path: string | null) => void
+  onHoverExpand: (node: TreeNode) => void
+  onHoverExpandCancel: () => void
 }
 
 interface FileBadge {
@@ -49,9 +55,14 @@ export function FileTreeRow({
   depth,
   expanded,
   selected,
+  isDropTarget,
   onSelect,
   onToggle,
-  onContextMenu
+  onContextMenu,
+  onMove,
+  onDropTargetChange,
+  onHoverExpand,
+  onHoverExpandCancel
 }: FileTreeRowProps): JSX.Element {
   const isFolder = node.type === 'folder'
   const canOpen = !isFolder && isMarkdownFile(node.name)
@@ -70,8 +81,45 @@ export function FileTreeRow({
     onContextMenu(node, e.clientX, e.clientY)
   }
 
+  const getDropDir = (): string => (isFolder ? node.path : dirname(node.path))
+
+  const handleDragStart = (e: React.DragEvent): void => {
+    e.dataTransfer.setData('application/x-margin-path', node.path)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleDragOver = (e: React.DragEvent): void => {
+    if (!e.dataTransfer.types.includes('application/x-margin-path')) return
+    const destDir = getDropDir()
+    // Get current drag source — may not be readable yet in dragover (browser security)
+    // We allow hover highlight optimistically; the guard runs on drop
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    onDropTargetChange(destDir)
+    if (isFolder && !expanded) {
+      onHoverExpand(node)
+    }
+  }
+
+  const handleDragLeave = (): void => {
+    onDropTargetChange(null)
+    onHoverExpandCancel()
+  }
+
+  const handleDrop = (e: React.DragEvent): void => {
+    e.preventDefault()
+    onDropTargetChange(null)
+    onHoverExpandCancel()
+    const src = e.dataTransfer.getData('application/x-margin-path')
+    const destDir = getDropDir()
+    if (src && canMoveInto(src, destDir)) {
+      onMove(src, destDir)
+    }
+  }
+
   return (
     <div
+      draggable
       onClick={handleClick}
       onContextMenu={handleRightClick}
       onAuxClick={(e) => {
@@ -79,14 +127,20 @@ export function FileTreeRow({
         // reliably; `auxclick` with button 2 catches those cases.
         if (e.button === 2) handleRightClick(e)
       }}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
       title={node.name}
       style={{ paddingLeft: `${8 + depth * 16}px` }}
       className={[
         'group flex h-[27px] select-none items-center gap-2 rounded-md pr-2 text-[13px]',
         isFolder || canOpen ? 'cursor-pointer' : 'cursor-default',
-        selected
-          ? 'bg-[color:var(--sidebar-selected)] shadow-[inset_2px_0_0_var(--sidebar-selected-line)]'
-          : 'hover:bg-[color:var(--sidebar-hover)]'
+        isDropTarget
+          ? 'bg-[color:var(--accent-soft)]'
+          : selected
+            ? 'bg-[color:var(--sidebar-selected)] shadow-[inset_2px_0_0_var(--sidebar-selected-line)]'
+            : 'hover:bg-[color:var(--sidebar-hover)]'
       ].join(' ')}
     >
       <span className="grid w-3 flex-none place-items-center text-[color:var(--text-dim)]">
