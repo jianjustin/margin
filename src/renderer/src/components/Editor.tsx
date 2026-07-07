@@ -159,7 +159,9 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       }
 
       const root = vaultRoot
-      const pos = view.posAtCoords(position) ?? view.state.selection.main.head
+      // Advances past each insert so multiple dropped files land in order
+      // (a fixed pos would stack them in reverse at the same offset).
+      let pos = view.posAtCoords(position) ?? view.state.selection.main.head
 
       // Process files sequentially so inserts don't interleave.
       const process = async (): Promise<void> => {
@@ -175,6 +177,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
                 changes: { from: pos, to: pos, insert },
                 selection: { anchor: pos + insert.length }
               })
+              pos += insert.length
               onAssetImportedRef.current?.()
             } catch (err) {
               console.error('[useTauriFileDrop] importAssetFromPath failed', err)
@@ -198,6 +201,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
               changes: { from: pos, to: pos, insert },
               selection: { anchor: pos + insert.length }
             })
+            pos += insert.length
           }
         }
       }
