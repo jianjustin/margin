@@ -5,7 +5,9 @@ import {
   createVaultInfoPlugin,
   type HostServices,
   type MarginPlugin,
-  type CommandContribution
+  type CommandContribution,
+  type SidebarPanelContribution,
+  type StatusItemContribution
 } from '@/plugin-api'
 import type { VaultSnapshot } from '@/vault-core'
 
@@ -18,10 +20,18 @@ const SNAPSHOT: VaultSnapshot = {
 }
 
 /** A CommandSink backed by a Map, plus helpers to inspect/run what was registered. */
-function makeServices(): HostServices & { registered: Map<string, CommandContribution> } {
+function makeServices(): HostServices & {
+  registered: Map<string, CommandContribution>
+  panels: Map<string, SidebarPanelContribution>
+  statusItems: Map<string, StatusItemContribution>
+} {
   const registered = new Map<string, CommandContribution>()
+  const panels = new Map<string, SidebarPanelContribution>()
+  const statusItems = new Map<string, StatusItemContribution>()
   return {
     registered,
+    panels,
+    statusItems,
     commands: {
       register: (c) => {
         registered.set(c.id, c)
@@ -29,7 +39,17 @@ function makeServices(): HostServices & { registered: Map<string, CommandContrib
       }
     },
     vaultSnapshot: () => SNAPSHOT,
-    events: new EventBus()
+    events: new EventBus(),
+    ui: {
+      registerSidebarPanel: (panel) => {
+        panels.set(panel.id, panel)
+        return { dispose: () => panels.delete(panel.id) }
+      },
+      registerStatusItem: (item) => {
+        statusItems.set(item.id, item)
+        return { dispose: () => statusItems.delete(item.id) }
+      }
+    }
   }
 }
 
@@ -92,6 +112,82 @@ describe('PluginHost — permission gating', () => {
     await host.activate(peeker)
     // command registered fine (had `commands`), but running it touches vault without `vault.read`
     expect(() => services.registered.get('peek.cmd')!.run()).toThrow(/lacks permission: vault.read/)
+  })
+})
+
+describe('PluginHost — ui.sidebar permission', () => {
+  it('allows registerSidebarPanel when ui.sidebar is declared, panel tracked and disposed on deactivate', async () => {
+    const services = makeServices()
+    const host = new PluginHost(services)
+    const sidebarPlugin: MarginPlugin = {
+      manifest: { id: 'sidebar.plugin', name: 'Sidebar', version: '1.0.0', permissions: ['ui.sidebar'] },
+      activate(ctx) {
+        ctx.ui.registerSidebarPanel({
+          id: 'my-panel',
+          title: 'My Panel',
+          icon: 'layout-sidebar',
+          render: (_container) => () => {}
+        })
+      }
+    }
+    await host.activate(sidebarPlugin)
+    expect(services.panels.has('my-panel')).toBe(true)
+
+    await host.deactivate('sidebar.plugin')
+    expect(host.isActive('sidebar.plugin')).toBe(false)
+    expect(services.panels.size).toBe(0)
+  })
+
+  it('throws when registerSidebarPanel is called without ui.sidebar permission', async () => {
+    const services = makeServices()
+    const host = new PluginHost(services)
+    const noPermPlugin: MarginPlugin = {
+      manifest: { id: 'no.sidebar', name: 'NoSidebar', version: '1.0.0' /* no permissions */ },
+      activate(ctx) {
+        ctx.ui.registerSidebarPanel({
+          id: 'bad-panel',
+          title: 'Bad',
+          icon: 'x',
+          render: (_container) => () => {}
+        })
+      }
+    }
+    await expect(host.activate(noPermPlugin)).rejects.toThrow(/lacks permission: ui.sidebar/)
+    expect(host.isActive('no.sidebar')).toBe(false)
+    expect(services.panels.size).toBe(0)
+  })
+})
+
+describe('PluginHost — ui.status permission', () => {
+  it('allows registerStatusItem when ui.status is declared, item tracked and disposed on deactivate', async () => {
+    const services = makeServices()
+    const host = new PluginHost(services)
+    const statusPlugin: MarginPlugin = {
+      manifest: { id: 'status.plugin', name: 'Status', version: '1.0.0', permissions: ['ui.status'] },
+      activate(ctx) {
+        ctx.ui.registerStatusItem({ id: 'my-status', render: () => 'OK' })
+      }
+    }
+    await host.activate(statusPlugin)
+    expect(services.statusItems.has('my-status')).toBe(true)
+
+    await host.deactivate('status.plugin')
+    expect(host.isActive('status.plugin')).toBe(false)
+    expect(services.statusItems.size).toBe(0)
+  })
+
+  it('throws when registerStatusItem is called without ui.status permission', async () => {
+    const services = makeServices()
+    const host = new PluginHost(services)
+    const noPermPlugin: MarginPlugin = {
+      manifest: { id: 'no.status', name: 'NoStatus', version: '1.0.0' /* no permissions */ },
+      activate(ctx) {
+        ctx.ui.registerStatusItem({ id: 'bad-status', render: () => 'X' })
+      }
+    }
+    await expect(host.activate(noPermPlugin)).rejects.toThrow(/lacks permission: ui.status/)
+    expect(host.isActive('no.status')).toBe(false)
+    expect(services.statusItems.size).toBe(0)
   })
 })
 

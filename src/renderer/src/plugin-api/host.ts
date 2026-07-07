@@ -5,7 +5,9 @@ import type {
   MarginPlugin,
   Permission,
   PluginContext,
-  PluginManifest
+  PluginManifest,
+  SidebarPanelContribution,
+  StatusItemContribution
 } from './types'
 import type { EventBus } from './eventBus'
 
@@ -14,11 +16,18 @@ export interface CommandSink {
   register(contribution: CommandContribution): Disposable
 }
 
+/** Where sidebar panels land (the app provides the real implementation). */
+export interface UiSink {
+  registerSidebarPanel(panel: SidebarPanelContribution): Disposable
+  registerStatusItem(item: StatusItemContribution): Disposable
+}
+
 /** Services the host wires the plugin facade onto. */
 export interface HostServices {
   commands: CommandSink
   vaultSnapshot: () => VaultSnapshot
   events: EventBus
+  ui: UiSink
 }
 
 interface ActiveRecord {
@@ -99,6 +108,16 @@ export class PluginHost {
         on: (type, handler) => {
           require('vault.read')
           return track(this.services.events.on(type, handler))
+        }
+      },
+      ui: {
+        registerSidebarPanel: (panel) => {
+          require('ui.sidebar')
+          return track(this.services.ui.registerSidebarPanel(panel))
+        },
+        registerStatusItem: (item) => {
+          require('ui.status')
+          return track(this.services.ui.registerStatusItem(item))
         }
       }
     }

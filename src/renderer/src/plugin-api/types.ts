@@ -11,14 +11,12 @@ export interface Disposable {
   dispose(): void
 }
 
-/** Declarable capabilities; the host throws if a plugin uses one it didn't declare. */
-export type Permission =
-  | 'editor.read'
-  | 'editor.decorate'
-  | 'vault.read'
-  | 'vault.write'
-  | 'commands'
-  | 'network'
+/**
+ * Declarable capabilities; the host throws if a plugin uses one it didn't declare.
+ * Every permission listed here has a real require() gate in PluginHost.buildContext.
+ * Permissions without an enforced gate are intentionally omitted (宁缺毋滥).
+ */
+export type Permission = 'commands' | 'vault.read' | 'ui.sidebar' | 'ui.status'
 
 export interface PluginManifest {
   id: string
@@ -38,6 +36,22 @@ export interface CommandContribution {
   run: () => void | Promise<void>
 }
 
+/** A sidebar panel contributed by a plugin. Requires `ui.sidebar` permission. */
+export interface SidebarPanelContribution {
+  id: string
+  title: string
+  /** Lucide icon name. */
+  icon: string
+  /** Mount the panel into `container`; return a dispose function to unmount. */
+  render(container: HTMLElement): () => void
+}
+
+/** A status-bar item contributed by a plugin. Requires `ui.status` permission. */
+export interface StatusItemContribution {
+  id: string
+  render(): string
+}
+
 /** The capability facade handed to a plugin at activation. */
 export interface PluginContext {
   manifest: PluginManifest
@@ -47,6 +61,13 @@ export interface PluginContext {
   vault: { snapshot(): VaultSnapshot }
   /** Subscribe to vault events. Requires the `vault.read` permission. */
   events: { on(type: VaultEvent['type'], handler: (event: VaultEvent) => void): Disposable }
+  /** UI contribution points. */
+  ui: {
+    /** Requires the `ui.sidebar` permission. */
+    registerSidebarPanel(panel: SidebarPanelContribution): Disposable
+    /** Requires the `ui.status` permission. */
+    registerStatusItem(item: StatusItemContribution): Disposable
+  }
 }
 
 export interface MarginPlugin {

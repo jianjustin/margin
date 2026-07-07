@@ -13,12 +13,14 @@ export type {
   Permission,
   PluginManifest,
   CommandContribution,
+  SidebarPanelContribution,
+  StatusItemContribution,
   PluginContext,
   MarginPlugin
 } from './types'
 
 export { EventBus } from './eventBus'
 export { PluginHost } from './host'
-export type { HostServices, CommandSink } from './host'
+export type { HostServices, CommandSink, UiSink } from './host'
 
 export { createVaultInfoPlugin } from './builtins/vaultInfoPlugin'
