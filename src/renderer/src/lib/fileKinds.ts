@@ -10,3 +10,16 @@ export function isMarkdownFile(name: string): boolean {
 export function isImagePath(path: string): boolean {
   return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'avif', 'bmp'].includes(fileExt(path))
 }
+
+/** Image + common video/audio types that should be imported as vault assets. */
+export function isDroppableAsset(path: string): boolean {
+  const ext = fileExt(path)
+  return [
+    // images
+    'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'avif', 'bmp',
+    // video
+    'mp4', 'mov', 'webm', 'mkv', 'avi', 'm4v',
+    // audio
+    'mp3', 'wav', 'ogg', 'm4a', 'flac', 'aac'
+  ].includes(ext)
+}

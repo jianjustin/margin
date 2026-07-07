@@ -18,6 +18,8 @@ import { slashInsertedAt } from '@/editor/slashTrigger'
 import { api } from '@/lib/api'
 import { richContentConfigFacet } from '@/editor/livePreview/richContent'
 import { insertTextForVaultPath } from '@/lib/insertDropText'
+import { isDroppableAsset } from '@/lib/fileKinds'
+import { useTauriFileDrop } from '@/hooks/useTauriFileDrop'
 
 interface EditorProps {
   docKey: string | null
@@ -135,6 +137,77 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     })
     view.focus()
   }, [])
+
+  // ── Tauri system-file drop ───────────────────────────────────────────────
+  // Primary path for Tauri v2 desktop: receives absolute system paths instead
+  // of the unreliable WKWebView File objects. The HTML5 `drop` handler below
+  // remains as fallback for `pnpm demo` (browser environment).
+  const onDropPaths = useCallback(
+    (paths: string[], position: { x: number; y: number }): void => {
+      const view = viewRef.current
+      if (!view) return
+
+      // Only handle drops that land within the editor's DOM rect.
+      const rect = view.dom.getBoundingClientRect()
+      if (
+        position.x < rect.left ||
+        position.x > rect.right ||
+        position.y < rect.top ||
+        position.y > rect.bottom
+      ) {
+        return
+      }
+
+      const root = vaultRoot
+      const pos = view.posAtCoords(position) ?? view.state.selection.main.head
+
+      // Process files sequentially so inserts don't interleave.
+      const process = async (): Promise<void> => {
+        for (const path of paths) {
+          if (isDroppableAsset(path)) {
+            if (!root) continue
+            try {
+              const relPath = await api.importAssetFromPath(root, path, assetsDir)
+              const filename = path.split('/').pop() ?? path
+              const name = filename.replace(/\.[^.]+$/, '')
+              const insert = `![${name}](${relPath})`
+              view.dispatch({
+                changes: { from: pos, to: pos, insert },
+                selection: { anchor: pos + insert.length }
+              })
+              onAssetImportedRef.current?.()
+            } catch (err) {
+              console.error('[useTauriFileDrop] importAssetFromPath failed', err)
+            }
+          } else {
+            // Non-asset file (e.g. .md, .txt) dropped from an absolute path.
+            // If it's inside the vault, compute a vault-relative path and use
+            // insertTextForVaultPath (which emits [[name]] for .md).
+            // If outside the vault — a plain markdown link with the absolute path
+            // is the least-surprising fallback (wiki links wouldn't resolve anyway).
+            const filename = path.split('/').pop() ?? path
+            let insert: string
+            if (root && path.startsWith(root + '/')) {
+              const rel = path.slice(root.length + 1)
+              insert = insertTextForVaultPath(rel)
+            } else {
+              // External non-asset: insert a plain link with the absolute path.
+              insert = `[${filename}](${path})`
+            }
+            view.dispatch({
+              changes: { from: pos, to: pos, insert },
+              selection: { anchor: pos + insert.length }
+            })
+          }
+        }
+      }
+      void process()
+    },
+    [assetsDir, vaultRoot]
+  )
+
+  useTauriFileDrop(onDropPaths)
+  // ────────────────────────────────────────────────────────────────────────
 
   const importImageFile = useCallback(async (file: File, sourcePath?: string): Promise<void> => {
     const root = vaultRoot
