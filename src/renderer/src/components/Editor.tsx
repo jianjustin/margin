@@ -227,13 +227,15 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
             const vaultPath = e.dataTransfer?.getData('application/x-margin-path')
             if (vaultPath) {
               const root = vaultRoot
-              let rel: string
-              if (root && vaultPath.startsWith(root)) {
-                rel = vaultPath.slice(root.length).replace(/^\//, '')
-              } else {
-                // Fallback: use as-is (path not under vaultRoot or vaultRoot null)
-                rel = vaultPath
+              // Only insert a link when the dragged node is inside the vault —
+              // otherwise a raw absolute disk path would leak into `[[…]]`.
+              // Consume the event either way so it never falls through to the
+              // image-file branch or the browser's default drop handling.
+              if (!root || !vaultPath.startsWith(root)) {
+                e.preventDefault()
+                return true
               }
+              const rel = vaultPath.slice(root.length).replace(/^\//, '')
               const pos =
                 view.posAtCoords({ x: e.clientX, y: e.clientY }) ??
                 view.state.selection.main.head
