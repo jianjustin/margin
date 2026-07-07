@@ -4,9 +4,9 @@
  * Plugins access the app only through a permission-gated facade
  * ({@link PluginContext}); the {@link PluginHost} activates them, enforces
  * declared permissions, and disposes everything they register on unload. The
- * facade currently exposes `commands`, `vault` (read-only snapshot), and vault
- * `events`; more contribution points (decorations, panels, status items) extend
- * the same surface.
+ * facade exposes `commands`, `vault` (read-only snapshot), vault `events`, and
+ * `ui` (sidebar panels + status items); further contribution points extend the
+ * same surface.
  */
 export type {
   Disposable,

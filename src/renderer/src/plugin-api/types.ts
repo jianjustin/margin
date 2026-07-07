@@ -42,7 +42,12 @@ export interface SidebarPanelContribution {
   title: string
   /** Lucide icon name. */
   icon: string
-  /** Mount the panel into `container`; return a dispose function to unmount. */
+  /**
+   * Mount the panel into `container`; return a dispose function to unmount.
+   * The host implementation MUST call this returned dispose fn when the
+   * `Disposable` from `registerSidebarPanel` is disposed (plugin deactivation),
+   * otherwise the panel's DOM/listeners leak.
+   */
   render(container: HTMLElement): () => void
 }
 

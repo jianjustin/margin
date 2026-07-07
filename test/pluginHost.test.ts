@@ -42,8 +42,17 @@ function makeServices(): HostServices & {
     events: new EventBus(),
     ui: {
       registerSidebarPanel: (panel) => {
+        // Contract (see UiSink JSDoc): mount now, and on dispose call the
+        // render-returned unmount fn + drop the panel. (node-env test — the
+        // container is a stub; the panel's render must not touch it here.)
+        const unmount = panel.render({} as unknown as HTMLElement)
         panels.set(panel.id, panel)
-        return { dispose: () => panels.delete(panel.id) }
+        return {
+          dispose: () => {
+            unmount()
+            panels.delete(panel.id)
+          }
+        }
       },
       registerStatusItem: (item) => {
         statusItems.set(item.id, item)
@@ -119,6 +128,7 @@ describe('PluginHost — ui.sidebar permission', () => {
   it('allows registerSidebarPanel when ui.sidebar is declared, panel tracked and disposed on deactivate', async () => {
     const services = makeServices()
     const host = new PluginHost(services)
+    const unmount = vi.fn()
     const sidebarPlugin: MarginPlugin = {
       manifest: { id: 'sidebar.plugin', name: 'Sidebar', version: '1.0.0', permissions: ['ui.sidebar'] },
       activate(ctx) {
@@ -126,7 +136,7 @@ describe('PluginHost — ui.sidebar permission', () => {
           id: 'my-panel',
           title: 'My Panel',
           icon: 'layout-sidebar',
-          render: (_container) => () => {}
+          render: (_container) => unmount
         })
       }
     }
@@ -136,6 +146,8 @@ describe('PluginHost — ui.sidebar permission', () => {
     await host.deactivate('sidebar.plugin')
     expect(host.isActive('sidebar.plugin')).toBe(false)
     expect(services.panels.size).toBe(0)
+    // The render-returned unmount fn must run on deactivation (no DOM leak).
+    expect(unmount).toHaveBeenCalledTimes(1)
   })
 
   it('throws when registerSidebarPanel is called without ui.sidebar permission', async () => {

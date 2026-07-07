@@ -16,7 +16,14 @@ export interface CommandSink {
   register(contribution: CommandContribution): Disposable
 }
 
-/** Where sidebar panels land (the app provides the real implementation). */
+/**
+ * Where sidebar panels / status items land (the app provides the real
+ * implementation). Contract: the `Disposable` returned by `registerSidebarPanel`
+ * MUST, when disposed, call `panel.render`'s returned dispose fn and remove the
+ * panel — the host tracks this Disposable and disposes it on plugin deactivation,
+ * so a leak here leaks the panel's DOM. `registerStatusItem` likewise removes the
+ * item on dispose.
+ */
 export interface UiSink {
   registerSidebarPanel(panel: SidebarPanelContribution): Disposable
   registerStatusItem(item: StatusItemContribution): Disposable
