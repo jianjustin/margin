@@ -17,6 +17,7 @@ import { SlashMenu, type SlashMenuItem } from './SlashMenu'
 import { slashInsertedAt } from '@/editor/slashTrigger'
 import { api } from '@/lib/api'
 import { richContentConfigFacet } from '@/editor/livePreview/richContent'
+import { insertTextForVaultPath } from '@/lib/insertDropText'
 
 interface EditorProps {
   docKey: string | null
@@ -221,7 +222,30 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
             onOpenLinkRef.current?.(url)
             return true
           },
-          drop: (e) => {
+          drop: (e, view) => {
+            // Internal vault-path drag (from file tree)
+            const vaultPath = e.dataTransfer?.getData('application/x-margin-path')
+            if (vaultPath) {
+              const root = vaultRoot
+              let rel: string
+              if (root && vaultPath.startsWith(root)) {
+                rel = vaultPath.slice(root.length).replace(/^\//, '')
+              } else {
+                // Fallback: use as-is (path not under vaultRoot or vaultRoot null)
+                rel = vaultPath
+              }
+              const pos =
+                view.posAtCoords({ x: e.clientX, y: e.clientY }) ??
+                view.state.selection.main.head
+              const insert = insertTextForVaultPath(rel)
+              view.dispatch({
+                changes: { from: pos, to: pos, insert },
+                selection: { anchor: pos + insert.length }
+              })
+              e.preventDefault()
+              return true
+            }
+            // System file drop (images from outside the vault)
             const handled = importDataTransferImages(e.dataTransfer?.files ?? null)
             if (!handled) return false
             e.preventDefault()

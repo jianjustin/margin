@@ -6,3 +6,7 @@ export function fileExt(name: string): string {
 export function isMarkdownFile(name: string): boolean {
   return ['md', 'mdx', 'markdown'].includes(fileExt(name))
 }
+
+export function isImagePath(path: string): boolean {
+  return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'avif', 'bmp'].includes(fileExt(path))
+}
