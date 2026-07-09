@@ -22,6 +22,7 @@ import { useProjectConfig } from '@/hooks/useProjectConfig'
 import { useDraft } from '@/hooks/useDraft'
 import { useFileOperations } from '@/hooks/useFileOperations'
 import { useGlobalKeymap } from '@/hooks/useGlobalKeymap'
+import { usePluginHost } from '@/hooks/usePluginHost'
 import { DraftBanner } from '@/components/DraftBanner'
 import { ConflictBar } from '@/components/ConflictBar'
 import { StatusBar } from '@/components/StatusBar'
@@ -62,7 +63,6 @@ export default function App(): JSX.Element {
   const vaultRoot = useVaultStore((s) => s.root)
   const vaultTree = useVaultStore((s) => s.tree)
   const scheduleEnabled = useSettingsStore((s) => s.scheduleEnabled)
-  const scheduleDir = useSettingsStore((s) => s.scheduleDir)
   const hiddenFolders = useSettingsStore((s) => s.hiddenFolders)
   const assetsDir = useSettingsStore((s) => s.assetsDir)
   const plantUmlServerUrl = useSettingsStore((s) => s.plantUmlServerUrl)
@@ -96,6 +96,10 @@ export default function App(): JSX.Element {
   /* ── Global keyboard shortcuts ─────────────────────────────── */
 
   useGlobalKeymap()
+
+  /* ── Plugin host (built-in schedule plugin) ────────────────── */
+
+  usePluginHost(fileOps.openScheduleNote)
 
   /* ── Core file operations ──────────────────────────────────── */
 
@@ -274,13 +278,7 @@ export default function App(): JSX.Element {
                 onPointerDown={(e) => startPaneResize(e, RIGHT_PANE, rightPaneWidth, (w) => useUiStore.getState().setPaneWidths(undefined, w), -1)}
                 className="relative z-20 w-[5px] flex-none cursor-col-resize bg-transparent after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-transparent hover:after:bg-[color:var(--accent-line)] [-webkit-app-region:no-drag]"
               />
-              <OutlineDrawer
-                width={rightPaneWidth}
-                tree={vaultTree}
-                scheduleDir={scheduleDir}
-                onJumpToLine={handleJumpToLine}
-                onOpenSchedule={(date) => void fileOps.openScheduleNote(date)}
-              />
+              <OutlineDrawer width={rightPaneWidth} onJumpToLine={handleJumpToLine} />
             </>
           )}
         </div>
