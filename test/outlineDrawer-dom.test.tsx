@@ -1,82 +1,57 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { OutlineDrawer } from '@/components/OutlineDrawer'
 import { useDocumentStore } from '@/stores/documentStore'
-import type { TreeNode } from '../src/shared/ipc'
-
-const tree: TreeNode[] = [
-  {
-    name: '日程',
-    path: '/v/日程',
-    type: 'folder',
-    children: [
-      { name: '2026-06-28.md', path: '/v/日程/2026-06-28.md', type: 'file' },
-      { name: '2026-06-30.md', path: '/v/日程/2026-06-30.md', type: 'file' }
-    ]
-  }
-]
+import { usePluginUiStore } from '@/stores/pluginUiStore'
 
 afterEach(() => {
   cleanup()
   useDocumentStore.getState().reset()
+  usePluginUiStore.setState({ sidebarPanels: [], statusItems: [] })
 })
 
-function seed(content: string): void {
-  const store = useDocumentStore.getState()
-  store.reset()
-  store.openOrActivate('/v/日程/2026-06-28.md', content)
+function registerFakePanel(id: string, title: string, marker: string): void {
+  const container = document.createElement('div')
+  container.textContent = marker
+  usePluginUiStore.getState().addSidebarPanel({
+    descriptor: { id, title, icon: 'Calendar', render: () => () => {} },
+    container
+  })
 }
 
-describe('OutlineDrawer Schedule tab', () => {
-  it('renders a month calendar and marks dates that have schedule notes', () => {
-    seed(`---
-type: 日程
-date: 2026-06-28
----
+describe('OutlineDrawer — outline tab (always present)', () => {
+  it('shows the outline heading list by default', () => {
+    useDocumentStore.getState().openOrActivate('/v/a.md', '# Title\n\ntext')
+    render(<OutlineDrawer width={280} />)
+    expect(screen.getByText('Table of Contents')).toBeTruthy()
+    expect(screen.getByText('Title')).toBeTruthy()
+  })
+})
 
-# 2026-06-28 日程
+describe('OutlineDrawer — dynamic plugin panel tabs', () => {
+  it('renders a tab per registered sidebar panel and mounts its container when selected', () => {
+    registerFakePanel('builtin.schedule', 'Schedule', 'schedule-marker')
+    render(<OutlineDrawer width={280} />)
 
-## 今日待办
-- [ ] Review launch plan
+    const tab = screen.getByRole('button', { name: 'Schedule' })
+    expect(tab).toBeTruthy()
+    fireEvent.click(tab)
 
-## 记录
-Met with product team.
-`)
-    const onOpenSchedule = vi.fn()
-    render(
-      <OutlineDrawer
-        width={280}
-        tree={tree}
-        scheduleDir="日程"
-        onOpenSchedule={onOpenSchedule}
-      />
-    )
-
-    fireEvent.click(screen.getByRole('button', { name: 'Schedule' }))
-
-    expect(screen.getByText('2026 年 6 月')).toBeTruthy()
-    const dayWithNote = screen.getByRole('button', { name: '2026-06-30' })
-    expect(dayWithNote.querySelector('[aria-hidden="true"]')).toBeTruthy()
-    expect(screen.queryByText('Review launch plan')).toBeNull()
-    expect(screen.queryByText('Met with product team.')).toBeNull()
-
-    fireEvent.click(dayWithNote)
-    expect(onOpenSchedule).toHaveBeenCalledOnce()
-    expect(onOpenSchedule.mock.calls[0][0]).toEqual(new Date(2026, 5, 30))
+    expect(screen.getByText('schedule-marker')).toBeTruthy()
   })
 
-  it('can navigate to another month', () => {
-    seed(`---
-type: 日程
-date: 2026-06-28
----
-`)
-    render(<OutlineDrawer width={280} tree={tree} scheduleDir="日程" />)
-
+  it('falls back to the outline tab when the active panel is unregistered', () => {
+    registerFakePanel('builtin.schedule', 'Schedule', 'schedule-marker')
+    render(<OutlineDrawer width={280} />)
     fireEvent.click(screen.getByRole('button', { name: 'Schedule' }))
-    fireEvent.click(screen.getByRole('button', { name: '下个月' }))
+    expect(screen.getByText('schedule-marker')).toBeTruthy()
 
-    expect(screen.getByText('2026 年 7 月')).toBeTruthy()
+    act(() => {
+      usePluginUiStore.getState().removeSidebarPanel('builtin.schedule')
+    })
+
+    expect(screen.queryByRole('button', { name: 'Schedule' })).toBeNull()
+    expect(screen.getByText('Table of Contents')).toBeTruthy()
   })
 })
