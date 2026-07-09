@@ -44,7 +44,19 @@ export function usePluginHost(onOpenToday: (date: Date) => void): void {
           usePluginUiStore.getState().addSidebarPanel({ descriptor: panel, container })
           return {
             dispose: () => {
-              unmount()
+              // Defer unmount() (which drives the panel's nested `createRoot`
+              // root.unmount() in schedulePlugin.tsx) past the microtask
+              // boundary so it escapes the outer root's passive-effect
+              // execution window — calling it synchronously here (this
+              // dispose runs from a useEffect cleanup) makes React log
+              // "Attempted to synchronously unmount a root while React was
+              // already rendering" because ReactDOMRoot.unmount() internally
+              // flushSyncs while React's "flushing passive effects" flag is
+              // still set. removeSidebarPanel stays synchronous — it's a
+              // plain Zustand `set()` unrelated to the React root, and
+              // removing the panel immediately is what makes the tab
+              // disappear from OutlineDrawer without delay.
+              queueMicrotask(() => unmount())
               usePluginUiStore.getState().removeSidebarPanel(panel.id)
             }
           }
