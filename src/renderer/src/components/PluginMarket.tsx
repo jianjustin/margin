@@ -1,6 +1,9 @@
-import { Search, Star, X } from 'lucide-react'
-import { useState } from 'react'
+import { Search, X } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import { Modal } from '@/components/ui/Modal'
+import { Switch } from '@/components/ui/Switch'
+import { BUILTIN_PLUGIN_MANIFESTS } from '@/plugin-api/builtins/registry'
+import { useSettingsStore } from '@/stores/settingsStore'
 
 interface PluginMarketProps {
   onBack: () => void
@@ -15,16 +18,26 @@ const CATEGORIES = [
   'Productivity'
 ] as const
 
-const PLUGINS = [
-  { name: 'Fuzzy Keyboard', author: 'keybind.io', rating: 4.9, colorVar: '--badge-md', initials: 'K' },
-  { name: 'Push Notify', author: 'pushly.dev', rating: 4.8, colorVar: '--badge-img', initials: 'P' },
-  { name: 'Table Editor', author: 'tabletool', rating: 4.7, colorVar: '--badge-pdf', initials: 'T' },
-  { name: 'Git Sync', author: 'gitsync.app', rating: 4.6, colorVar: '--badge-other', initials: 'G' }
-]
+const PERMISSION_LABELS: Record<string, string> = {
+  commands: '命令',
+  'vault.read': '读取文件库',
+  'ui.sidebar': '侧边栏面板',
+  'ui.status': '状态栏'
+}
 
 export function PluginMarket({ onBack }: PluginMarketProps): JSX.Element {
   const [activeCategory, setActiveCategory] = useState<string>('Featured')
   const [query, setQuery] = useState('')
+  const enabledPlugins = useSettingsStore((s) => s.enabledPlugins)
+  const setPluginEnabled = useSettingsStore((s) => s.setPluginEnabled)
+
+  const plugins = useMemo(() => {
+    if (!query.trim()) return BUILTIN_PLUGIN_MANIFESTS
+    const q = query.trim().toLowerCase()
+    return BUILTIN_PLUGIN_MANIFESTS.filter(
+      (m) => m.name.toLowerCase().includes(q) || m.description?.toLowerCase().includes(q)
+    )
+  }, [query])
 
   return (
     <Modal open onClose={onBack}>
@@ -54,14 +67,13 @@ export function PluginMarket({ onBack }: PluginMarketProps): JSX.Element {
                   : 'text-[color:var(--text-dim)] hover:bg-[color:var(--bg-hover)] hover:text-foreground'
               ].join(' ')}
             >
-              {cat === 'Featured' && <Star size={13} className="flex-none" />}
               {cat}
             </button>
           ))}
 
           <div className="mx-4 my-2 border-t border-[color:var(--border-soft)]" />
           <div className="px-4 py-1 text-[11.5px] font-medium text-[color:var(--text-faint)]">
-            INSTALLED · 4
+            已安装 · {BUILTIN_PLUGIN_MANIFESTS.length}
           </div>
         </div>
 
@@ -78,31 +90,54 @@ export function PluginMarket({ onBack }: PluginMarketProps): JSX.Element {
 
           <div className="flex-1 overflow-y-auto p-4">
             <div className="mb-3 text-[11px] font-semibold uppercase tracking-[.08em] text-[color:var(--text-faint)]">
-              Popular
+              内置插件
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              {PLUGINS.map((plugin) => (
-                <div
-                  key={plugin.name}
-                  className="flex cursor-pointer items-start gap-3 rounded-2xl border border-[color:var(--border-soft)] bg-[color:var(--bg-elev)] p-3 transition-colors hover:border-[color:var(--accent-line)] hover:bg-[color:var(--bg-hover)]"
-                >
-                  <div
-                    className="grid h-10 w-10 flex-none place-items-center rounded-xl font-[family-name:var(--mono)] text-[17px] font-semibold text-[color:var(--accent-ink)]"
-                    style={{ background: `var(${plugin.colorVar})` }}
-                  >
-                    {plugin.initials}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="truncate text-[13px] font-semibold text-foreground">{plugin.name}</div>
-                    <div className="text-[11.5px] text-[color:var(--text-faint)]">{plugin.author}</div>
-                    <div className="mt-0.5 flex items-center gap-1 text-[11.5px] text-[color:var(--accent)]">
-                      <Star size={11} className="fill-current" />
-                      {plugin.rating.toFixed(1)}
+            {plugins.length === 0 ? (
+              <div className="flex flex-col items-center gap-1 py-10 text-center text-[12.5px] text-[color:var(--text-faint)]">
+                没有匹配的插件
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {plugins.map((manifest) => {
+                  const enabled = enabledPlugins.includes(manifest.id)
+                  return (
+                    <div
+                      key={manifest.id}
+                      className="flex items-start gap-3 rounded-2xl border border-[color:var(--border-soft)] bg-[color:var(--bg-elev)] p-3"
+                    >
+                      <div className="grid h-10 w-10 flex-none place-items-center rounded-xl bg-[color:var(--accent-soft)] font-[family-name:var(--mono)] text-[17px] font-semibold text-[color:var(--accent)]">
+                        {manifest.name.slice(0, 1)}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="truncate text-[13px] font-semibold text-foreground">{manifest.name}</div>
+                          <Switch
+                            checked={enabled}
+                            onChange={(v) => setPluginEnabled(manifest.id, v)}
+                            label={`${enabled ? '关闭' : '启用'} ${manifest.name}`}
+                          />
+                        </div>
+                        {manifest.description && (
+                          <div className="mt-0.5 text-[11.5px] text-[color:var(--text-faint)]">{manifest.description}</div>
+                        )}
+                        {manifest.permissions && manifest.permissions.length > 0 && (
+                          <div className="mt-1.5 flex flex-wrap gap-1">
+                            {manifest.permissions.map((p) => (
+                              <span
+                                key={p}
+                                className="rounded-full bg-[color:var(--bg-hover)] px-2 py-0.5 text-[10.5px] text-[color:var(--text-dim)]"
+                              >
+                                {PERMISSION_LABELS[p] ?? p}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>
