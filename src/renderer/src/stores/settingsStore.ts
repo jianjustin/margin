@@ -56,6 +56,8 @@ export function sanitizeProjectConfig(raw: unknown): Partial<Settings> {
   const out: Partial<Settings> = {}
   if (Array.isArray(obj.enabledPlugins) && obj.enabledPlugins.every((v) => typeof v === 'string')) {
     out.enabledPlugins = obj.enabledPlugins as string[]
+  } else {
+    Object.assign(out, migrateLegacyScheduleEnabled(obj))
   }
   if (typeof obj.scheduleDir === 'string' && obj.scheduleDir.trim()) {
     out.scheduleDir = obj.scheduleDir.trim()

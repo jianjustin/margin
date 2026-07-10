@@ -50,6 +50,22 @@ describe('project config helpers', () => {
       expect(sanitizeProjectConfig('nope')).toEqual({})
       expect(sanitizeProjectConfig({ foo: 'bar' })).toEqual({})
     })
+
+    it('migrates a legacy scheduleEnabled field from vault config (no silent reset)', () => {
+      expect(sanitizeProjectConfig({ scheduleEnabled: false, scheduleDir: '日程' })).toEqual({
+        enabledPlugins: ['builtin.outline'],
+        scheduleDir: '日程'
+      })
+    })
+
+    it('prefers a valid enabledPlugins field over a coexisting legacy scheduleEnabled field', () => {
+      expect(sanitizeProjectConfig({
+        scheduleEnabled: false,
+        enabledPlugins: ['builtin.outline', 'builtin.schedule']
+      })).toEqual({
+        enabledPlugins: ['builtin.outline', 'builtin.schedule']
+      })
+    })
   })
 
   describe('projectConfigOf', () => {
