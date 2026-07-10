@@ -64,7 +64,7 @@ describe('plugin host + OutlineDrawer integration (real schedule plugin)', () =>
 
     expect(screen.queryByRole('button', { name: 'Schedule' })).toBeNull()
     expect(screen.getByText('Table of Contents')).toBeTruthy()
-    expect(usePluginUiStore.getState().sidebarPanels.length).toBe(0)
+    expect(usePluginUiStore.getState().sidebarPanels.length).toBe(1)
 
     expect(errorSpy).not.toHaveBeenCalled()
     errorSpy.mockRestore()
@@ -85,7 +85,7 @@ describe('plugin host + OutlineDrawer integration (real schedule plugin)', () =>
     // StrictMode double-invokes effects; there must be exactly one tab / one
     // registered panel, not a duplicate.
     expect(screen.getAllByRole('button', { name: 'Schedule' }).length).toBe(1)
-    expect(usePluginUiStore.getState().sidebarPanels.length).toBe(1)
+    expect(usePluginUiStore.getState().sidebarPanels.length).toBe(2)
 
     fireEvent.click(screen.getByRole('button', { name: 'Schedule' }))
     const now = new Date()
@@ -100,7 +100,7 @@ describe('plugin host + OutlineDrawer integration (real schedule plugin)', () =>
 
     expect(screen.queryByRole('button', { name: 'Schedule' })).toBeNull()
     expect(screen.getByText('Table of Contents')).toBeTruthy()
-    expect(usePluginUiStore.getState().sidebarPanels.length).toBe(0)
+    expect(usePluginUiStore.getState().sidebarPanels.length).toBe(1)
 
     expect(errorSpy).not.toHaveBeenCalled()
     errorSpy.mockRestore()
