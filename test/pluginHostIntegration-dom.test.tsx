@@ -10,7 +10,7 @@ import { useVaultStore } from '@/stores/vaultStore'
 import { useDocumentStore } from '@/stores/documentStore'
 
 /**
- * End-to-end integration coverage for P5.2/P5.3: exercises the real
+ * End-to-end integration coverage for P5.2/P5.3/P5.4: exercises the real
  * `usePluginHost` + real `schedulePlugin`/`outlinePlugin` + real
  * `OutlineDrawer`/`PanelSlot` together, which no single task's own tests do.
  */
@@ -34,7 +34,7 @@ async function flushMicrotasks(): Promise<void> {
 afterEach(() => {
   cleanup()
   usePluginUiStore.setState({ sidebarPanels: [], statusItems: [] })
-  useSettingsStore.setState({ scheduleEnabled: true, scheduleDir: '日程' })
+  useSettingsStore.setState({ enabledPlugins: ['builtin.outline', 'builtin.schedule'], scheduleDir: '日程' })
   useVaultStore.getState().setTree([])
   useDocumentStore.getState().reset()
 })
@@ -56,7 +56,7 @@ describe('plugin host + OutlineDrawer integration (real schedule + outline plugi
 
   it('reparents the real ScheduleCalendarPanel into visible DOM, then falls back to the real Outline panel cleanly on deactivate', async () => {
     const errorSpy = vi.spyOn(console, 'error')
-    useSettingsStore.setState({ scheduleEnabled: true, scheduleDir: '日程' })
+    useSettingsStore.setState({ enabledPlugins: ['builtin.outline', 'builtin.schedule'], scheduleDir: '日程' })
 
     render(<Harness onOpenToday={vi.fn()} onJumpToLine={vi.fn()} />)
     await act(async () => {})
@@ -65,9 +65,6 @@ describe('plugin host + OutlineDrawer integration (real schedule + outline plugi
     expect(tab).toBeTruthy()
 
     fireEvent.click(tab)
-    // The calendar header ("YYYY 年 M 月") is unique to the real
-    // ScheduleCalendarPanel — unlike a fake stub, this proves the actual
-    // plugin panel was reparented into visible DOM by PanelSlot.
     const now = new Date()
     expect(
       screen.getByText(`${now.getFullYear()} 年 ${now.getMonth() + 1} 月`)
@@ -75,7 +72,7 @@ describe('plugin host + OutlineDrawer integration (real schedule + outline plugi
     expect(screen.getByLabelText('上个月')).toBeTruthy()
 
     await act(async () => {
-      useSettingsStore.getState().setScheduleEnabled(false)
+      useSettingsStore.getState().setPluginEnabled('builtin.schedule', false)
     })
     await flushMicrotasks()
 
@@ -90,7 +87,7 @@ describe('plugin host + OutlineDrawer integration (real schedule + outline plugi
 
   it('survives StrictMode double-activate/cleanup for both plugins without a "plugin already active" error or an orphaned tab', async () => {
     const errorSpy = vi.spyOn(console, 'error')
-    useSettingsStore.setState({ scheduleEnabled: true, scheduleDir: '日程' })
+    useSettingsStore.setState({ enabledPlugins: ['builtin.outline', 'builtin.schedule'], scheduleDir: '日程' })
 
     render(
       <React.StrictMode>
@@ -100,8 +97,6 @@ describe('plugin host + OutlineDrawer integration (real schedule + outline plugi
     await act(async () => {})
     await flushMicrotasks()
 
-    // StrictMode double-invokes effects; there must be exactly one tab per
-    // plugin / two registered panels total, not duplicates.
     expect(screen.getAllByRole('button', { name: 'Outline' }).length).toBe(1)
     expect(screen.getAllByRole('button', { name: 'Schedule' }).length).toBe(1)
     expect(usePluginUiStore.getState().sidebarPanels.length).toBe(2)
@@ -113,7 +108,7 @@ describe('plugin host + OutlineDrawer integration (real schedule + outline plugi
     ).toBeTruthy()
 
     await act(async () => {
-      useSettingsStore.getState().setScheduleEnabled(false)
+      useSettingsStore.getState().setPluginEnabled('builtin.schedule', false)
     })
     await flushMicrotasks()
 

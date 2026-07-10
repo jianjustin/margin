@@ -13,20 +13,23 @@ import { useVaultStore } from '@/stores/vaultStore'
 
 /**
  * Instantiates the app's `PluginHost` (plugin-api/host.ts) with real
- * `HostServices`. Activates the built-in outline plugin unconditionally (no
- * settings toggle exists for it — it's core UI, mirroring how the Outline tab
- * was always present before P5.3) and the built-in schedule plugin as
- * `scheduleEnabled` toggles (P5.2 — the first real consumer of PluginHost;
- * previously it only existed inside plugin-api's own tests).
+ * `HostServices`. Activates/deactivates both built-in plugins as
+ * `enabledPlugins` (settingsStore, P5.4) toggles — before P5.4 the outline
+ * plugin was unconditional; PluginMarket now manages both the same way.
  *
  * The outline-activation effect is declared BEFORE the schedule-activation
  * effect so `pluginUiStore.sidebarPanels` always gets `builtin.outline`
- * pushed first — React runs a component's effect setups in declaration
- * order on mount, and `PluginHost.activate`'s synchronous prefix (which
- * includes the plugin's own `ctx.ui.registerSidebarPanel` call) fully runs
- * before the enclosing async function yields at its first `await`, so this
- * ordering is deterministic, not a race. `OutlineDrawer` renders tabs in
- * `sidebarPanels` order, so this is what keeps "Outline" as the first tab.
+ * pushed first when both are enabled — React runs a component's effect
+ * setups in declaration order on mount, and `PluginHost.activate`'s
+ * synchronous prefix (which includes the plugin's own
+ * `ctx.ui.registerSidebarPanel` call) fully runs before the enclosing async
+ * function yields at its first `await`, so this ordering is deterministic,
+ * not a race. `OutlineDrawer` renders tabs in `sidebarPanels` order, so this
+ * is what keeps "Outline" as the first tab.
+ *
+ * Each effect derives its own boolean from `enabledPlugins` (rather than
+ * both depending on the whole array) so toggling one plugin doesn't
+ * needlessly tear down and re-mount the other.
  *
  * `commands` uses its own `CommandRegistry` instance, mirroring the pattern
  * already used by `useGlobalKeymap` — binding contributed commands into the
@@ -43,7 +46,8 @@ export function usePluginHost(
   onOpenToday: (date: Date) => void,
   onJumpToLine: (line: number) => void
 ): void {
-  const scheduleEnabled = useSettingsStore((s) => s.scheduleEnabled)
+  const outlineEnabled = useSettingsStore((s) => s.enabledPlugins.includes('builtin.outline'))
+  const scheduleEnabled = useSettingsStore((s) => s.enabledPlugins.includes('builtin.schedule'))
   const onOpenTodayRef = useRef(onOpenToday)
   onOpenTodayRef.current = onOpenToday
   const onJumpToLineRef = useRef(onJumpToLine)
@@ -94,11 +98,12 @@ export function usePluginHost(
 
   useEffect(() => {
     const host = hostRef.current!
+    if (!outlineEnabled) return
     void host.activate(createOutlinePlugin((line) => onJumpToLineRef.current(line)))
     return () => {
       void host.deactivate('builtin.outline')
     }
-  }, [])
+  }, [outlineEnabled])
 
   useEffect(() => {
     const host = hostRef.current!
