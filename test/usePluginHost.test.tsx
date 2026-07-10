@@ -51,7 +51,13 @@ describe('usePluginHost', () => {
     const { unmount } = renderHook(() => usePluginHost(vi.fn()))
     await act(async () => {})
     expect(usePluginUiStore.getState().sidebarPanels.length).toBe(1)
-    unmount()
+    await act(async () => {
+      unmount()
+      // dispose() defers the nested root's unmount() past the microtask
+      // boundary (see usePluginHost.ts) — flush that microtask inside act()
+      // so the deferred unmount is also tracked, not just the sync part.
+      await new Promise((resolve) => queueMicrotask(resolve))
+    })
     expect(usePluginUiStore.getState().sidebarPanels.length).toBe(0)
   })
 })
