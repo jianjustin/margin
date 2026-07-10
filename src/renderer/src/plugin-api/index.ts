@@ -25,3 +25,4 @@ export type { HostServices, CommandSink, UiSink } from './host'
 
 export { createVaultInfoPlugin } from './builtins/vaultInfoPlugin'
 export { createSchedulePlugin } from './builtins/schedulePlugin'
+export { createOutlinePlugin } from './builtins/outlinePlugin'
