@@ -62,7 +62,7 @@ export default function App(): JSX.Element {
 
   const vaultRoot = useVaultStore((s) => s.root)
   const vaultTree = useVaultStore((s) => s.tree)
-  const scheduleEnabled = useSettingsStore((s) => s.scheduleEnabled)
+  const scheduleEnabled = useSettingsStore((s) => s.enabledPlugins.includes('builtin.schedule'))
   const hiddenFolders = useSettingsStore((s) => s.hiddenFolders)
   const assetsDir = useSettingsStore((s) => s.assetsDir)
   const plantUmlServerUrl = useSettingsStore((s) => s.plantUmlServerUrl)

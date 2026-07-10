@@ -7,6 +7,7 @@ import { UpdateSection } from '@/components/UpdateSection'
 import { useUpdater } from '@/hooks/useUpdater'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { Modal } from '@/components/ui/Modal'
+import { Switch } from '@/components/ui/Switch'
 import { useDismissable } from '@/hooks/useDismissable'
 import { ICON_SM, ICON_MD } from '@/components/ui/icon'
 import type { TreeNode } from '../../../shared/ipc'
@@ -112,27 +113,6 @@ function topFolders(tree: TreeNode[]): string[] {
   return tree.filter((n) => n.type === 'folder').map((n) => n.name)
 }
 
-interface AppSwitchProps {
-  checked: boolean
-  onChange: (checked: boolean) => void
-  label: string
-}
-
-function AppSwitch({ checked, onChange, label }: AppSwitchProps): JSX.Element {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-label={label}
-      aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      className={['app-switch', checked ? 'app-switch-on' : 'app-switch-off'].join(' ')}
-    >
-      <span className="app-switch-thumb" />
-    </button>
-  )
-}
-
 type SettingsTab = 'general' | 'editor' | 'sync' | 'shortcuts' | 'advanced'
 
 const NAV_ITEMS: { id: SettingsTab | 'plugins'; label: string }[] = [
@@ -205,14 +185,14 @@ export function SettingsPanel({ tree, onClose }: SettingsPanelProps): JSX.Elemen
 }
 
 function GeneralTab({ tree }: { tree: TreeNode[] }): JSX.Element {
-  const scheduleEnabled = useSettingsStore((s) => s.scheduleEnabled)
+  const scheduleEnabled = useSettingsStore((s) => s.enabledPlugins.includes('builtin.schedule'))
   const scheduleDir = useSettingsStore((s) => s.scheduleDir)
   const hiddenFolders = useSettingsStore((s) => s.hiddenFolders)
   const assetsDir = useSettingsStore((s) => s.assetsDir)
   const plantUmlServerUrl = useSettingsStore((s) => s.plantUmlServerUrl)
   const diagramFitWidth = useSettingsStore((s) => s.diagramFitWidth)
   const mathEnabled = useSettingsStore((s) => s.mathEnabled)
-  const setScheduleEnabled = useSettingsStore((s) => s.setScheduleEnabled)
+  const setPluginEnabled = useSettingsStore((s) => s.setPluginEnabled)
   const setScheduleDir = useSettingsStore((s) => s.setScheduleDir)
   const addHiddenFolder = useSettingsStore((s) => s.addHiddenFolder)
   const removeHiddenFolder = useSettingsStore((s) => s.removeHiddenFolder)
@@ -253,7 +233,11 @@ function GeneralTab({ tree }: { tree: TreeNode[] }): JSX.Element {
           <div className={labelClass}>启用日程功能</div>
           <div className={descClass}>在设置中管理日程入口和日历</div>
         </div>
-        <AppSwitch checked={scheduleEnabled} onChange={setScheduleEnabled} label="启用日程功能" />
+        <Switch
+          checked={scheduleEnabled}
+          onChange={(v) => setPluginEnabled('builtin.schedule', v)}
+          label="启用日程功能"
+        />
       </div>
       {scheduleEnabled && (
         <div className="pb-2 pt-1">
@@ -327,14 +311,14 @@ function GeneralTab({ tree }: { tree: TreeNode[] }): JSX.Element {
           <div className={labelClass}>图表自适应宽度</div>
           <div className={descClass}>关闭后保留原始尺寸并横向滚动</div>
         </div>
-        <AppSwitch checked={diagramFitWidth} onChange={setDiagramFitWidth} label="图表自适应宽度" />
+        <Switch checked={diagramFitWidth} onChange={setDiagramFitWidth} label="图表自适应宽度" />
       </div>
       <div className={rowClass}>
         <div>
           <div className={labelClass}>数学公式</div>
           <div className={descClass}>使用 KaTeX 渲染行内和块级 LaTeX</div>
         </div>
-        <AppSwitch checked={mathEnabled} onChange={setMathEnabled} label="数学公式" />
+        <Switch checked={mathEnabled} onChange={setMathEnabled} label="数学公式" />
       </div>
 
       <div className={sectionTitle}>关于</div>
@@ -369,21 +353,21 @@ function EditorTab(): JSX.Element {
           <div className={labelClass}>Typewriter mode</div>
           <div className={descClass}>Keep the current line centered</div>
         </div>
-        <AppSwitch checked={typewriterMode} onChange={setTypewriterMode} label="Typewriter mode" />
+        <Switch checked={typewriterMode} onChange={setTypewriterMode} label="Typewriter mode" />
       </div>
       <div className={rowClass}>
         <div>
           <div className={labelClass}>Show markdown syntax</div>
           <div className={descClass}>Reveal markdown markers on the active line</div>
         </div>
-        <AppSwitch checked={showMarkdownSyntax} onChange={setShowMarkdownSyntax} label="Show markdown syntax" />
+        <Switch checked={showMarkdownSyntax} onChange={setShowMarkdownSyntax} label="Show markdown syntax" />
       </div>
       <div className={rowClass}>
         <div>
           <div className={labelClass}>Spellcheck</div>
           <div className={descClass}>Underline misspelled words</div>
         </div>
-        <AppSwitch checked={spellcheck} onChange={setSpellcheck} label="Spellcheck" />
+        <Switch checked={spellcheck} onChange={setSpellcheck} label="Spellcheck" />
       </div>
     </div>
   )
