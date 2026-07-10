@@ -15,6 +15,7 @@ export function createSchedulePlugin(onOpenToday: (date: Date) => void): MarginP
       id: 'builtin.schedule',
       name: '日程',
       version: '0.1.0',
+      description: '按日期管理每日笔记，提供日历视图与快速跳转。',
       permissions: ['commands', 'ui.sidebar']
     },
     activate(ctx) {

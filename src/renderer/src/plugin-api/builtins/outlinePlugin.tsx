@@ -16,6 +16,7 @@ export function createOutlinePlugin(onJumpToLine: (line: number) => void): Margi
       id: 'builtin.outline',
       name: '大纲',
       version: '0.1.0',
+      description: '在侧边栏展示当前文档的标题大纲，点击跳转到对应位置。',
       permissions: ['ui.sidebar']
     },
     activate(ctx) {
