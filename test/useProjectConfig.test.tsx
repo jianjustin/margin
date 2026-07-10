@@ -32,7 +32,7 @@ beforeEach(() => {
   emit.mockReset().mockResolvedValue(undefined)
   useVaultStore.setState({ root: null, tree: [], expanded: new Set(), selectedPath: null })
   useSettingsStore.setState({
-    scheduleEnabled: true,
+    enabledPlugins: ['builtin.outline', 'builtin.schedule'],
     scheduleDir: '日程',
     hiddenFolders: [],
     assetsDir: 'assets',
@@ -47,7 +47,7 @@ afterEach(cleanup)
 describe('useProjectConfig', () => {
   it('hydrates settings from a vault config when a vault opens', async () => {
     readProjectConfig.mockResolvedValue(
-      JSON.stringify({ scheduleEnabled: false, scheduleDir: 'Daily', hiddenFolders: ['.claude'] })
+      JSON.stringify({ enabledPlugins: ['builtin.outline'], scheduleDir: 'Daily', hiddenFolders: ['.claude'] })
     )
     render(<Harness />)
     act(() => {
@@ -56,9 +56,8 @@ describe('useProjectConfig', () => {
     await waitFor(() => {
       expect(useSettingsStore.getState().scheduleDir).toBe('Daily')
     })
-    expect(useSettingsStore.getState().scheduleEnabled).toBe(false)
+    expect(useSettingsStore.getState().enabledPlugins).toEqual(['builtin.outline'])
     expect(useSettingsStore.getState().hiddenFolders).toEqual(['.claude'])
-    // Hydration must not echo back a write.
     expect(writeProjectConfig).not.toHaveBeenCalled()
   })
 
@@ -77,7 +76,7 @@ describe('useProjectConfig', () => {
     const [root, json] = writeProjectConfig.mock.calls.at(-1)!
     expect(root).toBe('/v')
     expect(JSON.parse(json)).toEqual({
-      scheduleEnabled: true,
+      enabledPlugins: ['builtin.outline', 'builtin.schedule'],
       scheduleDir: 'Notes',
       hiddenFolders: [],
       assetsDir: 'assets',
@@ -92,7 +91,6 @@ describe('useProjectConfig', () => {
     act(() => {
       useSettingsStore.getState().setScheduleDir('Notes')
     })
-    // give any stray async a tick
     await Promise.resolve()
     expect(writeProjectConfig).not.toHaveBeenCalled()
   })

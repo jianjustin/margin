@@ -3,7 +3,8 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import {
   useSettingsStore,
   projectConfigOf,
-  sanitizeProjectConfig
+  sanitizeProjectConfig,
+  migrateLegacyScheduleEnabled
 } from '@/stores/settingsStore'
 import { normalizeHiddenFolderRules } from '@/lib/folderRules'
 
@@ -27,11 +28,11 @@ describe('project config helpers', () => {
   describe('sanitizeProjectConfig', () => {
     it('keeps valid fields', () => {
       expect(sanitizeProjectConfig({
-        scheduleEnabled: false,
+        enabledPlugins: ['builtin.outline'],
         scheduleDir: 'Daily',
         hiddenFolders: [' .claude ', 'Projects/archive']
       })).toEqual({
-        scheduleEnabled: false,
+        enabledPlugins: ['builtin.outline'],
         scheduleDir: 'Daily',
         hiddenFolders: ['.claude', 'Projects/archive']
       })
@@ -43,7 +44,8 @@ describe('project config helpers', () => {
     })
 
     it('ignores wrong types and junk', () => {
-      expect(sanitizeProjectConfig({ scheduleEnabled: 'yes', scheduleDir: 5 })).toEqual({})
+      expect(sanitizeProjectConfig({ enabledPlugins: 'yes', scheduleDir: 5 })).toEqual({})
+      expect(sanitizeProjectConfig({ enabledPlugins: ['ok', 5] })).toEqual({})
       expect(sanitizeProjectConfig(null)).toEqual({})
       expect(sanitizeProjectConfig('nope')).toEqual({})
       expect(sanitizeProjectConfig({ foo: 'bar' })).toEqual({})
@@ -53,7 +55,7 @@ describe('project config helpers', () => {
   describe('projectConfigOf', () => {
     it('extracts only the project-persisted settings', () => {
       expect(projectConfigOf({
-        scheduleEnabled: true,
+        enabledPlugins: ['builtin.outline', 'builtin.schedule'],
         scheduleDir: '日程',
         hiddenFolders: ['.claude'],
         assetsDir: 'assets',
@@ -61,7 +63,7 @@ describe('project config helpers', () => {
         diagramFitWidth: true,
         mathEnabled: true
       })).toEqual({
-        scheduleEnabled: true,
+        enabledPlugins: ['builtin.outline', 'builtin.schedule'],
         scheduleDir: '日程',
         hiddenFolders: ['.claude'],
         assetsDir: 'assets',
@@ -72,10 +74,33 @@ describe('project config helpers', () => {
     })
   })
 
+  describe('migrateLegacyScheduleEnabled', () => {
+    it('excludes builtin.schedule when the legacy field was false', () => {
+      expect(migrateLegacyScheduleEnabled({ scheduleEnabled: false })).toEqual({
+        enabledPlugins: ['builtin.outline']
+      })
+    })
+
+    it('returns empty when the legacy field was true (defaults already include schedule)', () => {
+      expect(migrateLegacyScheduleEnabled({ scheduleEnabled: true })).toEqual({})
+    })
+
+    it('returns empty when enabledPlugins is already present (new format, no migration needed)', () => {
+      expect(migrateLegacyScheduleEnabled({
+        scheduleEnabled: false,
+        enabledPlugins: ['builtin.outline', 'builtin.schedule']
+      })).toEqual({})
+    })
+
+    it('returns empty when there is no legacy field at all (fresh install)', () => {
+      expect(migrateLegacyScheduleEnabled({})).toEqual({})
+    })
+  })
+
   describe('applyProjectConfig', () => {
     beforeEach(() => {
       useSettingsStore.setState({
-        scheduleEnabled: true,
+        enabledPlugins: ['builtin.outline', 'builtin.schedule'],
         scheduleDir: '日程',
         hiddenFolders: [],
         assetsDir: 'assets',
@@ -88,15 +113,14 @@ describe('project config helpers', () => {
     it('overrides in-memory settings without persisting to localStorage', () => {
       const before = localStorage.getItem('margin.settings')
       useSettingsStore.getState().applyProjectConfig({
-        scheduleEnabled: false,
+        enabledPlugins: ['builtin.outline'],
         scheduleDir: 'X',
         hiddenFolders: ['.claude']
       })
       const s = useSettingsStore.getState()
-      expect(s.scheduleEnabled).toBe(false)
+      expect(s.enabledPlugins).toEqual(['builtin.outline'])
       expect(s.scheduleDir).toBe('X')
       expect(s.hiddenFolders).toEqual(['.claude'])
-      // applyProjectConfig must NOT write the machine-wide default.
       expect(localStorage.getItem('margin.settings')).toBe(before)
     })
 
@@ -104,7 +128,7 @@ describe('project config helpers', () => {
       useSettingsStore.getState().applyProjectConfig({ scheduleDir: 'Only' })
       const s = useSettingsStore.getState()
       expect(s.scheduleDir).toBe('Only')
-      expect(s.scheduleEnabled).toBe(true)
+      expect(s.enabledPlugins).toEqual(['builtin.outline', 'builtin.schedule'])
     })
   })
 })

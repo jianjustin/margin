@@ -6,8 +6,8 @@ import { windowId, EV_SETTINGS_CHANGED } from '@/lib/windowIdentity'
 const SETTINGS_KEY = 'margin.settings'
 
 export interface Settings {
-  /** Whether the 日程 (schedule) feature is enabled. */
-  scheduleEnabled: boolean
+  /** Ids of built-in plugins currently enabled (e.g. `builtin.outline`, `builtin.schedule`). */
+  enabledPlugins: string[]
   /** Vault-relative folder name where daily schedule notes live. */
   scheduleDir: string
   /** Folder names or vault-relative folder paths hidden from the file library. */
@@ -25,7 +25,7 @@ export interface Settings {
 /** The settings persisted per-project in `<vault>/.margin/config.json`. */
 export function projectConfigOf(s: Settings): Settings {
   return {
-    scheduleEnabled: s.scheduleEnabled,
+    enabledPlugins: [...s.enabledPlugins],
     scheduleDir: s.scheduleDir,
     hiddenFolders: normalizeHiddenFolderRules(s.hiddenFolders),
     assetsDir: normalizeConfigPath(s.assetsDir, DEFAULTS.assetsDir),
@@ -54,7 +54,9 @@ export function sanitizeProjectConfig(raw: unknown): Partial<Settings> {
   if (typeof raw !== 'object' || raw === null) return {}
   const obj = raw as Record<string, unknown>
   const out: Partial<Settings> = {}
-  if (typeof obj.scheduleEnabled === 'boolean') out.scheduleEnabled = obj.scheduleEnabled
+  if (Array.isArray(obj.enabledPlugins) && obj.enabledPlugins.every((v) => typeof v === 'string')) {
+    out.enabledPlugins = obj.enabledPlugins as string[]
+  }
   if (typeof obj.scheduleDir === 'string' && obj.scheduleDir.trim()) {
     out.scheduleDir = obj.scheduleDir.trim()
   }
@@ -70,7 +72,7 @@ export function sanitizeProjectConfig(raw: unknown): Partial<Settings> {
 }
 
 const DEFAULTS: Settings = {
-  scheduleEnabled: true,
+  enabledPlugins: ['builtin.outline', 'builtin.schedule'],
   scheduleDir: '日程',
   hiddenFolders: [],
   assetsDir: 'assets',
@@ -79,11 +81,29 @@ const DEFAULTS: Settings = {
   mathEnabled: true
 }
 
+/**
+ * One-time migration for pre-P5.4 `localStorage` payloads: they have a
+ * legacy `scheduleEnabled: boolean` field and no `enabledPlugins`. Translate
+ * `scheduleEnabled: false` into an `enabledPlugins` list with
+ * `builtin.schedule` excluded, so an existing user who had disabled schedule
+ * keeps it disabled after upgrading. A payload that already has
+ * `enabledPlugins` (new format) or has no legacy field at all needs no
+ * migration.
+ */
+export function migrateLegacyScheduleEnabled(parsed: Record<string, unknown>): Partial<Settings> {
+  if ('enabledPlugins' in parsed) return {}
+  if (parsed.scheduleEnabled === false) {
+    return { enabledPlugins: DEFAULTS.enabledPlugins.filter((id) => id !== 'builtin.schedule') }
+  }
+  return {}
+}
+
 function load(): Settings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY)
     if (!raw) return { ...DEFAULTS }
-    return { ...DEFAULTS, ...JSON.parse(raw) }
+    const parsed = JSON.parse(raw) as Record<string, unknown>
+    return { ...DEFAULTS, ...parsed, ...migrateLegacyScheduleEnabled(parsed) }
   } catch {
     return { ...DEFAULTS }
   }
@@ -98,7 +118,7 @@ function persist(s: Settings): void {
 }
 
 interface SettingsState extends Settings {
-  setScheduleEnabled(v: boolean): void
+  setPluginEnabled(id: string, enabled: boolean): void
   setScheduleDir(dir: string): void
   setHiddenFolders(rules: string[]): void
   addHiddenFolder(rule: string): void
@@ -117,10 +137,14 @@ interface SettingsState extends Settings {
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
   ...load(),
-  setScheduleEnabled: (v) => {
-    set({ scheduleEnabled: v })
-    persist({ ...get(), scheduleEnabled: v })
-    void emit(EV_SETTINGS_CHANGED, { scheduleEnabled: v, _source: windowId })
+  setPluginEnabled: (id, enabled) => {
+    const current = get().enabledPlugins
+    const enabledPlugins = enabled
+      ? (current.includes(id) ? current : [...current, id])
+      : current.filter((x) => x !== id)
+    set({ enabledPlugins })
+    persist({ ...get(), enabledPlugins })
+    void emit(EV_SETTINGS_CHANGED, { enabledPlugins, _source: windowId })
   },
   setScheduleDir: (dir) => {
     const clean = dir.trim() || DEFAULTS.scheduleDir
