@@ -94,10 +94,12 @@ const DEFAULTS: Settings = {
  */
 export function migrateLegacyScheduleEnabled(parsed: Record<string, unknown>): Partial<Settings> {
   if ('enabledPlugins' in parsed) return {}
-  if (parsed.scheduleEnabled === false) {
-    return { enabledPlugins: DEFAULTS.enabledPlugins.filter((id) => id !== 'builtin.schedule') }
+  if (typeof parsed.scheduleEnabled !== 'boolean') return {}
+  return {
+    enabledPlugins: parsed.scheduleEnabled
+      ? [...DEFAULTS.enabledPlugins]
+      : DEFAULTS.enabledPlugins.filter((id) => id !== 'builtin.schedule')
   }
-  return {}
 }
 
 function load(): Settings {

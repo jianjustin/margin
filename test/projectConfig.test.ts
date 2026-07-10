@@ -58,6 +58,13 @@ describe('project config helpers', () => {
       })
     })
 
+    it('migrates a legacy scheduleEnabled:true field from vault config too (symmetric with the false case)', () => {
+      expect(sanitizeProjectConfig({ scheduleEnabled: true, scheduleDir: '日程' })).toEqual({
+        enabledPlugins: ['builtin.outline', 'builtin.schedule'],
+        scheduleDir: '日程'
+      })
+    })
+
     it('prefers a valid enabledPlugins field over a coexisting legacy scheduleEnabled field', () => {
       expect(sanitizeProjectConfig({
         scheduleEnabled: false,
@@ -97,8 +104,10 @@ describe('project config helpers', () => {
       })
     })
 
-    it('returns empty when the legacy field was true (defaults already include schedule)', () => {
-      expect(migrateLegacyScheduleEnabled({ scheduleEnabled: true })).toEqual({})
+    it('includes both plugins when the legacy field was true', () => {
+      expect(migrateLegacyScheduleEnabled({ scheduleEnabled: true })).toEqual({
+        enabledPlugins: ['builtin.outline', 'builtin.schedule']
+      })
     })
 
     it('returns empty when enabledPlugins is already present (new format, no migration needed)', () => {
