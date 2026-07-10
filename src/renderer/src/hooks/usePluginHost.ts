@@ -1,5 +1,11 @@
 import { useEffect, useRef } from 'react'
-import { PluginHost, EventBus, createSchedulePlugin, type HostServices } from '@/plugin-api'
+import {
+  PluginHost,
+  EventBus,
+  createSchedulePlugin,
+  createOutlinePlugin,
+  type HostServices
+} from '@/plugin-api'
 import { CommandRegistry } from '@/core/commands/registry'
 import { usePluginUiStore } from '@/stores/pluginUiStore'
 import { useSettingsStore } from '@/stores/settingsStore'
@@ -7,14 +13,25 @@ import { useVaultStore } from '@/stores/vaultStore'
 
 /**
  * Instantiates the app's `PluginHost` (plugin-api/host.ts) with real
- * `HostServices` and activates/deactivates the built-in schedule plugin as
+ * `HostServices`. Activates the built-in outline plugin unconditionally (no
+ * settings toggle exists for it — it's core UI, mirroring how the Outline tab
+ * was always present before P5.3) and the built-in schedule plugin as
  * `scheduleEnabled` toggles (P5.2 — the first real consumer of PluginHost;
  * previously it only existed inside plugin-api's own tests).
  *
+ * The outline-activation effect is declared BEFORE the schedule-activation
+ * effect so `pluginUiStore.sidebarPanels` always gets `builtin.outline`
+ * pushed first — React runs a component's effect setups in declaration
+ * order on mount, and `PluginHost.activate`'s synchronous prefix (which
+ * includes the plugin's own `ctx.ui.registerSidebarPanel` call) fully runs
+ * before the enclosing async function yields at its first `await`, so this
+ * ordering is deterministic, not a race. `OutlineDrawer` renders tabs in
+ * `sidebarPanels` order, so this is what keeps "Outline" as the first tab.
+ *
  * `commands` uses its own `CommandRegistry` instance, mirroring the pattern
- * already used by `useGlobalKeymap` — binding these commands into the global
- * keymap/slash menu is a future task (`可绑快捷键/slash`, plan §5.2), not this
- * one; this hook only makes the registry real and inspectable.
+ * already used by `useGlobalKeymap` — binding contributed commands into the
+ * global keymap/slash menu is a future task, not this one; this hook only
+ * makes the registry real and inspectable.
  *
  * `ui.registerSidebarPanel` renders eagerly into a detached `<div>` (via the
  * panel's own `render()`) and stores it in `pluginUiStore` — OutlineDrawer
@@ -22,10 +39,15 @@ import { useVaultStore } from '@/stores/vaultStore'
  * the panel's React state survives tab switches and is only torn down when
  * this hook deactivates the plugin.
  */
-export function usePluginHost(onOpenToday: (date: Date) => void): void {
+export function usePluginHost(
+  onOpenToday: (date: Date) => void,
+  onJumpToLine: (line: number) => void
+): void {
   const scheduleEnabled = useSettingsStore((s) => s.scheduleEnabled)
   const onOpenTodayRef = useRef(onOpenToday)
   onOpenTodayRef.current = onOpenToday
+  const onJumpToLineRef = useRef(onJumpToLine)
+  onJumpToLineRef.current = onJumpToLine
 
   const hostRef = useRef<PluginHost | null>(null)
   if (!hostRef.current) {
@@ -45,17 +67,17 @@ export function usePluginHost(onOpenToday: (date: Date) => void): void {
           return {
             dispose: () => {
               // Defer unmount() (which drives the panel's nested `createRoot`
-              // root.unmount() in schedulePlugin.tsx) past the microtask
-              // boundary so it escapes the outer root's passive-effect
-              // execution window — calling it synchronously here (this
-              // dispose runs from a useEffect cleanup) makes React log
-              // "Attempted to synchronously unmount a root while React was
-              // already rendering" because ReactDOMRoot.unmount() internally
-              // flushSyncs while React's "flushing passive effects" flag is
-              // still set. removeSidebarPanel stays synchronous — it's a
-              // plain Zustand `set()` unrelated to the React root, and
-              // removing the panel immediately is what makes the tab
-              // disappear from OutlineDrawer without delay.
+              // root.unmount() in schedulePlugin.tsx/outlinePlugin.tsx) past
+              // the microtask boundary so it escapes the outer root's
+              // passive-effect execution window — calling it synchronously
+              // here (this dispose runs from a useEffect cleanup) makes React
+              // log "Attempted to synchronously unmount a root while React
+              // was already rendering" because ReactDOMRoot.unmount()
+              // internally flushSyncs while React's "flushing passive
+              // effects" flag is still set. removeSidebarPanel stays
+              // synchronous — it's a plain Zustand `set()` unrelated to the
+              // React root, and removing the panel immediately is what makes
+              // the tab disappear from OutlineDrawer without delay.
               queueMicrotask(() => unmount())
               usePluginUiStore.getState().removeSidebarPanel(panel.id)
             }
@@ -69,6 +91,14 @@ export function usePluginHost(onOpenToday: (date: Date) => void): void {
     }
     hostRef.current = new PluginHost(services)
   }
+
+  useEffect(() => {
+    const host = hostRef.current!
+    void host.activate(createOutlinePlugin((line) => onJumpToLineRef.current(line)))
+    return () => {
+      void host.deactivate('builtin.outline')
+    }
+  }, [])
 
   useEffect(() => {
     const host = hostRef.current!

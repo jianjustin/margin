@@ -18,7 +18,7 @@ import { useDocumentStore } from '@/stores/documentStore'
  * panel, bypassing `usePluginHost`'s real dispose path).
  */
 function Harness({ onOpenToday }: { onOpenToday: (date: Date) => void }): JSX.Element {
-  usePluginHost(onOpenToday)
+  usePluginHost(onOpenToday, () => {})
   return <OutlineDrawer width={280} />
 }
 
