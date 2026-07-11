@@ -30,6 +30,20 @@ path. Do not paste the key contents into committed files or shell history.
 If the private key is lost, existing installed builds cannot be updated with
 newly signed artifacts from a different keypair.
 
+## Automated Release Flow
+
+The manual flow below is automated end-to-end by:
+
+```bash
+scripts/release-arm-dmg.sh <version> [--notes-file <path>] [--dry-run]
+```
+
+It bumps the three version files, runs the verification gate, builds the
+ad-hoc-signed arm64 DMG with signed updater artifacts, prepares canonical
+assets, verifies the DMG, commits `chore(release): v<version>`, pushes main,
+and creates the GitHub Release with all four assets. `--dry-run` stops before
+commit/push/release.
+
 ## Manual Release Flow
 
 1. Update the version consistently in:
