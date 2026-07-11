@@ -71,8 +71,16 @@ node -e '
     fs.writeFileSync(file, JSON.stringify(json, null, 2) + "\n")
   }
 ' "$VERSION"
-# Only the [package] version on line-start; dependency versions are indented or inline.
-sed -i '' "0,/^version = \".*\"/s//version = \"$VERSION\"/" src-tauri/Cargo.toml
+# First line-start `version = "…"` is the [package] version; dependency
+# versions are inline tables or bare strings, never line-start `version =`.
+# (node, not sed: BSD sed lacks GNU's 0,/re/ first-match addressing.)
+node -e '
+  const fs = require("fs")
+  const version = process.argv[1]
+  const file = "src-tauri/Cargo.toml"
+  const toml = fs.readFileSync(file, "utf8")
+  fs.writeFileSync(file, toml.replace(/^version = ".*"$/m, `version = "${version}"`))
+' "$VERSION"
 grep -q "^version = \"$VERSION\"" src-tauri/Cargo.toml || fail "Cargo.toml bump failed"
 echo "✓ package.json / tauri.conf.json / Cargo.toml"
 
