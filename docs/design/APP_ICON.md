@@ -4,15 +4,18 @@ This document records the Margin app icon source, visual direction, and export f
 
 ## Design Direction
 
-The icon should read as a focused writing tool in the Dock, not as a generic
-letter badge.
+The icon should read as a minimal note-taking / knowledge-base tool in the
+Dock, not as a generic letter badge.
 
-- Base: macOS-style dark squircle, matching Margin's quiet dark UI.
-- Symbol: a warm document surface with a folded page corner.
-- Brand cue: a gold vertical margin guide, using the product accent color family.
-- Reference posture: Obsidian's icon was used only as a quality reference for a
-  dark base, large centered subject, dimensional facets, and soft shadow. Margin
-  should remain visually distinct and avoid Obsidian's purple crystal silhouette.
+- Base: white squircle with a faint warm-gray hairline (`#E7E3D9`), inset
+  2px so the 4px stroke survives the transparent corner clip.
+- Symbol: a rounded ink bar (`#1E1C17`) as the margin line, with three
+  solid gold dots (`#C79A3B`) — two riding the bar, one to the right —
+  joined by two gold arcs. The linked dots read as connected notes.
+- Palette: exactly four values — `#FFFFFF`, `#E7E3D9`, `#1E1C17`,
+  `#C79A3B`. No gradients, no shadows, no filters.
+- Style reference: VS Code's single bold centered glyph on a plain base.
+  Spec: `docs/superpowers/specs/2026-07-11-app-icon-redesign-design.md`.
 
 ## Geometry
 
