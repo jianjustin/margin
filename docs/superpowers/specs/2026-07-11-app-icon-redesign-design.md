@@ -22,7 +22,7 @@
 
 ### 几何规格(1024 × 1024 画布)
 
-沿用现有导出管线的 squircle 几何,`build/APP_ICON.md` 中的导出脚本无需改动:
+沿用现有导出管线的 squircle 几何,`docs/design/APP_ICON.md` 中的导出脚本无需改动:
 
 | 元素 | 规格 |
 | --- | --- |
